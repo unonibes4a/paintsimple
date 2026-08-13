@@ -1,0 +1,3803 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>PaintJS</title>
+<script src="https://evanw.github.io/glfx.js/glfx.js"></script>
+<script type="module">
+import { removeBackground } from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.6.0/+esm';
+window.removeBackground = removeBackground;
+</script>
+<style>
+ 
+/* Estilos para el Popup Modal de Sesiones */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.oculto { display: none !important; }
+
+.modal-panel {
+  background: #2b2b2b;
+  border: 1px solid #444;
+  border-radius: 8px;
+  width: 460px;
+  max-width: 92vw;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #ddd;
+}
+
+.modal-header {
+  padding: 10px 14px;
+  background: #3a3a3a;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.modal-body { padding: 12px; }
+
+.item-sesion {
+  background: #1e1e1e;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #3d3d3d;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-sesion-info { display: flex; flex-direction: column; gap: 2px; }
+.item-sesion-titulo { font-weight: bold; color: #e2a114; font-size: 12px; }
+.item-sesion-sub { font-size: 10px; color: #aaa; }
+.item-sesion-acciones { display: flex; gap: 4px; }
+
+.modal-footer {
+  padding: 10px 12px;
+  background: #333;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #1a1a1a;
+}
+
+
+
+
+
+
+
+
+
+
+::-webkit-scrollbar {
+  width: 10px;
+  border-radius: 45px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #8f8f8f; 
+}
+ 
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #252525; 
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3c3d; 
+}
+
+ .btnCl{
+    color: #e9e9e9;
+    display: flex;
+    direction: row;
+    justify-content: center;
+    align-items: center;
+    align-content: center;
+    text-align: center;
+    font-size: 10px;
+    background-color: #3a3c3d;
+    min-width: 40px;    
+    height: 40px;
+    border-radius: 9px;
+    cursor: pointer;
+ }
+ .btnCl:hover { background:#2c5e91; }
+ .btnCl.activo { background:#3d7ab5; color:#fff; } 
+
+  
+
+ 
+ .clLayerBt{
+    color: #e9e9e9;
+    display: flex;
+    direction: row;
+    justify-content: center;
+    align-items: center;
+    align-content: center;
+    text-align: center;
+    font-size: 10px;
+    background-color: #3a3c3db4;
+    min-width: 25px;    
+    height: 25px;
+    border-radius: 4px;
+    cursor: pointer;
+ }
+ .clLayerBt:hover { background:#2c5e91; }
+ .clLayerBt.activo { background:#3d7ab5; color:#fff; } 
+
+</style>
+<style>
+* { box-sizing: border-box; user-select: none; }
+html, body { margin:0; height:100%; background:#2b2b2b; color:#ddd; font-family: -apple-system, Segoe UI, sans-serif; font-size:13px; }
+#app { display:flex; flex-direction:column; height:100%; }
+#barraSuperior { display:flex; align-items:center; gap:14px; padding:8px 12px; background:#3a3a3a; border-bottom:1px solid #1a1a1a; flex-wrap:wrap; }
+#barraSuperior .grupo { display:flex; align-items:center; gap:6px; }
+#barraSuperior label { color:#aaa; } 
+input[type=range] { width:100px; accent-color:#3d7ab5; }
+#areaTrabajo { flex:1; display:flex; overflow:hidden; }
+#panelHerramientas { width:56px; background:#333; border-right:1px solid #1a1a1a; display:flex; flex-direction:column; gap:6px; padding:8px; }
+#panelHerramientas button {    }
+#contenedorLienzo { flex:1; overflow:auto; background:#1e1e1e; display:flex; align-items:flex-start; justify-content:flex-start; padding:40px; }
+#mundo { position:relative; box-shadow:0 0 0 1px #000; }
+#lienzoComposicion { display:block; background-image: repeating-conic-gradient(#7d7d7d 0% 25%, #a3a3a3 0% 50%); background-size:20px 20px; cursor:none; }
+#previsualizacionPincel { position:absolute; top:0; left:0; border:1px solid #fff; border-radius:50%; pointer-events:none; transform:translate(-50%,-50%); mix-blend-mode:difference; display:none; z-index:5; }
+#panelCapas { width:230px; background:#333; border-left:1px solid #1a1a1a; display:flex; flex-direction:column; }
+#panelCapas .encabezado { padding:8px; display:flex; gap:5px; border-bottom:1px solid #1a1a1a; flex-wrap:wrap; }
+.menu-container { position:fixed; width:300px; max-height:82vh; background:rgba(25,25,25,0.97); border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.6); color:#fff; display:flex; flex-direction:column; overflow:hidden; z-index:50; border:1px solid rgba(255,255,255,0.15); }
+.menu-container.oculto { display:none; }
+.menu-header { padding:10px 12px; background:#3a3a3a; cursor:move; font-weight:bold; font-size:13px; user-select:none; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center; }
+.menu-header .cerrar { cursor:pointer; font-size:15px; color:#ccc; }
+.menu-content { padding:10px; display:flex; flex-direction:column; gap:6px; overflow-y:auto; flex-grow:1; }
+.collapsible-section { border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:6px; }
+.collapsible-section:last-child { border-bottom:none; }
+.section-header { display:flex; justify-content:space-between; align-items:center; padding:7px 6px; background:rgba(255,255,255,0.04); border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; user-select:none; }
+.section-header:hover { background:rgba(255,255,255,0.08); }
+.section-content { padding:8px 4px; display:flex; flex-direction:column; gap:9px; }
+.section-content.colapsado { display:none; }
+.toggle-icon { font-size:14px; color:#888; }
+.control-group { display:flex; flex-direction:column; gap:4px; }
+.control-group label { font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer; }
+.slider-wrapper { display:flex; flex-direction:column; gap:4px; font-size:11px; color:#aaa; }
+.slider-header { display:flex; justify-content:space-between; color:#ccc; font-size:11px; }
+.ue-slider-row { display:flex; align-items:center; gap:6px; width:100%; }
+.ue-slider-row input[type=range] { flex:1; margin:0; -webkit-appearance:none; appearance:none; height:4px; background:#252525; border-radius:3px; outline:none; accent-color:#e2a114; }
+.ue-slider-row input[type=range]::-webkit-slider-runnable-track { height:4px; background:#252525; border-radius:3px; }
+.ue-slider-row input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:#e2a114; border:1px solid #ffcf5c; margin-top:-4.5px; cursor:pointer; transition:background 0.15s; }
+.ue-slider-row input[type=range]::-webkit-slider-thumb:hover { background:#ffc233; }
+.ue-slider-row input[type=range]::-moz-range-track { height:4px; background:#252525; border-radius:3px; }
+.ue-slider-row input[type=range]::-moz-range-thumb { width:13px; height:13px; border-radius:50%; background:#e2a114; border:1px solid #ffcf5c; cursor:pointer; }
+.ue-slider-value { font-family:monospace; font-size:11px; color:#888; min-width:32px; text-align:right; }
+.ue-reset-btn { background:transparent; border:none; color:#555; cursor:pointer; width:18px; height:18px; padding:0; font-size:13px; opacity:0; pointer-events:none; transition:opacity 0.15s, color 0.15s; }
+.ue-reset-btn.modified { opacity:1; pointer-events:auto; color:#e2a114; }
+.ue-reset-btn.modified:hover { color:#ffc233; background:rgba(255,255,255,0.05); }
+.ue-input-row { display:flex; gap:6px; align-items:center; }
+.ue-input-row input[type=text] { flex:1; background:#1a1a1a; border:1px solid #333; color:#eee; padding:5px 8px; font-size:11px; border-radius:4px; outline:none; transition:border-color 0.2s, box-shadow 0.2s; }
+.ue-input-row input[type=text]:focus { border-color:#e2a114; }
+.ue-input-row input[type=text].valido { border-color:#2e7d32; box-shadow:0 0 3px rgba(46,125,50,0.5); }
+.ue-input-row input[type=text].invalido { border-color:#c62828; box-shadow:0 0 3px rgba(198,40,40,0.5); }
+.btn-filtro-archivo { position:relative; overflow:hidden; }
+.btn-filtro-archivo input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+select.select-filtro { background:#1a1a1a; color:#eee; border:1px solid #333; border-radius:4px; padding:5px; font-size:11px; width:100%; outline:none; }
+.btn-filtro { background:#4a4a4a; color:#ddd; border:1px solid #1a1a1a; border-radius:4px; padding:6px; cursor:pointer; font-size:11px; width:100%; text-align:center; }
+.btn-filtro:hover { background:#5a5a5a; }
+.toggle-btn-flotante { position:fixed; z-index:20; }
+#lienzoCurvas { width:100%; display:block; background:#141414; border:1px solid #2a2a2a; border-radius:4px; touch-action:none; cursor:crosshair; }
+.tabsCurvas { display:flex; gap:4px; margin-bottom:6px; }
+.tabsCurvas button { flex:1; padding:4px; font-size:11px; border:1px solid #2a2a2a; border-radius:4px; background:#2a2a2a; cursor:pointer; }
+#loadingIA { display:none; font-size:11px; color:#e2a114; text-align:center; padding:6px; background:rgba(0,0,0,0.4); border-radius:4px; border:1px solid rgba(226,161,20,0.3); }
+#lienzoCurvas { width:100%; display:block; background:#141414; border:1px solid #2a2a2a; border-radius:4px; touch-action:none; cursor:crosshair; }
+.tabsCurvas { display:flex; gap:4px; margin-bottom:6px; }
+.tabsCurvas button { flex:1; padding:4px; font-size:11px; border:1px solid #2a2a2a; border-radius:4px; background:#2a2a2a; cursor:pointer; }
+#listaCapas { flex:1; overflow-y:auto; }
+.itemCapa { padding:7px 8px; border-bottom:1px solid #2a2a2a; cursor:pointer; }
+.itemCapa.activa { background:#3d7ab5; }
+.itemCapa .fila { display:flex; align-items:center; gap:6px; }
+.itemCapa .nombre { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.itemCapa .botones { display:flex; gap:3px; margin-top:5px; }
+.itemCapa .botones button { padding:2px 5px; font-size:11px; }
+#zoomTexto { min-width:44px; text-align:center; display:inline-block; }
+</style>
+
+<style>
+    input[type="range"] {
+  accent-color: #343536; /* Cambia esto al color que quieras */
+  
+  height: 10px; /* Grosor */
+  cursor: pointer;
+}
+ 
+</style>
+</head>
+<body>
+ 
+
+</div>
+
+<div id="app">
+  <div id="barraSuperior">
+    <div class="grupo">
+      <button id="btnNuevoDoc">Documento</button>
+      <span id="contenedorCargarImagenCapa"></span>
+    </div>
+    <div class="grupo">
+      <label>Color</label>
+      <input type="color" id="inputColor" value="#ffffff">
+    </div>
+    <div class="grupo">
+      <label>Tamaño</label>
+      <input type="range" id="rangoTamano" min="1" max="3000" value="30">
+      <span id="textoTamano">30</span>
+    </div>
+    <div class="grupo">
+    <label>Rotación</label>
+    <input type="range" id="rangoRotacion" min="0" max="360" value="0">
+    <span id="textoRotacion">0°</span>
+    </div>
+    <div class="grupo">
+      <label>Dureza</label>
+      <input type="range" id="rangoDureza" min="0" max="1" step="0.05" value="1.2">
+    </div>
+    <div class="grupo">
+      <label>Fuerza</label>
+      <input type="range" id="rangoFuerza" min="0.02" max="1" step="0.02" value="1">
+    </div>
+    <div class="grupo">
+      <label>Espaciado</label>
+      <input type="range" id="rangoEspaciado" min="0.02" max="2" step="0.02" value="0.25">
+    </div>
+    <div class="grupo">
+      <button id="btnZoomMenos">-</button>
+      <span id="zoomTexto">100%</span>
+      <button id="btnZoomMas">+</button>
+      <button id="btnZoom100">100%</button>
+      <button id="btnZoomAjustar">Ajustar</button>
+    </div>
+    <div class="grupo">
+      <button id="btnAbrirFiltros">Filtros</button>
+    </div>
+    <div class="grupo">
+      <button id="btnDeshacer">Deshacer</button>
+      <button id="btnRehacer">Rehacer</button>
+      <button id="btnExportar">Exportar PNG</button>
+    </div>
+    <div class="grupo">
+ 
+</div>
+    <div class="grupo">
+  <button id="btnGuardarJSON">Guardar JSON</button>
+  <button id="btnCargarJSON" class="btn-filtro-archivo">
+    Cargar JSON
+    <input type="file" id="inputCargarJSON" accept=".json">
+  </button>
+  
+</div>
+<div class="grupo">
+  <input type="text" id="inputNombreSesionRapida" placeholder="Nombre de sesión..." style="background:#1a1a1a; border:1px solid #444; color:#fff; padding:5px 8px; font-size:11px; border-radius:4px; width:130px;">
+  <button id="btnGuardarSesionRapida"> Guardar Sesión</button>
+  <button id="btnAbrirModalSesiones"> Sesiones Guardadas</button>
+</div>
+  </div>
+  <div id="areaTrabajo">
+    <div id="panelHerramientas">
+      <button id="herr_pincel" title="Pincel (B)">🖌</button>
+      <button id="herr_borrador" title="Borrador (E)">__</button>
+      <button id="herr_clonar" title="Clonar (C) - Alt+click fija origen">|=|</button>
+      <button id="herr_sello" title="Sello con imagen (S)">🖼</button>
+      <button id="herr_mover" title="Mover capa (M)">✥</button>
+      <button id="herr_sel_rect" title="Selección Rectangular (R)">☐</button>
+      <button id="herr_sel_lasso" title="Mano Libre / Lasso (L) - Enter para cerrar">⬡</button>
+    </div>
+    <div id="contenedorLienzo">
+      <div id="mundo">
+        <canvas id="lienzoComposicion"></canvas>
+        <div id="previsualizacionPincel"></div>
+      </div>
+    </div>
+    <div id="panelCapas">
+      <div class="encabezado">
+        <button id="btnNuevaCapa">Nueva</button>
+        <button id="btnDuplicarCapa">Duplicar</button>
+        <button id="btnEliminarCapa">Eliminar</button>
+        <button id="btnSubirCapa">Subir</button>
+        <button id="btnBajarCapa">Bajar</button>
+        <button id="btnRedimensionarCapa">Redimensionar</button>
+        <button id="btnRotarCapa">Rotar</button>
+        <span id="contenedorCargarSello"></span>
+      </div>
+      <div id="listaCapas"></div>
+    </div>
+  </div>
+</div>
+
+ 
+<!-- sesiones modal ini -->
+ <!-- Modal Emergente para Buscar y Restaurar Sesiones -->
+<div id="modalSesiones" class="modal-overlay oculto">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <span> Gestor de Sesiones de Trabajo</span>
+      <span id="cerrarModalSesiones" class="cerrar" style="cursor:pointer; font-size:16px;">✕</span>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Buscador e indicador -->
+      <div style="display:flex; gap:6px; margin-bottom:10px;">
+        <input type="text" id="txtBuscarSesion" placeholder=" Buscar sesión por nombre o fecha..." style="flex:1; background:#1a1a1a; border:1px solid #444; color:#fff; padding:6px 10px; border-radius:4px; font-size:11px;">
+        <button id="btnRestaurarUltimaModal" class="btnCl" style="background:#2e7d32; font-size:10px;" title="Cargar automáticamente la última sesión en la que trabajaste"> Última Trabajada</button>
+      </div>
+
+      <!-- Lista dinámica de sesiones guardadas -->
+      <div id="listaSesionesLocal" style="display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto;">
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button id="btnBorrarTodasSesiones" class="btnCl" style="background:#a32a2a;"> Borrar Todas</button>
+      <button id="btnCerrarModalFooter" class="btnCl">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- sesiones modal final  -->
+
+<script> 
+
+
+class ModosMezcla {
+  constructor(opciones = {}) {
+    this.modo = opciones.modo || 'normal';
+    this.opacidad = opciones.opacidad || 1;
+  }
+
+  mezclar(capaSuperior, capaInferior, modo = null, opacidad = null, guia = 'inferior') {
+    if (!capaSuperior || !capaInferior) return null;
+    
+    const modoFinal = modo || this.modo;
+    const opFinal = opacidad !== null ? opacidad : this.opacidad;
+    
+    let w, h, xBase, yBase;
+
+    if (guia === 'superior') {
+      // Toma las condiciones de la Capa Seleccionada (Activa)
+      w = capaSuperior.ancho;
+      h = capaSuperior.alto;
+      xBase = capaSuperior.x;
+      yBase = capaSuperior.y;
+    } else {
+      // Toma las condiciones de la Capa de Abajo (Inferior)
+      w = capaInferior.ancho;
+      h = capaInferior.alto;
+      xBase = capaInferior.x;
+      yBase = capaInferior.y;
+    }
+    
+    const tempSup = document.createElement('canvas');
+    tempSup.width = w; tempSup.height = h;
+    const ctxSup = tempSup.getContext('2d');
+    ctxSup.drawImage(capaSuperior.canvas, capaSuperior.x - xBase, capaSuperior.y - yBase);
+
+    const tempInf = document.createElement('canvas');
+    tempInf.width = w; tempInf.height = h;
+    const ctxInf = tempInf.getContext('2d');
+    ctxInf.drawImage(capaInferior.canvas, capaInferior.x - xBase, capaInferior.y - yBase);
+
+    const dS = ctxSup.getImageData(0, 0, w, h).data;
+    const dI = ctxInf.getImageData(0, 0, w, h).data;
+    const resultado = new Uint8ClampedArray(dS.length);
+    
+    for (let i = 0; i < dS.length; i += 4) {
+      const r1 = dS[i] / 255, g1 = dS[i+1] / 255, b1 = dS[i+2] / 255, a1 = dS[i+3] / 255;
+      const r2 = dI[i] / 255, g2 = dI[i+1] / 255, b2 = dI[i+2] / 255, a2 = dI[i+3] / 255;
+      
+      const alfaFinal = a1 * opFinal + a2 * (1 - a1 * opFinal);
+      let r, g, b;
+      
+      switch (modoFinal) {
+        case 'multiply': r = r1 * r2; g = g1 * g2; b = b1 * b2; break;
+        case 'screen':
+          r = 1 - (1 - r1) * (1 - r2);
+          g = 1 - (1 - g1) * (1 - g2);
+          b = 1 - (1 - b1) * (1 - b2);
+          break;
+        case 'overlay':
+          r = r2 < 0.5 ? 2 * r1 * r2 : 1 - 2 * (1 - r1) * (1 - r2);
+          g = g2 < 0.5 ? 2 * g1 * g2 : 1 - 2 * (1 - g1) * (1 - g2);
+          b = b2 < 0.5 ? 2 * b1 * b2 : 1 - 2 * (1 - b1) * (1 - b2);
+          break;
+        case 'hard_light':
+          r = r1 < 0.5 ? 2 * r1 * r2 : 1 - 2 * (1 - r1) * (1 - r2);
+          g = g1 < 0.5 ? 2 * g1 * g2 : 1 - 2 * (1 - g1) * (1 - g2);
+          b = b1 < 0.5 ? 2 * b1 * b2 : 1 - 2 * (1 - b1) * (1 - b2);
+          break;
+        case 'soft_light':
+          r = r1 * (r2 + (r1 - 0.5) * (1 - r2));
+          g = g1 * (g2 + (g1 - 0.5) * (1 - g2));
+          b = b1 * (b2 + (b1 - 0.5) * (1 - b2));
+          break;
+        case 'difference': r = Math.abs(r1 - r2); g = Math.abs(g1 - g2); b = Math.abs(b1 - b2); break;
+        case 'exclusion':
+          r = r1 + r2 - 2 * r1 * r2;
+          g = g1 + g2 - 2 * g1 * g2;
+          b = b1 + b2 - 2 * b1 * b2;
+          break;
+        case 'lighten': r = Math.max(r1, r2); g = Math.max(g1, g2); b = Math.max(b1, b2); break;
+        case 'darken': r = Math.min(r1, r2); g = Math.min(g1, g2); b = Math.min(b1, b2); break;
+        case 'normal':
+        default:
+          r = r1 * a1 * opFinal + r2 * a2 * (1 - a1 * opFinal);
+          g = g1 * a1 * opFinal + g2 * a2 * (1 - a1 * opFinal);
+          b = b1 * a1 * opFinal + b2 * a2 * (1 - a1 * opFinal);
+      }
+      
+      resultado[i] = Math.round(Math.max(0, Math.min(255, r * 255)));
+      resultado[i+1] = Math.round(Math.max(0, Math.min(255, g * 255)));
+      resultado[i+2] = Math.round(Math.max(0, Math.min(255, b * 255)));
+      resultado[i+3] = Math.round(Math.max(0, Math.min(255, alfaFinal * 255)));
+    }
+    
+    return {
+      imageData: new ImageData(resultado, w, h),
+      ancho: w,
+      alto: h,
+      x: xBase,
+      y: yBase
+    };
+  }
+
+  aplicarACapa(capaSuperior, capaInferior, modo = null, opacidad = null) {
+    const resultado = this.mezclar(capaSuperior, capaInferior, modo, opacidad);
+    if (!resultado) return null;
+    
+    const w = Math.min(capaSuperior.ancho, capaInferior.ancho);
+    const h = Math.min(capaSuperior.alto, capaInferior.alto);
+    
+    const nuevaCapa = new Capa(w, h, `Blend ${modo || this.modo}`);
+    nuevaCapa.ctx.putImageData(resultado, 0, 0);
+    return nuevaCapa;
+  }
+
+  rgbToHsl(r, g, b) {
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const diff = max - min;
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (diff > 0.0001) {
+      s = l < 0.5 ? diff / (max + min) : diff / (2 - max - min);
+      if (max === r) h = ((g - b) / diff) % 6;
+      else if (max === g) h = (b - r) / diff + 2;
+      else h = (r - g) / diff + 4;
+      h /= 6;
+      if (h < 0) h += 1;
+    }
+    return { h, s, l };
+  }
+
+  hslToRgb(h, s, l) {
+    let r, g, b;
+    if (s < 0.0001) {
+      r = g = b = l;
+    } else {
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = this.hueToRgb(p, q, h + 1/3);
+      g = this.hueToRgb(p, q, h);
+      b = this.hueToRgb(p, q, h - 1/3);
+    }
+    return { r, g, b };
+  }
+
+  hueToRgb(p, q, t) {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  }
+
+  getModosDisponibles() {
+    return ['normal', 'multiply', 'screen', 'overlay', 'hard_light', 'soft_light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity', 'lighten', 'darken'];
+  }
+}
+
+ 
+ function crearBotonesMezcla() {
+  const panelCapas = document.getElementById('panelCapas');
+  
+  const contenedorMezcla = document.createElement('div');
+  contenedorMezcla.style.cssText = 'display:flex; gap:3px; flex-wrap:wrap; padding:4px 8px; border-top:1px solid #1a1a1a;';
+  
+  // Select de Modo de Mezcla
+  const selectModo = document.createElement('select');
+  selectModo.style.cssText = 'background:#1a1a1a; color:#eee; border:1px solid #444; border-radius:4px; padding:4px; font-size:10px;';
+  
+  const modos = ['normal', 'multiply', 'screen', 'overlay', 'hard_light', 'soft_light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity', 'lighten', 'darken'];
+  modos.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m.charAt(0).toUpperCase() + m.slice(1);
+    selectModo.appendChild(opt);
+  });
+
+  // Select de Capa Guía (Tamaño destino)
+  const selectGuia = document.createElement('select');
+  selectGuia.title = 'Regla para el tamaño de la fusión';
+  selectGuia.style.cssText = 'background:#1a1a1a; color:#888; border:1px solid #444; border-radius:4px; padding:4px; font-size:10px;';
+  
+  const opcionesGuia = [
+    { v: 'inferior', t: 'Tamaño: Capa Abajo' },
+    { v: 'superior', t: 'Tamaño: Capa Activa' },
+    { v: 'union', t: 'Tamaño: Combinar Ambas' }
+  ];
+  opcionesGuia.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.v;
+    opt.textContent = o.t;
+    selectGuia.appendChild(opt);
+  });
+  
+  // Opacidad Slider
+  const sliderOpacidad = document.createElement('input');
+  sliderOpacidad.type = 'range';
+  sliderOpacidad.min = 0; sliderOpacidad.max = 1; sliderOpacidad.step = 0.05; sliderOpacidad.value = 1;
+  sliderOpacidad.style.cssText = 'width:50px; accent-color:#e2a114;';
+  
+  const labelOpacidad = document.createElement('span');
+  labelOpacidad.style.cssText = 'color:#aaa; font-size:10px; min-width:28px;';
+  labelOpacidad.textContent = '100%';
+  
+  sliderOpacidad.addEventListener('input', () => {
+    labelOpacidad.textContent = Math.round(sliderOpacidad.value * 100) + '%';
+  });
+  
+  // Botón Blend (Crea una nueva capa combinada)
+  const btnAplicar = document.createElement('button');
+  btnAplicar.className = 'btnCl';
+  btnAplicar.textContent = 'Blend';
+  btnAplicar.style.cssText = 'font-size:9px; padding:0 6px; height:26px;';
+  btnAplicar.addEventListener('click', () => {
+    app.mezclarCapas(selectModo.value, parseFloat(sliderOpacidad.value));
+  });
+  
+  // Botón Merge (Fusiona hacia abajo)
+  const btnMezclarFusionar = document.createElement('button');
+  btnMezclarFusionar.className = 'btnCl';
+  btnMezclarFusionar.textContent = 'Merge';
+  btnMezclarFusionar.style.cssText = 'font-size:9px; padding:0 6px; height:26px; background:#2e7d32;';
+  
+  
+  btnMezclarFusionar.addEventListener('click', () => {
+    const modo = selectModo.value;
+    const opacidad = parseFloat(sliderOpacidad.value);
+    
+    if (app.indiceActiva <= 0) {
+      alert('Selecciona una capa que tenga otra debajo');
+      return;
+    }
+    
+    const capaSuperior = app.capas[app.indiceActiva];
+    const capaInferior = app.capas[app.indiceActiva - 1];
+    
+    // Comprobar si hay diferencia de tamaño o posición
+    const diferenTamanos = (capaSuperior.ancho !== capaInferior.ancho) || 
+                           (capaSuperior.alto !== capaInferior.alto) ||
+                           (capaSuperior.x !== capaInferior.x) ||
+                           (capaSuperior.y !== capaInferior.y);
+    
+    let guia = 'inferior'; // Valor predeterminado (Capa de abajo)
+
+    // PREGUNTAR AL USUARIO CON CONFIRM()
+    if (diferenTamanos) {
+      const respuesta = confirm(
+        '📐 Las capas tienen tamaños o posiciones distintas.\n\n' +
+        '¿Qué dimensiones deseas usar como guía para la fusión?\n\n' +
+        '• [ACEPTAR]: Usar la CAPA SELECCIONADA (Activa).\n' +
+        '• [CANCELAR]: Usar la CAPA DE ABAJO (Inferior).'
+      );
+      
+      // Si presiona Aceptar -> Capa Superior | Si presiona Cancelar -> Capa Inferior
+      guia = respuesta ? 'superior' : 'inferior';
+    }
+    
+    app.historial.registrarEstadoEstructural(app);
+    
+    const mezclador = new ModosMezcla({ modo, opacidad });
+    const resultado = mezclador.mezclar(capaSuperior, capaInferior, modo, opacidad, guia);
+    
+    if (resultado) {
+      // Aplicar el nuevo tamaño y posición resultantes a la capa inferior
+      capaInferior.redimensionar(resultado.ancho, resultado.alto);
+      capaInferior.x = resultado.x;
+      capaInferior.y = resultado.y;
+      
+      capaInferior.ctx.putImageData(resultado.imageData, 0, 0);
+      
+      // Eliminar la capa superior que fue fusionada
+      app.capas.splice(app.indiceActiva, 1);
+      app.indiceActiva = Math.max(0, app.indiceActiva - 1);
+      app.actualizarPanelCapas();
+      app.renderizar();
+    }
+  });
+  
+  contenedorMezcla.appendChild(selectModo);
+  contenedorMezcla.appendChild(selectGuia);
+  contenedorMezcla.appendChild(sliderOpacidad);
+  contenedorMezcla.appendChild(labelOpacidad);
+  contenedorMezcla.appendChild(btnAplicar);
+  contenedorMezcla.appendChild(btnMezclarFusionar);
+  
+  panelCapas.insertBefore(contenedorMezcla, panelCapas.querySelector('#listaCapas'));
+}
+
+(function fixUndoRedo() {
+  const originalKeydown = window.addEventListener;
+  
+  window.addEventListener('keydown', function(ev) {
+    const tecla = ev.key.toLowerCase();
+    const isInput = ev.target.tagName === 'INPUT' && ev.target.type === 'text';
+    
+    if (isInput) return;
+    
+    if (ev.ctrlKey && !ev.shiftKey && tecla === 'z') {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (typeof app !== 'undefined' && app.deshacer) {
+        app.deshacer();
+      }
+      return;
+    }
+    
+    if ((ev.ctrlKey && ev.shiftKey && tecla === 'z') || (ev.ctrlKey && tecla === 'y')) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (typeof app !== 'undefined' && app.rehacer) {
+        app.rehacer();
+      }
+      return;
+    }
+  }, true);
+
+  const btnDeshacer = document.getElementById('btnDeshacer');
+  const btnRehacer = document.getElementById('btnRehacer');
+  
+  if (btnDeshacer) {
+    btnDeshacer.addEventListener('click', function() {
+      if (typeof app !== 'undefined' && app.deshacer) {
+        app.deshacer();
+      }
+    });
+  }
+  
+  if (btnRehacer) {
+    btnRehacer.addEventListener('click', function() {
+      if (typeof app !== 'undefined' && app.rehacer) {
+        app.rehacer();
+      }
+    });
+  }
+})();
+
+setTimeout(() => {
+  if (typeof app !== 'undefined') {
+    crearBotonesMezcla();
+    console.log('Blend modes activated');
+    console.log('Available modes:', new ModosMezcla().getModosDisponibles());
+  }
+}, 2000);
+
+ 
+ 
+class GestorStorageIDB {
+  constructor() {
+    this.dbName = 'PaintJS_BaseDatos';
+    this.storeName = 'sesiones';
+    this.db = null;
+  }
+
+  async abrir() {
+    if (this.db) return this.db;
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
+      request.onupgradeneeded = ev => {
+        const db = ev.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { keyPath: 'id' });
+        }
+      };
+      request.onsuccess = ev => {
+        this.db = ev.target.result;
+        resolve(this.db);
+      };
+      request.onerror = ev => reject(ev.target.error);
+    });
+  }
+
+  async guardar(sesionObj) {
+    const db = await this.abrir();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this.storeName, 'readwrite');
+      const store = tx.objectStore(this.storeName);
+      const req = store.put(sesionObj);
+      req.onsuccess = () => resolve(true);
+      req.onerror = ev => reject(ev.target.error);
+    });
+  }
+
+  async obtenerTodas() {
+    const db = await this.abrir();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this.storeName, 'readonly');
+      const store = tx.objectStore(this.storeName);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const lista = req.result || [];
+        const obj = {};
+        lista.forEach(s => obj[s.id] = s);
+        resolve(obj);
+      };
+      req.onerror = ev => reject(ev.target.error);
+    });
+  }
+
+  async eliminar(id) {
+    const db = await this.abrir();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this.storeName, 'readwrite');
+      const store = tx.objectStore(this.storeName);
+      const req = store.delete(id);
+      req.onsuccess = () => resolve(true);
+      req.onerror = ev => reject(ev.target.error);
+    });
+  }
+
+  async vaciar() {
+    const db = await this.abrir();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this.storeName, 'readwrite');
+      const store = tx.objectStore(this.storeName);
+      const req = store.clear();
+      req.onsuccess = () => resolve(true);
+      req.onerror = ev => reject(ev.target.error);
+    });
+  }
+}
+
+ 
+
+    class GestorSesionesManager {
+  constructor(app, storageIDB) {
+    this.app = app;
+    this.storage = storageIDB || new GestorStorageIDB();
+    
+    // Referencias a los elementos del DOM
+    this.modal = document.getElementById('modalSesiones');
+    this.inputBuscar = document.getElementById('txtBuscarSesion');
+    this.contenedorLista = document.getElementById('listaSesionesLocal');
+    
+    // Inicializar eventos de la interfaz
+    this.enlazarEventos();
+  }
+
+  // 1. Obtener todas las sesiones desde IndexedDB
+  async obtenerSesiones() {
+    return await this.storage.obtenerTodas();
+  }
+
+  // 2. Guardar sesión actual en IndexedDB
+  async guardarSesionActual(nombreCustom) {
+    const estado = await this.app.exportarEstado();
+    const ahora = new Date();
+    const fechaFormateada = ahora.toLocaleDateString() + ' ' + ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    const titulo = (nombreCustom && nombreCustom.trim()) ? nombreCustom.trim() : `Sesión ${fechaFormateada}`;
+    const id = 'sesion_' + Date.now();
+
+    const sesionObj = {
+      id,
+      titulo,
+      fechaUltimoTrabajo: fechaFormateada,
+      timestamp: Date.now(),
+      datos: estado
+    };
+
+    try {
+      await this.storage.guardar(sesionObj);
+      localStorage.setItem('paintjs_ultima_sesion_id', id);
+      return true;
+    } catch (e) {
+      alert('Error al guardar en IndexedDB: ' + e.message);
+      return false;
+    }
+  }
+
+  // 3. Restaurar una sesión específica por su ID
+  async restaurarSesionPorId(id) {
+    const sesiones = await this.obtenerSesiones();
+    if (sesiones[id]) {
+      await this.app.cargarEstado(sesiones[id].datos);
+      
+      // Actualizar fecha de último trabajo
+      const ahora = new Date();
+      sesiones[id].fechaUltimoTrabajo = ahora.toLocaleDateString() + ' ' + ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      sesiones[id].timestamp = Date.now();
+      
+      await this.storage.guardar(sesiones[id]);
+      localStorage.setItem('paintjs_ultima_sesion_id', id);
+      console.log(`✅ Sesión "${sesiones[id].titulo}" restaurada con éxito.`);
+    }
+  }
+
+  // 4. Restaurar la última sesión en la que se trabajó
+  async restaurarUltimaSesion() {
+    const sesiones = await this.obtenerSesiones();
+    const ultimaId = localStorage.getItem('paintjs_ultima_sesion_id');
+    
+    if (ultimaId && sesiones[ultimaId]) {
+      await this.restaurarSesionPorId(ultimaId);
+      return true;
+    }
+    
+    const lista = Object.values(sesiones).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+    if (lista.length > 0) {
+      await this.restaurarSesionPorId(lista[0].id);
+      return true;
+    }
+    return false;
+  }
+
+  // 5. Eliminar una sesión individual por ID
+  async eliminarSesionPorId(id) {
+    await this.storage.eliminar(id);
+    if (localStorage.getItem('paintjs_ultima_sesion_id') === id) {
+      localStorage.removeItem('paintjs_ultima_sesion_id');
+    }
+  }
+
+  // 6. Eliminar todas las sesiones guardadas
+  async borrarTodasLasSesiones() {
+    await this.storage.vaciar();
+    localStorage.removeItem('paintjs_ultima_sesion_id');
+  }
+
+  // 7. Renderizar la lista dentro del Modal emergente
+  async renderizarListaSesionesUI(filtroBusqueda = '') {
+    if (!this.contenedorLista) return;
+    this.contenedorLista.innerHTML = '';
+    
+    const sesiones = await this.obtenerSesiones();
+    const ultimaId = localStorage.getItem('paintjs_ultima_sesion_id');
+
+    let lista = Object.values(sesiones).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // Filtrar si el usuario escribe en el buscador
+    if (filtroBusqueda.trim()) {
+      const q = filtroBusqueda.toLowerCase();
+      lista = lista.filter(s => 
+        s.titulo.toLowerCase().includes(q) || 
+        (s.fechaUltimoTrabajo && s.fechaUltimoTrabajo.toLowerCase().includes(q))
+      );
+    }
+
+    if (lista.length === 0) {
+      this.contenedorLista.innerHTML = '<div style="text-align:center; color:#888; font-size:11px; padding:16px;">No se encontraron sesiones guardadas.</div>';
+      return;
+    }
+
+    lista.forEach(itemData => {
+      const esUltima = itemData.id === ultimaId;
+      const item = document.createElement('div');
+      item.className = 'item-sesion';
+      if (esUltima) item.style.borderLeft = '3px solid #2e7d32';
+
+      const info = document.createElement('div');
+      info.className = 'item-sesion-info';
+      
+      const titulo = document.createElement('span');
+      titulo.className = 'item-sesion-titulo';
+      titulo.textContent = itemData.titulo + (esUltima ? ' (Última trabajada)' : '');
+
+      const sub = document.createElement('span');
+      sub.className = 'item-sesion-sub';
+      const numCapas = (itemData.datos && itemData.datos.capas) ? itemData.datos.capas.length : 0;
+      sub.textContent = ` Último trabajo: ${itemData.fechaUltimoTrabajo} | Capas: ${numCapas}`;
+
+      info.appendChild(titulo);
+      info.appendChild(sub);
+
+      const acciones = document.createElement('div');
+      acciones.className = 'item-sesion-acciones';
+
+      // Botón Restaurar
+      const btnRestaurar = document.createElement('button');
+      btnRestaurar.className = 'btnCl';
+      btnRestaurar.textContent = '↺ Restaurar';
+      btnRestaurar.addEventListener('click', async () => {
+        await this.restaurarSesionPorId(itemData.id);
+        this.cerrarModal();
+      });
+
+      // Botón Eliminar individual
+      const btnBorrar = document.createElement('button');
+      btnBorrar.className = 'btnCl';
+      btnBorrar.style.background = '#a32a2a';
+      btnBorrar.textContent = '✕';
+      btnBorrar.title = 'Eliminar esta sesión';
+      btnBorrar.addEventListener('click', async () => {
+        await this.eliminarSesionPorId(itemData.id);
+        const q = this.inputBuscar ? this.inputBuscar.value : '';
+        await this.renderizarListaSesionesUI(q);
+      });
+
+      acciones.appendChild(btnRestaurar);
+      acciones.appendChild(btnBorrar);
+
+      item.appendChild(info);
+      item.appendChild(acciones);
+
+      this.contenedorLista.appendChild(item);
+    });
+  }
+
+  // 8. Abrir Modal Emergente
+  async abrirModal() {
+    if (this.inputBuscar) this.inputBuscar.value = '';
+    await this.renderizarListaSesionesUI();
+    if (this.modal) this.modal.classList.remove('oculto');
+  }
+
+  // 9. Cerrar Modal Emergente
+  cerrarModal() {
+    if (this.modal) this.modal.classList.add('oculto');
+  }
+
+  // 10. Vincular automáticamente los botones de la interfaz
+  enlazarEventos() {
+    // Abrir Modal
+    const btnAbrir = document.getElementById('btnAbrirModalSesiones');
+    if (btnAbrir) {
+      btnAbrir.addEventListener('click', () => this.abrirModal());
+    }
+
+    // Buscador en tiempo real
+    if (this.inputBuscar) {
+      this.inputBuscar.addEventListener('input', ev => this.renderizarListaSesionesUI(ev.target.value));
+    }
+
+    // Botones Cerrar Modal
+    const btnCerrarX = document.getElementById('cerrarModalSesiones');
+    const btnCerrarFoot = document.getElementById('btnCerrarModalFooter');
+    if (btnCerrarX) btnCerrarX.addEventListener('click', () => this.cerrarModal());
+    if (btnCerrarFoot) btnCerrarFoot.addEventListener('click', () => this.cerrarModal());
+
+    // Guardar Sesión Rápida
+    const btnGuardar = document.getElementById('btnGuardarSesionRapida');
+    const inputNom = document.getElementById('inputNombreSesionRapida');
+    if (btnGuardar) {
+      btnGuardar.addEventListener('click', async () => {
+        const nom = inputNom ? inputNom.value : '';
+        const exito = await this.guardarSesionActual(nom);
+        if (exito) {
+          alert(`✅ Sesión "${nom || 'Guardada'}" almacenada en IndexedDB.`);
+          if (inputNom) inputNom.value = '';
+        }
+      });
+    }
+
+    // Botón Restaurar Última desde la Modal
+    const btnRestaurarUltima = document.getElementById('btnRestaurarUltimaModal');
+    if (btnRestaurarUltima) {
+      btnRestaurarUltima.addEventListener('click', async () => {
+        const ok = await this.restaurarUltimaSesion();
+        if (ok) {
+          this.cerrarModal();
+        } else {
+          alert('No hay ninguna sesión guardada.');
+        }
+      });
+    }
+
+    // Borrar Todas las Sesiones
+    const btnBorrarTodas = document.getElementById('btnBorrarTodasSesiones');
+    if (btnBorrarTodas) {
+      btnBorrarTodas.addEventListener('click', async () => {
+        if (confirm('¿Deseas eliminar TODAS las sesiones guardadas en el navegador?')) {
+          await this.borrarTodasLasSesiones();
+          await this.renderizarListaSesionesUI();
+        }
+      });
+    }
+  }
+}
+
+  
+
+class GestorSeleccion {
+  constructor(app) {
+    this.app = app;
+    this.modo = 'ninguno'; // 'rect' | 'lasso' | 'ninguno'
+    this.puntos = [];
+    this.posActual = null; // Posición {x, y} en tiempo real del puntero
+    this.cerrada = false;
+    this.dibujando = false;
+    this.portapapeles = null;
+
+    this.enlazarTeclado();
+  }
+
+  activarModo(modo) {
+    this.limpiar();
+    this.modo = modo;
+    if (this.app.lienzo) {
+      this.app.lienzo.style.cursor = (modo !== 'ninguno') ? 'crosshair' : 'none';
+    }
+  }
+
+  limpiar() {
+    this.puntos = [];
+    this.posActual = null;
+    this.cerrada = false;
+    this.dibujando = false;
+    if (this.app.lienzo) this.app.lienzo.style.cursor = 'none';
+    this.app.renderizar();
+  }
+
+  onPuntero(tipo, p) {
+    if (this.modo === 'ninguno') return;
+    this.posActual = p;
+
+    if (tipo === 'down') {
+      this.puntos = [p];
+      this.dibujando = true;
+      this.cerrada = false;
+    } else if (tipo === 'move') {
+      if (this.dibujando) {
+        if (this.modo === 'rect') {
+          this.puntos[1] = p;
+        } else if (this.modo === 'lasso') {
+          this.puntos.push(p);
+        }
+      }
+      this.app.renderizar();
+    } else if (tipo === 'up' && this.dibujando) {
+      this.dibujando = false;
+      if (this.modo === 'rect') {
+        this.puntos[1] = p;
+        this.cerrada = true;
+      }
+      this.app.renderizar();
+    }
+  }
+
+  crearRuta(ctx, offsetX = 0, offsetY = 0) {
+    if (this.puntos.length < 2) return false;
+    ctx.beginPath();
+
+    if (this.modo === 'rect') {
+      const p1 = this.puntos[0];
+      const p2 = this.puntos[this.puntos.length - 1];
+      
+      const x = Math.min(p1.x, p2.x);
+      const y = Math.min(p1.y, p2.y);
+      const w = Math.abs(p2.x - p1.x);
+      const h = Math.abs(p2.y - p1.y);
+      
+      ctx.rect(x - offsetX, y - offsetY, w, h);
+    } else {
+      ctx.moveTo(this.puntos[0].x - offsetX, this.puntos[0].y - offsetY);
+      for (let i = 1; i < this.puntos.length; i++) {
+        ctx.lineTo(this.puntos[i].x - offsetX, this.puntos[i].y - offsetY);
+      }
+      if (this.cerrada) ctx.closePath();
+    }
+    return true;
+  }
+
+  dibujarPunteroEstrella(ctx, x, y, esOrigen = false) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    if (esOrigen) {
+      ctx.strokeStyle = '#00ffcc';
+      ctx.fillStyle = '#00ffcc';
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      const r1 = 7, r2 = 3;
+      for (let i = 0; i < 8; i++) {
+        const r = (i % 2 === 0) ? r1 : r2;
+        const a = (i * Math.PI) / 4;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      ctx.moveTo(-10, 0); ctx.lineTo(10, 0);
+      ctx.moveTo(0, -10); ctx.lineTo(0, 10);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.beginPath();
+      ctx.moveTo(-4, -4); ctx.lineTo(4, 4);
+      ctx.moveTo(4, -4); ctx.lineTo(-4, 4);
+      ctx.stroke();
+
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(0, 0, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  dibujarBorde(ctx) {
+    if (this.modo === 'ninguno') return;
+
+    if (this.puntos.length >= 2) {
+      ctx.save();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      this.crearRuta(ctx, 0, 0);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineDashOffset = 4;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (this.dibujando && this.puntos.length > 0 && this.modo === 'lasso') {
+      const pInicio = this.puntos[0];
+      const pUltimo = this.puntos[this.puntos.length - 1];
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0, 255, 204, 0.6)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(pUltimo.x, pUltimo.y);
+      ctx.lineTo(pInicio.x, pInicio.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (this.puntos.length > 0 && !this.cerrada) {
+      this.dibujarPunteroEstrella(ctx, this.puntos[0].x, this.puntos[0].y, true);
+    }
+
+    if (this.posActual) {
+      this.dibujarPunteroEstrella(ctx, this.posActual.x, this.posActual.y, false);
+    }
+  }
+
+  eliminar() {
+    if (!this.cerrada || !this.app.capaActiva) return;
+    this.app.guardarHistorial();
+    const capa = this.app.capaActiva;
+
+    capa.ctx.save();
+    capa.ctx.globalCompositeOperation = 'destination-out';
+    this.crearRuta(capa.ctx, capa.x, capa.y);
+    capa.ctx.fill();
+    capa.ctx.restore();
+
+    this.app.renderizar();
+  }
+
+  copiar() {
+    if (!this.cerrada || !this.app.capaActiva) return false;
+    const capa = this.app.capaActiva;
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+    if (this.modo === 'rect') {
+      const p1 = this.puntos[0];
+      const p2 = this.puntos[this.puntos.length - 1];
+      minX = Math.min(p1.x, p2.x);
+      maxX = Math.max(p1.x, p2.x);
+      minY = Math.min(p1.y, p2.y);
+      maxY = Math.max(p1.y, p2.y);
+    } else {
+      for (const p of this.puntos) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      }
+    }
+
+    const anchoSel = maxX - minX;
+    const altoSel = maxY - minY;
+
+    if (anchoSel <= 0 || altoSel <= 0 || isNaN(anchoSel) || isNaN(altoSel)) return false;
+
+    const temp = document.createElement('canvas');
+    temp.width = anchoSel;
+    temp.height = altoSel;
+    const tctx = temp.getContext('2d');
+
+    tctx.save();
+    this.crearRuta(tctx, minX, minY);
+    tctx.clip();
+    tctx.drawImage(capa.canvas, capa.x - minX, capa.y - minY);
+    tctx.restore();
+
+    this.portapapeles = {
+      canvas: temp,
+      offsetX: minX,
+      offsetY: minY
+    };
+
+    if (navigator.clipboard && window.ClipboardItem) {
+      temp.toBlob(blob => {
+        if (blob) {
+          const item = new ClipboardItem({ 'image/png': blob });
+          navigator.clipboard.write([item]).then(() => {
+            console.log('Imagen copiada al portapapeles del sistema.');
+          }).catch(err => {
+            console.warn('No se pudo escribir en el portapapeles del sistema: ', err);
+          });
+        }
+      }, 'image/png');
+    }
+
+    return true;
+  }
+
+  cortar() {
+    if (this.copiar()) {
+      this.eliminar();
+    }
+  }
+
+  pegar() {
+    if (!this.portapapeles) return false;
+
+    const nuevaCapa = new Capa(this.app.documento.ancho, this.app.documento.alto, 'Pegado Seleccionado');
+    
+    const canvasParaDibujar = this.portapapeles.canvas ? this.portapapeles.canvas : this.portapapeles;
+    const ox = this.portapapeles.offsetX !== undefined ? this.portapapeles.offsetX : 0;
+    const oy = this.portapapeles.offsetY !== undefined ? this.portapapeles.offsetY : 0;
+
+    nuevaCapa.ctx.drawImage(canvasParaDibujar, ox, oy);
+
+    this.app.capas.push(nuevaCapa);
+    this.app.indiceActiva = this.app.capas.length - 1;
+    this.app.actualizarPanelCapas();
+    this.app.renderizar();
+    return true;
+  }
+
+  enlazarTeclado() {
+    window.addEventListener('keydown', ev => {
+      if (ev.target.tagName === 'INPUT' && ev.target.type === 'text') return;
+
+      const tecla = ev.key;
+      const teclaLow = tecla.toLowerCase();
+
+      if (tecla === 'Enter') {
+        if (this.modo === 'lasso' && this.puntos.length > 2) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          this.cerrada = true;
+          this.app.renderizar();
+          return;
+        }
+      }
+
+      if (tecla === 'Delete' || tecla === 'Backspace') {
+        if (this.cerrada) {
+          ev.preventDefault();
+          this.eliminar();
+          return;
+        }
+      }
+
+      if (tecla === 'Escape') {
+        this.limpiar();
+        return;
+      }
+
+      if (ev.ctrlKey && teclaLow === 'c' && this.cerrada) {
+        if (this.copiar()) ev.preventDefault();
+      }
+
+      if (ev.ctrlKey && teclaLow === 'x' && this.cerrada) {
+        ev.preventDefault();
+        this.cortar();
+      }
+
+      if (ev.ctrlKey && teclaLow === 'v' && this.portapapeles) {
+        ev.preventDefault();
+        this.pegar();
+      }
+    }, true);
+  }
+}
+
+class Capa {
+  constructor(ancho, alto, nombre) {
+    this.id = 'c' + Math.random().toString(36).slice(2);
+    this.nombre = nombre;
+    this.ancho = ancho;
+    this.alto = alto;
+    this.x = 0;
+    this.y = 0;
+    this.opacidad = 1;
+    this.visible = true;
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = ancho;
+    this.canvas.height = alto;
+    this.ctx = this.canvas.getContext('2d');
+  }
+  redimensionar(nuevoAncho, nuevoAlto) {
+    const temp = document.createElement('canvas');
+    temp.width = nuevoAncho;
+    temp.height = nuevoAlto;
+    const tctx = temp.getContext('2d');
+    tctx.drawImage(this.canvas, 0, 0, this.ancho, this.alto, 0, 0, nuevoAncho, nuevoAlto);
+    this.canvas = temp;
+    this.ctx = tctx;
+    this.ancho = nuevoAncho;
+    this.alto = nuevoAlto;
+  }
+  rotar(grados) {
+    const rad = grados * Math.PI / 180;
+    const nuevoAncho = Math.max(1, Math.round(Math.abs(this.ancho * Math.cos(rad)) + Math.abs(this.alto * Math.sin(rad))));
+    const nuevoAlto = Math.max(1, Math.round(Math.abs(this.ancho * Math.sin(rad)) + Math.abs(this.alto * Math.cos(rad))));
+    const temp = document.createElement('canvas');
+    temp.width = nuevoAncho;
+    temp.height = nuevoAlto;
+    const tctx = temp.getContext('2d');
+    tctx.translate(nuevoAncho / 2, nuevoAlto / 2);
+    tctx.rotate(rad);
+    tctx.drawImage(this.canvas, -this.ancho / 2, -this.alto / 2);
+    this.x += (this.ancho - nuevoAncho) / 2;
+    this.y += (this.alto - nuevoAlto) / 2;
+    this.canvas = temp;
+    this.ctx = tctx;
+    this.ancho = nuevoAncho;
+    this.alto = nuevoAlto;
+  }
+  clonar() {
+    const c = new Capa(this.ancho, this.alto, this.nombre + ' copia');
+    c.x = this.x;
+    c.y = this.y;
+    c.opacidad = this.opacidad;
+    c.ctx.drawImage(this.canvas, 0, 0);
+    return c;
+  }
+  instantanea() {
+    return this.ctx.getImageData(0, 0, this.ancho, this.alto);
+  }
+  restaurar(datos) {
+    this.ctx.putImageData(datos, 0, 0);
+  }
+}
+  
+class HistorialAcciones {
+  constructor(limite) {
+    this.limite = limite || 100;
+    this.deshacerPila = [];
+    this.rehacerPila = [];
+  }
+
+   
+  obtenerApp(param) {
+    if (param && param.capas) return param;
+    if (typeof app !== 'undefined' && app.capas) return app;
+    return null;
+  }
+
+ 
+  registrarEstado(capa) {
+    if (!capa) return;
+    this.deshacerPila.push({
+      tipo: 'capa',
+      id: capa.id,
+      x: capa.x,
+      y: capa.y,
+      ancho: capa.ancho,
+      alto: capa.alto,
+      opacidad: capa.opacidad,
+      visible: capa.visible,
+      datos: capa.instantanea()
+    });
+    if (this.deshacerPila.length > this.limite) this.deshacerPila.shift();
+    this.rehacerPila = [];
+  }
+
+  
+  registrarEstadoEstructural(appRef) {
+    const appInstancia = this.obtenerApp(appRef);
+    if (!appInstancia) return;
+
+    this.deshacerPila.push(this.crearSnapshotGlobal(appInstancia));
+    if (this.deshacerPila.length > this.limite) this.deshacerPila.shift();
+    this.rehacerPila = [];
+  }
+
+  deshacer(param) {
+    const appInstancia = this.obtenerApp(param);
+    if (!appInstancia) return false;
+
+    const entrada = this.deshacerPila.pop();
+    if (!entrada) return false;
+
+    if (entrada.tipo === 'estructural') {
+      this.rehacerPila.push(this.crearSnapshotGlobal(appInstancia));
+      this.restaurarEstadoEstructural(appInstancia, entrada);
+    } else {
+      const capa = appInstancia.capas.find(c => c.id === entrada.id);
+      if (!capa) return false;
+
+      this.rehacerPila.push({
+        tipo: 'capa',
+        id: capa.id,
+        x: capa.x,
+        y: capa.y,
+        ancho: capa.ancho,
+        alto: capa.alto,
+        opacidad: capa.opacidad,
+        visible: capa.visible,
+        datos: capa.instantanea()
+      });
+      this.aplicarEntradaCapa(capa, entrada);
+    }
+    return true;
+  }
+
+  rehacer(param) {
+    const appInstancia = this.obtenerApp(param);
+    if (!appInstancia) return false;
+
+    const entrada = this.rehacerPila.pop();
+    if (!entrada) return false;
+
+    if (entrada.tipo === 'estructural') {
+      this.deshacerPila.push(this.crearSnapshotGlobal(appInstancia));
+      this.restaurarEstadoEstructural(appInstancia, entrada);
+    } else {
+      const capa = appInstancia.capas.find(c => c.id === entrada.id);
+      if (!capa) return false;
+
+      this.deshacerPila.push({
+        tipo: 'capa',
+        id: capa.id,
+        x: capa.x,
+        y: capa.y,
+        ancho: capa.ancho,
+        alto: capa.alto,
+        opacidad: capa.opacidad,
+        visible: capa.visible,
+        datos: capa.instantanea()
+      });
+      this.aplicarEntradaCapa(capa, entrada);
+    }
+    return true;
+  }
+
+  crearSnapshotGlobal(appInstancia) {
+    return {
+      tipo: 'estructural',
+      indiceActiva: appInstancia.indiceActiva,
+      capas: appInstancia.capas.map(capa => ({
+        id: capa.id,
+        nombre: capa.nombre,
+        x: capa.x,
+        y: capa.y,
+        ancho: capa.ancho,
+        alto: capa.alto,
+        opacidad: capa.opacidad,
+        visible: capa.visible,
+        datos: capa.instantanea()
+      }))
+    };
+  }
+
+  restaurarEstadoEstructural(appInstancia, entrada) {
+    appInstancia.capas = entrada.capas.map(item => {
+      const c = new Capa(item.ancho, item.alto, item.nombre);
+      c.id = item.id;
+      c.x = item.x;
+      c.y = item.y;
+      c.opacidad = item.opacidad;
+      c.visible = item.visible;
+      c.restaurar(item.datos);
+      return c;
+    });
+    appInstancia.indiceActiva = Math.min(entrada.indiceActiva, appInstancia.capas.length - 1);
+  }
+
+  aplicarEntradaCapa(capa, entrada) {
+    capa.x = entrada.x;
+    capa.y = entrada.y;
+    capa.opacidad = entrada.opacidad;
+    capa.visible = entrada.visible;
+    if (entrada.ancho !== capa.ancho || entrada.alto !== capa.alto) {
+      capa.canvas.width = entrada.ancho;
+      capa.canvas.height = entrada.alto;
+      capa.ancho = entrada.ancho;
+      capa.alto = entrada.alto;
+    }
+    capa.restaurar(entrada.datos);
+  }
+}
+
+class AplicacionPaint {
+  constructor() {
+    this.documento = { ancho: 900, alto: 600 };
+    this.capas = [];
+    this.indiceActiva = -1;
+    this.herramienta = 'pincel';
+    this.color = '#ffffff';
+    this.tamano = 30;
+    this.dureza = 0.7;
+    this.fuerza = 1;
+    this.espaciado = 0.25;
+    this.zoom = 1;
+    this.pintando = false;
+    this.ultimoPunto = null;
+    this.distanciaAcumulada = 0;
+    this.puntoOrigenClonado = null;
+    this.offsetClonado = null;
+    this.capaFuenteClonado = null;
+    this.imagenSello = null;
+    this.mascaraCache = null;
+    this.mascaraClave = '';
+    this.rotacion = 0;
+    this.historial = new HistorialAcciones(200);
+    this.lienzo = document.getElementById('lienzoComposicion');
+    this.ctx = this.lienzo.getContext('2d');
+    this.mundo = document.getElementById('mundo');
+    this.contenedor = document.getElementById('contenedorLienzo');
+    this.previsualizacion = document.getElementById('previsualizacionPincel');
+    this.gestorSeleccion = new GestorSeleccion(this);
+    this.enlazarUI();
+    this.nuevaCapa();
+    this.renderizar();
+  }
+
+  get capaActiva() {
+    return this.capas[this.indiceActiva];
+  }
+  
+   
+  /* sesion preini */
+    obtenerSesiones() {
+    const raw = localStorage.getItem('paintjs_multiples_sesiones');
+    return raw ? JSON.parse(raw) : {};
+  }
+ 
+  async exportarEstado() {
+    const capasData = [];
+    for (const capa of this.capas) {
+      capasData.push({
+        id: capa.id,
+        nombre: capa.nombre,
+        x: capa.x,
+        y: capa.y,
+        ancho: capa.ancho,
+        alto: capa.alto,
+        opacidad: capa.opacidad,
+        visible: capa.visible,
+        // Convertimos los píxeles del canvas a formato DataURL (base64)
+        imagenData: capa.canvas.toDataURL('image/png')
+      });
+    }
+
+    return {
+      documento: { ...this.documento },
+      indiceActiva: this.indiceActiva,
+      tamano: this.tamano,
+      dureza: this.dureza,
+      fuerza: this.fuerza,
+      rotacion: this.rotacion || 0,
+      color: this.color,
+      capas: capasData
+    };
+  }
+
+ 
+  async cargarEstado(estado) {
+    if (!estado || !estado.capas) return;
+
+    this.documento.ancho = estado.documento.ancho;
+    this.documento.alto = estado.documento.alto;
+    this.tamano = estado.tamano || 30;
+    this.dureza = estado.dureza || 0.7;
+    this.fuerza = estado.fuerza || 1;
+    this.rotacion = estado.rotacion || 0;
+    this.color = estado.color || '#ffffff';
+
+ 
+    this.capas = [];
+
+ 
+    for (const dataCapa of estado.capas) {
+      const capa = new Capa(dataCapa.ancho, dataCapa.alto, dataCapa.nombre);
+      capa.id = dataCapa.id;
+      capa.x = dataCapa.x;
+      capa.y = dataCapa.y;
+      capa.opacidad = dataCapa.opacidad;
+      capa.visible = dataCapa.visible;
+
+ 
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          capa.ctx.clearRect(0, 0, capa.ancho, capa.alto);
+          capa.ctx.drawImage(img, 0, 0);
+          resolve();
+        };
+        img.src = dataCapa.imagenData;
+      });
+
+      this.capas.push(capa);
+    }
+
+    this.indiceActiva = Math.min(estado.indiceActiva, this.capas.length - 1);
+    this.actualizarPanelCapas();
+    this.renderizar();
+  }
+ 
+  async guardarEnLocalStorage() {
+    try {
+      const estado = await this.exportarEstado();
+      localStorage.setItem('paintjs_sesion_guardada', JSON.stringify(estado));
+      console.log(' Sesión guardada en LocalStorage');
+    } catch (e) {
+      console.warn('LocalStorage lleno o no disponible:', e);
+    }
+  }
+
+  async cargarDesdeLocalStorage() {
+    const raw = localStorage.getItem('paintjs_sesion_guardada');
+    if (!raw) return false;
+    try {
+      const estado = JSON.parse(raw);
+      await this.cargarEstado(estado);
+      console.log(' Sesión anterior restaurada desde LocalStorage');
+      return true;
+    } catch (e) {
+      console.error('Error al cargar LocalStorage:', e);
+      return false;
+    }
+  }
+
+ 
+  async descargarJSON() {
+    const estado = await this.exportarEstado();
+    const blob = new Blob([JSON.stringify(estado, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `proyecto_paint_${Date.now()}.json`;
+    a.click();
+  }
+
+  cargarArchivoJSON(archivo) {
+    const lector = new FileReader();
+    lector.onload = async ev => {
+      try {
+        const estado = JSON.parse(ev.target.result);
+        await this.cargarEstado(estado);
+        alert('Proyecto JSON cargado con éxito.');
+      } catch (e) {
+        alert('Archivo JSON no válido.');
+      }
+    };
+    lector.readAsText(archivo);
+  }
+  /* sesion ini */
+  
+
+  obtenerSesiones() {
+    const raw = localStorage.getItem('paintjs_multiples_sesiones');
+    return raw ? JSON.parse(raw) : {};
+  }
+
+  // Guardar sesión actual asignando un Nombre y Fecha
+  async guardarSesionActual(nombreCustom) {
+    const estado = await this.exportarEstado();
+    const ahora = new Date();
+    const fechaFormateada = ahora.toLocaleDateString() + ' ' + ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    const titulo = (nombreCustom && nombreCustom.trim()) ? nombreCustom.trim() : `Sesión ${fechaFormateada}`;
+    const id = 'sesion_' + Date.now();
+
+    const sesiones = this.obtenerSesiones();
+    sesiones[id] = {
+      id,
+      titulo,
+      fechaUltimoTrabajo: fechaFormateada,
+      timestamp: Date.now(),
+      datos: estado
+    };
+
+    try {
+      localStorage.setItem('paintjs_multiples_sesiones', JSON.stringify(sesiones));
+      localStorage.setItem('paintjs_ultima_sesion_id', id);
+      return true;
+    } catch (e) {
+      alert('Error al guardar en LocalStorage (Espacio lleno): ' + e.message);
+      return false;
+    }
+  }
+
+  // Restaurar una sesión por su ID
+  async restaurarSesionPorId(id) {
+    const sesiones = this.obtenerSesiones();
+    if (sesiones[id]) {
+      await this.cargarEstado(sesiones[id].datos);
+      // Actualizar la fecha del último trabajo realizado
+      const ahora = new Date();
+      sesiones[id].fechaUltimoTrabajo = ahora.toLocaleDateString() + ' ' + ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      sesiones[id].timestamp = Date.now();
+      localStorage.setItem('paintjs_multiples_sesiones', JSON.stringify(sesiones));
+      localStorage.setItem('paintjs_ultima_sesion_id', id);
+      console.log(` Sesión "${sesiones[id].titulo}" restaurada.`);
+    }
+  }
+
+  // Restaurar automáticamente la última sesión en la que se trabajó
+  async restaurarUltimaSesion() {
+    const sesiones = this.obtenerSesiones();
+    const ultimaId = localStorage.getItem('paintjs_ultima_sesion_id');
+    if (ultimaId && sesiones[ultimaId]) {
+      await this.restaurarSesionPorId(ultimaId);
+      return true;
+    }
+    const lista = Object.values(sesiones).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+    if (lista.length > 0) {
+      await this.restaurarSesionPorId(lista[0].id);
+      return true;
+    }
+    return false;
+  }
+
+  // Eliminar una sesión individual
+  eliminarSesionPorId(id) {
+    const sesiones = this.obtenerSesiones();
+    delete sesiones[id];
+    localStorage.setItem('paintjs_multiples_sesiones', JSON.stringify(sesiones));
+    if (localStorage.getItem('paintjs_ultima_sesion_id') === id) {
+      localStorage.removeItem('paintjs_ultima_sesion_id');
+    }
+  }
+
+  // Eliminar todas las sesiones
+  borrarTodasLasSesiones() {
+    localStorage.removeItem('paintjs_multiples_sesiones');
+    localStorage.removeItem('paintjs_ultima_sesion_id');
+  }
+
+  // Renderizar la lista con filtro de búsqueda en tiempo real y fechas
+  renderizarListaSesionesUI(filtroBusqueda = '') {
+    const contenedor = document.getElementById('listaSesionesLocal');
+    contenedor.innerHTML = '';
+    const sesiones = this.obtenerSesiones();
+    const ultimaId = localStorage.getItem('paintjs_ultima_sesion_id');
+
+    // Ordenar de más reciente a más antigua
+    let lista = Object.values(sesiones).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // Filtrar por texto si el usuario escribió en el buscador
+    if (filtroBusqueda.trim()) {
+      const q = filtroBusqueda.toLowerCase();
+      lista = lista.filter(s => s.titulo.toLowerCase().includes(q) || (s.fechaUltimoTrabajo && s.fechaUltimoTrabajo.toLowerCase().includes(q)));
+    }
+
+    if (lista.length === 0) {
+      contenedor.innerHTML = '<div style="text-align:center; color:#888; font-size:11px; padding:16px;">No se encontraron sesiones guardadas.</div>';
+      return;
+    }
+
+    lista.forEach(itemData => {
+      const esUltima = itemData.id === ultimaId;
+      const item = document.createElement('div');
+      item.className = 'item-sesion';
+      if (esUltima) item.style.borderLeft = '3px solid #2e7d32'; // Marca verde si es la última
+
+      const info = document.createElement('div');
+      info.className = 'item-sesion-info';
+      
+      const titulo = document.createElement('span');
+      titulo.className = 'item-sesion-titulo';
+      titulo.textContent = itemData.titulo + (esUltima ? ' (Última trabajada)' : '');
+
+      const sub = document.createElement('span');
+      sub.className = 'item-sesion-sub';
+      const numCapas = itemData.datos.capas ? itemData.datos.capas.length : 0;
+      sub.textContent = `📅 Último trabajo: ${itemData.fechaUltimoTrabajo} | Capas: ${numCapas}`;
+
+      info.appendChild(titulo);
+      info.appendChild(sub);
+
+      const acciones = document.createElement('div');
+      acciones.className = 'item-sesion-acciones';
+
+      // Botón Restaurar
+      const btnRestaurar = document.createElement('button');
+      btnRestaurar.className = 'btnCl';
+      btnRestaurar.textContent = '↺ Restaurar';
+      btnRestaurar.addEventListener('click', async () => {
+        await this.restaurarSesionPorId(itemData.id);
+        document.getElementById('modalSesiones').classList.add('oculto');
+      });
+
+      // Botón Borrar individual
+      const btnBorrar = document.createElement('button');
+      btnBorrar.className = 'btnCl';
+      btnBorrar.style.background = '#a32a2a';
+      btnBorrar.textContent = '✕';
+      btnBorrar.title = 'Eliminar esta sesión';
+      btnBorrar.addEventListener('click', () => {
+        this.eliminarSesionPorId(itemData.id);
+        this.renderizarListaSesionesUI(document.getElementById('txtBuscarSesion').value);
+      });
+
+      acciones.appendChild(btnRestaurar);
+      acciones.appendChild(btnBorrar);
+
+      item.appendChild(info);
+      item.appendChild(acciones);
+
+      contenedor.appendChild(item);
+    });
+  }
+  /* sesion fin */
+
+  nuevaCapa(nombre) {
+    const capa = new Capa(this.documento.ancho, this.documento.alto, nombre || ('Capa ' + (this.capas.length + 1)));
+    this.capas.push(capa);
+    this.indiceActiva = this.capas.length - 1;
+    this.actualizarPanelCapas();
+    this.renderizar();
+  }
+
+  duplicarCapaActiva() {
+    if (!this.capaActiva) return;
+    const c = this.capaActiva.clonar();
+    this.capas.splice(this.indiceActiva + 1, 0, c);
+    this.indiceActiva += 1;
+    this.actualizarPanelCapas();
+    this.renderizar();
+  }
+
+  eliminarCapaActiva() {
+    if (this.capas.length <= 1) return;
+    this.capas.splice(this.indiceActiva, 1);
+    this.indiceActiva = Math.max(0, this.indiceActiva - 1);
+    this.actualizarPanelCapas();
+    this.renderizar();
+  }
+
+  eliminarCapaPorIndice(indice) {
+    if (this.capas.length <= 1) return;
+    this.capas.splice(indice, 1);
+    if (this.indiceActiva >= indice) this.indiceActiva = Math.max(0, this.indiceActiva - 1);
+    this.actualizarPanelCapas();
+    this.renderizar();
+  }
+
+  moverCapaActiva(direccion) {
+    const nuevo = this.indiceActiva + direccion;
+    if (nuevo < 0 || nuevo >= this.capas.length) return;
+    const tmp = this.capas[this.indiceActiva];
+    this.capas[this.indiceActiva] = this.capas[nuevo];
+    this.capas[nuevo] = tmp;
+    this.indiceActiva = nuevo;
+    this.actualizarPanelCapas();
+    this.renderizar();
+  }
+
+  redimensionarCapaActiva() {
+    if (!this.capaActiva) return;
+    const ancho = parseInt(prompt('Nuevo ancho de la capa', this.capaActiva.ancho));
+    const alto = parseInt(prompt('Nuevo alto de la capa', this.capaActiva.alto));
+    if (!ancho || !alto) return;
+    this.guardarHistorial();
+    this.capaActiva.redimensionar(ancho, alto);
+    this.actualizarPanelCapas();
+    this.renderizar();
+  }
+
+  rotarCapaActiva() {
+    if (!this.capaActiva) return;
+    const grados = parseFloat(prompt('Grados a rotar (positivo = horario)', '90'));
+    if (isNaN(grados)) return;
+    this.guardarHistorial();
+    this.capaActiva.rotar(grados);
+    this.actualizarPanelCapas();
+    this.renderizar();
+  }
+
+  ajustarCanvasACapaActiva() {
+    const capa = this.capaActiva;
+    if (!capa) return;
+    const offsetX = capa.x;
+    const offsetY = capa.y;
+    this.capas.forEach(c => { c.x -= offsetX; c.y -= offsetY; });
+    this.documento.ancho = capa.ancho;
+    this.documento.alto = capa.alto;
+    this.renderizar();
+  }
+
+  redimensionarDocumento() {
+    const ancho = parseInt(prompt('Ancho del documento', this.documento.ancho));
+    const alto = parseInt(prompt('Alto del documento', this.documento.alto));
+    if (!ancho || !alto) return;
+    const escalar = confirm('¿Escalar el contenido de las capas a la nueva resolución? Cancelar = solo cambia el lienzo');
+    const fx = ancho / this.documento.ancho;
+    const fy = alto / this.documento.alto;
+    this.capas.forEach(capa => {
+      if (escalar) {
+        capa.redimensionar(Math.max(1, Math.round(capa.ancho * fx)), Math.max(1, Math.round(capa.alto * fy)));
+        capa.x *= fx;
+        capa.y *= fy;
+      }
+    });
+    this.documento.ancho = ancho;
+    this.documento.alto = alto;
+    this.renderizar();
+  }
+
+  cargarImagenComoCapa(archivo) {
+    this.agregarImagenComoCapaDesdeBlob(archivo, archivo.name);
+  }
+
+  agregarImagenComoCapaDesdeBlob(blob, nombre) {
+    const lector = new FileReader();
+    lector.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const capa = new Capa(img.naturalWidth, img.naturalHeight, nombre || 'Pegado');
+        capa.ctx.drawImage(img, 0, 0);
+        this.capas.push(capa);
+        this.indiceActiva = this.capas.length - 1;
+        this.actualizarPanelCapas();
+        this.renderizar();
+      };
+      img.src = ev.target.result;
+    };
+    lector.readAsDataURL(blob);
+  }
+
+  manejarPegado(ev) {
+    const items = ev.clipboardData && ev.clipboardData.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        const blob = item.getAsFile();
+        this.agregarImagenComoCapaDesdeBlob(blob, 'Pegado');
+        ev.preventDefault();
+      }
+    }
+  }
+
+  procesarEntradaArrastrada(entrada) {
+    if (!entrada) return;
+    try {
+      if (entrada.isFile) {
+        entrada.file(archivo => {
+          if (archivo.type.indexOf('image') !== -1) this.agregarImagenComoCapaDesdeBlob(archivo, archivo.name);
+        }, () => {});
+      } else if (entrada.isDirectory) {
+        const lector = entrada.createReader();
+        const leerLote = () => {
+          lector.readEntries(entradas => {
+            if (!entradas.length) return;
+            entradas.forEach(e => this.procesarEntradaArrastrada(e));
+            leerLote();
+          }, () => {});
+        };
+        leerLote();
+      }
+    } catch (err) {
+      console.warn('No se pudo leer la entrada arrastrada', err);
+    }
+  }
+   
+  limpiarLocalStorage() {
+    localStorage.removeItem('paintjs_sesion_guardada');
+    alert(' Sesión eliminada de LocalStorage.');
+  }
+
+  
+  manejarSoltar(ev) {
+    ev.preventDefault();
+    const archivos = ev.dataTransfer ? ev.dataTransfer.files : [];
+    
+    for (const archivo of archivos) {
+      // Si se arrastra un archivo .json, carga el proyecto completo
+      if (archivo.name.endsWith('.json') || archivo.type === 'application/json') {
+        this.cargarArchivoJSON(archivo);
+        return;
+      } 
+      // Si es una imagen, la añade como capa
+      else if (archivo.type.indexOf('image') !== -1) {
+        this.agregarImagenComoCapaDesdeBlob(archivo, archivo.name);
+      }
+    }
+  }
+
+ cargarImagenSello(archivo) {
+    if (!archivo) return;
+    const lector = new FileReader();
+    lector.onload = ev => {
+      const img = new Image();
+      img.onload = () => { 
+        this.imagenSello = img; 
+        // 1. Cambiamos automáticamente la herramienta a 'sello'
+        this.seleccionarHerramienta('sello');
+        console.log('Imagen de sello asignada a la brocha con éxito:', img);
+      };
+      img.src = ev.target.result;
+    };
+    lector.readAsDataURL(archivo);
+  }
+
+  obtenerMascara() {
+    const clave = this.tamano + '_' + this.dureza;
+    if (this.mascaraClave === clave && this.mascaraCache) return this.mascaraCache;
+    const c = document.createElement('canvas');
+    c.width = c.height = this.tamano;
+    const ctx = c.getContext('2d');
+    const r = this.tamano / 2;
+    const grad = ctx.createRadialGradient(r, r, Math.max(0, r * this.dureza), r, r, r);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(r, r, r, 0, Math.PI * 2);
+    ctx.fill();
+    this.mascaraCache = c;
+    this.mascaraClave = clave;
+    return c;
+  }
+
+  guardarHistorial() {
+    this.historial.registrarEstado(this.capaActiva);
+  }
+
+  deshacer() {
+    const ok = this.historial.deshacer(this);
+    if (!ok) return;
+    this.renderizar();
+    this.actualizarPanelCapas();
+  }
+
+  rehacer() {
+    const ok = this.historial.rehacer(this);
+    if (!ok) return;
+    this.renderizar();
+    this.actualizarPanelCapas();
+  }
+  
+  dibujarDabPincel(capa, x, y) {
+    if (this.herramienta === 'borrador') {
+      const mascara = this.obtenerMascara();
+      capa.ctx.save();
+      capa.ctx.globalAlpha = this.fuerza;
+      capa.ctx.globalCompositeOperation = 'destination-out';
+      capa.ctx.drawImage(mascara, x - this.tamano / 2, y - this.tamano / 2);
+      capa.ctx.restore();
+      return;
+    }
+
+    if (this.imagenSello) {
+      const rad = (this.rotacion * Math.PI) / 180;
+      capa.ctx.save();
+      capa.ctx.globalCompositeOperation = 'source-over';
+      capa.ctx.globalAlpha = this.fuerza;
+      
+      // Aplicar traslación y rotación a la brocha
+      capa.ctx.translate(x, y);
+      capa.ctx.rotate(rad);
+      
+      capa.ctx.drawImage(
+        this.imagenSello, 
+        -this.tamano / 2, 
+        -this.tamano / 2, 
+        this.tamano, 
+        this.tamano
+      );
+      
+      capa.ctx.restore();
+      return;
+    }
+
+    // Pincel estándar
+    const mascara = this.obtenerMascara();
+    const temp = document.createElement('canvas');
+    temp.width = temp.height = this.tamano;
+    const tctx = temp.getContext('2d');
+    tctx.fillStyle = this.color;
+    tctx.fillRect(0, 0, this.tamano, this.tamano);
+    tctx.globalCompositeOperation = 'destination-in';
+    tctx.drawImage(mascara, 0, 0);
+    capa.ctx.save();
+    capa.ctx.globalAlpha = this.fuerza;
+    capa.ctx.drawImage(temp, x - this.tamano / 2, y - this.tamano / 2);
+    capa.ctx.restore();
+  }
+
+   dibujarDabPincelno(capa, x, y) {
+    if (this.herramienta === 'borrador') {
+      const mascara = this.obtenerMascara();
+      capa.ctx.save();
+      capa.ctx.globalAlpha = this.fuerza;
+      capa.ctx.globalCompositeOperation = 'destination-out';
+      capa.ctx.drawImage(mascara, x - this.tamano / 2, y - this.tamano / 2);
+      capa.ctx.restore();
+      return;
+    }
+
+   
+    if (this.imagenSello) {
+      capa.ctx.save();
+      capa.ctx.globalCompositeOperation = 'source-over';
+      capa.ctx.globalAlpha = this.fuerza;
+      capa.ctx.drawImage(
+        this.imagenSello, 
+        x - this.tamano / 2, 
+        y - this.tamano / 2, 
+        this.tamano, 
+        this.tamano
+      );
+      capa.ctx.restore();
+      return;
+    }
+
+   
+    const mascara = this.obtenerMascara();
+    const temp = document.createElement('canvas');
+    temp.width = temp.height = this.tamano;
+    const tctx = temp.getContext('2d');
+    tctx.fillStyle = this.color;
+    tctx.fillRect(0, 0, this.tamano, this.tamano);
+    tctx.globalCompositeOperation = 'destination-in';
+    tctx.drawImage(mascara, 0, 0);
+    capa.ctx.save();
+    capa.ctx.globalAlpha = this.fuerza;
+    capa.ctx.drawImage(temp, x - this.tamano / 2, y - this.tamano / 2);
+    capa.ctx.restore();
+  }
+
+  dibujarDabClonado(capa, xDestino, yDestino, xFuente, yFuente) {
+    if (!this.capaFuenteClonado) return;
+    const mascara = this.obtenerMascara();
+    const temp = document.createElement('canvas');
+    temp.width = temp.height = this.tamano;
+    const tctx = temp.getContext('2d');
+    tctx.drawImage(this.capaFuenteClonado.canvas, xFuente - this.tamano / 2, yFuente - this.tamano / 2, this.tamano, this.tamano, 0, 0, this.tamano, this.tamano);
+    tctx.globalCompositeOperation = 'destination-in';
+    tctx.drawImage(mascara, 0, 0);
+    capa.ctx.save();
+    capa.ctx.globalAlpha = this.fuerza;
+    capa.ctx.drawImage(temp, xDestino - this.tamano / 2, yDestino - this.tamano / 2);
+    capa.ctx.restore();
+  }
+
+   dibujarDabSello(capa, x, y) {
+    if (!this.imagenSello) return;
+    const rad = (this.rotacion * Math.PI) / 180;  
+    
+    capa.ctx.save();
+    capa.ctx.globalCompositeOperation = 'source-over';
+    capa.ctx.globalAlpha = this.fuerza;
+    
+     
+    capa.ctx.translate(x, y);
+    capa.ctx.rotate(rad);
+    
+     
+    capa.ctx.drawImage(
+      this.imagenSello, 
+      -this.tamano / 2, 
+      -this.tamano / 2, 
+      this.tamano, 
+      this.tamano
+    );
+    
+    capa.ctx.restore();
+  }
+
+  colocarDab(xDoc, yDoc) {
+    const capa = this.capaActiva;
+    if (!capa) return;
+    const x = xDoc - capa.x;
+    const y = yDoc - capa.y;
+    if (this.herramienta === 'pincel' || this.herramienta === 'borrador') {
+      this.dibujarDabPincel(capa, x, y);
+    } else if (this.herramienta === 'clonar') {
+      if (!this.offsetClonado) return;
+      this.dibujarDabClonado(capa, x, y, x + this.offsetClonado.x, y + this.offsetClonado.y);
+    } else if (this.herramienta === 'sello') {
+      this.dibujarDabSello(capa, x, y);
+    }
+    this.renderizar();
+  }
+
+  procesarPunto(xDoc, yDoc) {
+    if (!this.ultimoPunto) {
+      this.colocarDab(xDoc, yDoc);
+      this.ultimoPunto = { x: xDoc, y: yDoc };
+      this.distanciaAcumulada = 0;
+      return;
+    }
+    let dx = xDoc - this.ultimoPunto.x;
+    let dy = yDoc - this.ultimoPunto.y;
+    let dist = Math.hypot(dx, dy);
+    const paso = Math.max(1, this.tamano * this.espaciado);
+    while (this.distanciaAcumulada + dist >= paso) {
+      const falta = paso - this.distanciaAcumulada;
+      const ratio = dist === 0 ? 0 : falta / dist;
+      const nx = this.ultimoPunto.x + dx * ratio;
+      const ny = this.ultimoPunto.y + dy * ratio;
+      this.colocarDab(nx, ny);
+      this.ultimoPunto = { x: nx, y: ny };
+      dx = xDoc - nx;
+      dy = yDoc - ny;
+      dist = Math.hypot(dx, dy);
+      this.distanciaAcumulada = 0;
+    }
+    this.distanciaAcumulada += dist;
+    this.ultimoPunto = { x: xDoc, y: yDoc };
+  }
+
+  actualizarPrevisualizacionPincel(xDoc, yDoc, visible) {
+    if (!visible || this.herramienta === 'mover') {
+      this.previsualizacion.style.display = 'none';
+      return;
+    }
+    const diametro = this.tamano * this.zoom;
+    this.previsualizacion.style.width = diametro + 'px';
+    this.previsualizacion.style.height = diametro + 'px';
+    this.previsualizacion.style.left = (xDoc * this.zoom) + 'px';
+    this.previsualizacion.style.top = (yDoc * this.zoom) + 'px';
+    this.previsualizacion.style.display = 'block';
+  }
+
+  coordenadasDocumento(evento) {
+    const rect = this.lienzo.getBoundingClientRect();
+    return {
+      x: (evento.clientX - rect.left) / this.zoom,
+      y: (evento.clientY - rect.top) / this.zoom
+    };
+  }
+
+  onPuntero(tipo, evento) {
+    const p = this.coordenadasDocumento(evento);
+    // Al inicio de onPuntero(tipo, evento):
+ 
+    if (this.herramienta === 'sel_rect' || this.herramienta === 'sel_lasso') {
+    this.gestorSeleccion.onPuntero(tipo, p);
+    return;
+    }
+    this.ultimaPosicionPuntero = p;
+    if (tipo === 'move') this.actualizarPrevisualizacionPincel(p.x, p.y, true);
+    if (this.herramienta === 'mover') {
+      if (tipo === 'down') {
+        this.moviendo = true;
+        this.moverInicio = { x: p.x, y: p.y, capaX: this.capaActiva.x, capaY: this.capaActiva.y };
+        this.guardarHistorial();
+      } else if (tipo === 'move' && this.moviendo) {
+        const capa = this.capaActiva;
+        capa.x = this.moverInicio.capaX + (p.x - this.moverInicio.x);
+        capa.y = this.moverInicio.capaY + (p.y - this.moverInicio.y);
+        this.renderizar();
+      } else if (tipo === 'up') {
+        this.moviendo = false;
+      }
+      return;
+    }
+    if (this.herramienta === 'clonar' && evento.altKey && tipo === 'down') {
+      this.puntoOrigenClonado = { x: p.x - this.capaActiva.x, y: p.y - this.capaActiva.y };
+      this.capaFuenteClonado = this.capaActiva;
+      this.offsetClonado = null;
+      return;
+    }
+    if (tipo === 'down') {
+    if (evento.button !== 0) return; 
+      this.guardarHistorial();
+      this.pintando = true;
+      this.ultimoPunto = null;
+      this.distanciaAcumulada = 0;
+      if (this.herramienta === 'clonar' && this.puntoOrigenClonado) {
+        const inicioLocal = { x: p.x - this.capaActiva.x, y: p.y - this.capaActiva.y };
+        this.offsetClonado = { x: this.puntoOrigenClonado.x - inicioLocal.x, y: this.puntoOrigenClonado.y - inicioLocal.y };
+      }
+      this.procesarPunto(p.x, p.y);
+    } else if (tipo === 'move' && this.pintando) {
+      this.procesarPunto(p.x, p.y);
+    } else if (tipo === 'up') {
+      this.pintando = false;
+      this.ultimoPunto = null;
+    }
+  }
+
+  renderizar() {
+    this.lienzo.width = this.documento.ancho;
+    this.lienzo.height = this.documento.alto;
+    this.ctx.clearRect(0, 0, this.documento.ancho, this.documento.alto);
+    for (const capa of this.capas) {
+      if (!capa.visible) continue;
+      this.ctx.save();
+      this.ctx.globalAlpha = capa.opacidad;
+      this.ctx.drawImage(capa.canvas, capa.x, capa.y);
+      this.ctx.restore();
+    }
+    this.gestorSeleccion.dibujarBorde(this.ctx);
+    this.aplicarZoom();
+  }
+
+  aplicarZoom() {
+    this.lienzo.style.width = (this.documento.ancho * this.zoom) + 'px';
+    this.lienzo.style.height = (this.documento.alto * this.zoom) + 'px';
+    document.getElementById('zoomTexto').textContent = Math.round(this.zoom * 100) + '%';
+  }
+
+  cambiarZoom(nuevo) {
+    this.zoom = Math.min(16, Math.max(0.05, nuevo));
+    this.aplicarZoom();
+    if (this.ultimaPosicionPuntero) this.actualizarPrevisualizacionPincel(this.ultimaPosicionPuntero.x, this.ultimaPosicionPuntero.y, true);
+  }
+
+  ajustarZoom() {
+    const rectC = this.contenedor.getBoundingClientRect();
+    const z = Math.min((rectC.width - 60) / this.documento.ancho, (rectC.height - 60) / this.documento.alto);
+    this.cambiarZoom(Math.max(0.05, z));
+  }
+
+  actualizarPanelCapas=()=> {
+    const lista = document.getElementById('listaCapas');
+    lista.innerHTML = '';
+    for (let i = this.capas.length - 1; i >= 0; i--) {
+      const capa = this.capas[i];
+      const item = document.createElement('div');
+      item.className = 'itemCapa' + (i === this.indiceActiva ? ' activa' : '');
+      const fila = document.createElement('div');
+      fila.className = 'fila';
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = capa.visible;
+      chk.addEventListener('click', ev => { ev.stopPropagation(); capa.visible = chk.checked; this.renderizar(); });
+      let btdv=document.createElement("div");
+      btdv.className="clLayerBt";
+      btdv.innerText="[    ]";
+      btdv.onclick=()=>{
+        console.log(this.ajustarCanvasACapaActiva)
+        this.ajustarCanvasACapaActiva();
+     
+
+      }
+      const nombre = document.createElement('span');
+      nombre.className = 'nombre';
+      nombre.textContent = capa.nombre;
+      fila.appendChild(chk);
+      fila.appendChild(btdv);
+      fila.appendChild(nombre);
+      item.appendChild(fila);
+      const op = document.createElement('input');
+      op.type = 'range';
+      op.min = 0; op.max = 1; op.step = 0.02;
+      op.value = capa.opacidad;
+      op.addEventListener('input', ev => { ev.stopPropagation(); capa.opacidad = parseFloat(op.value); this.renderizar(); });
+      item.appendChild(op);
+      item.addEventListener('click', () => { this.indiceActiva = i; this.actualizarPanelCapas(); });
+      lista.appendChild(item);
+    }
+  }
+
+  seleccionarHerramienta(nombre) {
+    this.herramienta = nombre;
+    document.querySelectorAll('#panelHerramientas button').forEach(b => b.classList.remove('activo'));
+    const boton = document.getElementById('herr_' + nombre);
+    if (boton) boton.classList.add('activo');
+    // Configurar modo del gestor de selección
+    if (nombre === 'sel_rect') this.gestorSeleccion.activarModo('rect');
+    else if (nombre === 'sel_lasso') this.gestorSeleccion.activarModo('lasso');
+    else this.gestorSeleccion.modo = 'ninguno';
+  }
+
+  enlazarUI() {
+
+   const modal = document.getElementById('modalSesiones');
+
+    
+
+    // 2. Abrir la ventana emergente (Modal)
+    document.getElementById('btnAbrirModalSesiones').addEventListener('click', () => {
+      document.getElementById('txtBuscarSesion').value = '';
+      this.renderizarListaSesionesUI();
+      modal.classList.remove('oculto');
+    });
+
+    
+
+    
+
+    // 5. Cerrar la ventana emergente
+    document.getElementById('cerrarModalSesiones').addEventListener('click', () => modal.classList.add('oculto'));
+    document.getElementById('btnCerrarModalFooter').addEventListener('click', () => modal.classList.add('oculto'));
+
+    // 6. Borrar TODAS las sesiones
+   
+    document.getElementById('btnGuardarJSON').addEventListener('click', () => this.descargarJSON());
+   
+    document.getElementById('inputCargarJSON').addEventListener('change', (ev) => {
+      if (ev.target.files && ev.target.files[0]) {
+        this.cargarArchivoJSON(ev.target.files[0]);
+        ev.target.value = '';
+      }
+    });
+   
+    
+    document.getElementById('rangoRotacion').addEventListener('input', ev => {
+    this.rotacion = parseInt(ev.target.value);
+    document.getElementById('textoRotacion').textContent = this.rotacion + '°';
+    });
+    document.getElementById('herr_sel_rect').addEventListener('click', () => this.seleccionarHerramienta('sel_rect'));
+    document.getElementById('herr_sel_lasso').addEventListener('click', () => this.seleccionarHerramienta('sel_lasso'));
+    document.getElementById('herr_pincel').addEventListener('click', () => this.seleccionarHerramienta('pincel'));
+    document.getElementById('herr_borrador').addEventListener('click', () => this.seleccionarHerramienta('borrador'));
+    document.getElementById('herr_clonar').addEventListener('click', () => this.seleccionarHerramienta('clonar'));
+    document.getElementById('herr_sello').addEventListener('click', () => this.seleccionarHerramienta('sello'));
+    document.getElementById('herr_mover').addEventListener('click', () => this.seleccionarHerramienta('mover'));
+    this.seleccionarHerramienta('pincel');
+
+    document.getElementById('inputColor').addEventListener('input', ev => { this.color = ev.target.value; });
+    document.getElementById('rangoTamano').addEventListener('input', ev => {
+      this.tamano = parseInt(ev.target.value);
+      document.getElementById('textoTamano').textContent = this.tamano;
+      if (this.ultimaPosicionPuntero) this.actualizarPrevisualizacionPincel(this.ultimaPosicionPuntero.x, this.ultimaPosicionPuntero.y, true);
+    });
+    document.getElementById('rangoDureza').addEventListener('input', ev => { this.dureza = parseFloat(ev.target.value); });
+    document.getElementById('rangoFuerza').addEventListener('input', ev => { this.fuerza = parseFloat(ev.target.value); });
+    document.getElementById('rangoEspaciado').addEventListener('input', ev => { this.espaciado = parseFloat(ev.target.value); });
+
+    document.getElementById('btnNuevoDoc').addEventListener('click', () => this.redimensionarDocumento());
+    document.getElementById('btnZoomMenos').addEventListener('click', () => this.cambiarZoom(this.zoom / 1.2));
+    document.getElementById('btnZoomMas').addEventListener('click', () => this.cambiarZoom(this.zoom * 1.2));
+    document.getElementById('btnZoom100').addEventListener('click', () => this.cambiarZoom(1));
+    document.getElementById('btnZoomAjustar').addEventListener('click', () => this.ajustarZoom());
+    document.getElementById('btnDeshacer').addEventListener('click', () => this.deshacer());
+    document.getElementById('btnRehacer').addEventListener('click', () => this.rehacer());
+    document.getElementById('btnExportar').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.download = 'imagen.png';
+      a.href = this.lienzo.toDataURL('image/png');
+      a.click();
+    });
+
+    document.getElementById('btnNuevaCapa').addEventListener('click', () => this.nuevaCapa());
+    document.getElementById('btnDuplicarCapa').addEventListener('click', () => this.duplicarCapaActiva());
+    document.getElementById('btnEliminarCapa').addEventListener('click', () => this.eliminarCapaActiva());
+    document.getElementById('btnSubirCapa').addEventListener('click', () => this.moverCapaActiva(1));
+    document.getElementById('btnBajarCapa').addEventListener('click', () => this.moverCapaActiva(-1));
+    document.getElementById('btnRedimensionarCapa').addEventListener('click', () => this.redimensionarCapaActiva());
+    document.getElementById('btnRotarCapa').addEventListener('click', () => this.rotarCapaActiva());
+
+    const fileInputCapa = new UIFileInput('Cargar imagen', 'image/*', archivo => this.cargarImagenComoCapa(archivo));
+    document.getElementById('contenedorCargarImagenCapa').appendChild(fileInputCapa.dom);
+    const fileInputSello = new UIFileInput('Imagen sello', 'image/*', archivo => this.cargarImagenSello(archivo));
+    document.getElementById('contenedorCargarSello').appendChild(fileInputSello.dom);
+
+    this.lienzo.addEventListener('pointerdown', ev => { this.lienzo.setPointerCapture(ev.pointerId); this.onPuntero('down', ev); });
+    this.lienzo.addEventListener('pointermove', ev => this.onPuntero('move', ev));
+    this.lienzo.addEventListener('pointerup', ev => this.onPuntero('up', ev));
+    this.lienzo.addEventListener('pointercancel', ev => this.onPuntero('up', ev));
+    this.lienzo.addEventListener('pointerenter', ev => this.onPuntero('move', ev));
+    this.lienzo.addEventListener('pointerleave', () => { this.previsualizacion.style.display = 'none'; });
+
+    this.contenedor.addEventListener('wheel', ev => {
+      if (!ev.ctrlKey) return;
+      ev.preventDefault();
+      const factor = ev.deltaY < 0 ? 1.1 : 0.9;
+      this.cambiarZoom(this.zoom * factor);
+    }, { passive: false });
+
+    window.addEventListener('keydown', ev => {
+      const tecla = ev.key.toLowerCase();
+      if (ev.ctrlKey && !ev.shiftKey && tecla === 'z') { ev.preventDefault(); this.deshacer(); return; }
+      if ((ev.ctrlKey && ev.shiftKey && tecla === 'z') || (ev.ctrlKey && tecla === 'y')) { ev.preventDefault(); this.rehacer(); return; }
+      if (ev.target.tagName === 'INPUT' && ev.target.type === 'text') return;
+      const mapaCodigo = { KeyB: 'pincel', KeyE: 'borrador', KeyC: 'clonar', KeyS: 'sello', KeyM: 'mover' };
+      if (mapaCodigo[ev.code]) this.seleccionarHerramienta(mapaCodigo[ev.code]);
+      if (ev.code === 'KeyQ') this.ajustarCanvasACapaActiva();
+    });
+
+    window.addEventListener('paste', ev => this.manejarPegado(ev));
+    window.addEventListener('dragover', ev => ev.preventDefault());
+    window.addEventListener('drop', ev => this.manejarSoltar(ev));
+  }
+}
+
+const F2 = 0.5 * (Math.sqrt(3) - 1);
+const G2 = (3 - Math.sqrt(3)) / 6;
+const grad3 = new Float32Array([1,1,0,-1,1,0,1,-1,0,-1,-1,0,1,0,1,-1,0,1,1,0,-1,-1,0,-1,0,1,1,0,-1,1,0,1,-1,0,-1,-1]);
+
+function mashRuido(data) {
+  let n = 0xefc8249d;
+  for (let i = 0; i < data.length; i++) {
+    n += data.charCodeAt(i);
+    let h = 0.02519603282416938 * n;
+    n = h >>> 0;
+    h -= n;
+    h *= n;
+    n = h >>> 0;
+    h -= n;
+    n += h * 0x100000000;
+  }
+  return (n >>> 0) * 2.3283064365386963e-10;
+}
+
+function aleaRuido(seed) {
+  let s0 = mashRuido(' '), s1 = mashRuido(' '), s2 = mashRuido(' '), c = 1;
+  const cad = String(seed == null ? +new Date() : seed);
+  for (let i = 0; i < cad.length; i++) {
+    s0 -= mashRuido(cad[i]); if (s0 < 0) s0 += 1;
+    s1 -= mashRuido(cad[i]); if (s1 < 0) s1 += 1;
+    s2 -= mashRuido(cad[i]); if (s2 < 0) s2 += 1;
+  }
+  return function () {
+    const t = 2091639 * s0 + c * 2.3283064365386963e-10;
+    s0 = s1; s1 = s2;
+    return s2 = t - (c = t | 0);
+  };
+}
+
+function construirTablaPermutacion(random) {
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) {
+    const n = Math.floor(random() * (i + 1)) % (i + 1);
+    const t = p[i]; p[i] = p[n]; p[n] = t;
+  }
+  return p;
+}
+
+class RuidoSimplex {
+  constructor(semilla) {
+    const random = typeof semilla === 'function' ? semilla : aleaRuido(semilla);
+    this.p = construirTablaPermutacion(random);
+    this.perm = new Uint8Array(512);
+    this.permMod12 = new Uint8Array(512);
+    for (let i = 0; i < 512; i++) {
+      this.perm[i] = this.p[i & 255];
+      this.permMod12[i] = this.perm[i] % 12;
+    }
+  }
+  ruido2D(x, y) {
+    const s = (x + y) * F2;
+    const i = Math.floor(x + s);
+    const j = Math.floor(y + s);
+    const t = (i + j) * G2;
+    const X0 = i - t, Y0 = j - t;
+    const x0 = x - X0, y0 = y - Y0;
+    let i1, j1;
+    if (x0 > y0) { i1 = 1; j1 = 0; } else { i1 = 0; j1 = 1; }
+    const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
+    const x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
+    const ii = i & 255, jj = j & 255;
+    const g0 = this.permMod12[ii + this.perm[jj]] * 3;
+    const g1 = this.permMod12[ii + i1 + this.perm[jj + j1]] * 3;
+    const g2 = this.permMod12[ii + 1 + this.perm[jj + 1]] * 3;
+    let n0 = 0, n1 = 0, n2 = 0;
+    let t0 = 0.5 - x0 * x0 - y0 * y0;
+    if (t0 >= 0) { t0 *= t0; n0 = t0 * t0 * (grad3[g0] * x0 + grad3[g0 + 1] * y0); }
+    let t1 = 0.5 - x1 * x1 - y1 * y1;
+    if (t1 >= 0) { t1 *= t1; n1 = t1 * t1 * (grad3[g1] * x1 + grad3[g1 + 1] * y1); }
+    let t2 = 0.5 - x2 * x2 - y2 * y2;
+    if (t2 >= 0) { t2 *= t2; n2 = t2 * t2 * (grad3[g2] * x2 + grad3[g2 + 1] * y2); }
+    return 70 * (n0 + n1 + n2);
+  }
+}
+
+class UIPanel {
+  constructor(titulo, posicion) {
+    this.dom = document.createElement('div');
+    this.dom.className = 'menu-container oculto';
+    posicion = posicion || { top: '70px', right: '20px' };
+    for (const k in posicion) this.dom.style[k] = posicion[k];
+    this.header = document.createElement('div');
+    this.header.className = 'menu-header';
+    const titSpan = document.createElement('span');
+    titSpan.textContent = titulo;
+    const cerrar = document.createElement('span');
+    cerrar.className = 'cerrar';
+    cerrar.textContent = '✕';
+    cerrar.addEventListener('click', () => this.hide());
+    this.header.appendChild(titSpan);
+    this.header.appendChild(cerrar);
+    this.dom.appendChild(this.header);
+    this.content = document.createElement('div');
+    this.content.className = 'menu-content';
+    this.dom.appendChild(this.content);
+    document.body.appendChild(this.dom);
+    this.habilitarArrastre();
+  }
+  addSection(titulo, colapsada) {
+    const s = new UISection(titulo, colapsada);
+    this.content.appendChild(s.dom);
+    return s;
+  }
+  show() { this.dom.classList.remove('oculto'); }
+  hide() { this.dom.classList.add('oculto'); }
+  toggle() { this.dom.classList.toggle('oculto'); }
+  habilitarArrastre() {
+    let arrastrando = false, offsetX = 0, offsetY = 0;
+    this.header.addEventListener('mousedown', ev => {
+      if (ev.target.className === 'cerrar') return;
+      arrastrando = true;
+      const rect = this.dom.getBoundingClientRect();
+      offsetX = ev.clientX - rect.left;
+      offsetY = ev.clientY - rect.top;
+      this.dom.style.right = 'auto';
+    });
+    window.addEventListener('mousemove', ev => {
+      if (!arrastrando) return;
+      this.dom.style.left = (ev.clientX - offsetX) + 'px';
+      this.dom.style.top = (ev.clientY - offsetY) + 'px';
+    });
+    window.addEventListener('mouseup', () => { arrastrando = false; });
+  }
+}
+
+class UISection {
+  constructor(titulo, colapsada) {
+    this.dom = document.createElement('div');
+    this.dom.className = 'collapsible-section';
+    this.header = document.createElement('div');
+    this.header.className = 'section-header';
+    const span = document.createElement('span');
+    span.textContent = titulo;
+    const icono = document.createElement('span');
+    icono.className = 'toggle-icon';
+    icono.textContent = colapsada ? '▸' : '▾';
+    this.header.appendChild(span);
+    this.header.appendChild(icono);
+    this.dom.appendChild(this.header);
+    this.content = document.createElement('div');
+    this.content.className = 'section-content' + (colapsada ? ' colapsado' : '');
+    this.dom.appendChild(this.content);
+    this.header.addEventListener('click', () => {
+      const colapsado = this.content.classList.toggle('colapsado');
+      icono.textContent = colapsado ? '▸' : '▾';
+    });
+  }
+  add(componente) {
+    this.content.appendChild(componente.dom);
+    return componente;
+  }
+}
+
+class UIButton {
+  constructor(etiqueta, onClick) {
+    this.dom = document.createElement('button');
+    this.dom.className = 'btn-filtro';
+    this.dom.textContent = etiqueta;
+    this.dom.addEventListener('click', onClick);
+  }
+}
+
+class UICheckbox {
+  constructor(etiqueta, valorInicial, onCambio) {
+    this.dom = document.createElement('div');
+    this.dom.className = 'control-group';
+    const label = document.createElement('label');
+    this.input = document.createElement('input');
+    this.input.type = 'checkbox';
+    this.input.checked = valorInicial;
+    label.appendChild(this.input);
+    label.appendChild(document.createTextNode(' ' + etiqueta));
+    this.dom.appendChild(label);
+    this.input.addEventListener('change', () => onCambio(this.input.checked));
+  }
+  get valor() { return this.input.checked; }
+}
+
+class UISlider {
+  constructor(etiqueta, min, max, paso, valorDefecto, onCambio) {
+    this.dom = document.createElement('div');
+    this.dom.className = 'control-group';
+    this.wrapper = document.createElement('div');
+    this.wrapper.className = 'slider-wrapper';
+    this.header = document.createElement('div');
+    this.header.className = 'slider-header';
+    this.labelSpan = document.createElement('span');
+    this.labelSpan.textContent = etiqueta;
+    this.valLabel = document.createElement('span');
+    this.valLabel.className = 'ue-slider-value';
+    this.valLabel.textContent = valorDefecto;
+    this.header.appendChild(this.labelSpan);
+    this.header.appendChild(this.valLabel);
+    this.wrapper.appendChild(this.header);
+    this.sliderRow = document.createElement('div');
+    this.sliderRow.className = 'ue-slider-row';
+    this.input = document.createElement('input');
+    this.input.type = 'range';
+    this.input.min = min; this.input.max = max; this.input.step = paso; this.input.value = valorDefecto;
+    this.valorDefecto = valorDefecto;
+    this.resetBtn = document.createElement('button');
+    this.resetBtn.className = 'ue-reset-btn';
+    this.resetBtn.type = 'button';
+    this.resetBtn.textContent = '↺';
+    this.resetBtn.title = 'Restablecer';
+    this.sliderRow.appendChild(this.input);
+    this.sliderRow.appendChild(this.resetBtn);
+    this.wrapper.appendChild(this.sliderRow);
+    this.dom.appendChild(this.wrapper);
+    this.onInputCallback = onCambio;
+    this.inicializarEventos();
+  }
+  inicializarEventos() {
+    this.actualizarEstado();
+    this.input.addEventListener('input', () => {
+      this.actualizarEstado();
+      if (this.onInputCallback) this.onInputCallback(parseFloat(this.input.value));
+    });
+    this.resetBtn.addEventListener('click', () => {
+      this.input.value = this.valorDefecto;
+      this.actualizarEstado();
+      if (this.onInputCallback) this.onInputCallback(parseFloat(this.input.value));
+    });
+  }
+  actualizarEstado() {
+    const val = parseFloat(this.input.value);
+    if (Math.abs(val - this.valorDefecto) > 0.0001) this.resetBtn.classList.add('modified');
+    else this.resetBtn.classList.remove('modified');
+    this.valLabel.textContent = val.toFixed(this.decimalesDelPaso());
+  }
+  decimalesDelPaso() {
+    const paso = String(this.input.getAttribute('step') || '1');
+    return paso.includes('.') ? paso.split('.')[1].length : 0;
+  }
+  setDisabled(deshabilitado) {
+    this.input.disabled = deshabilitado;
+    if (deshabilitado) this.resetBtn.classList.remove('modified'); else this.actualizarEstado();
+  }
+  setValue(v) { this.input.value = v; this.actualizarEstado(); }
+  get valor() { return parseFloat(this.input.value); }
+}
+
+class UIInputText {
+  constructor(etiqueta, valorDefecto, onCambio) {
+    this.dom = document.createElement('div');
+    this.dom.className = 'control-group';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'slider-wrapper';
+    if (etiqueta) {
+      const header = document.createElement('div');
+      header.className = 'slider-header';
+      header.textContent = etiqueta;
+      wrapper.appendChild(header);
+    }
+    const fila = document.createElement('div');
+    fila.className = 'ue-input-row';
+    this.input = document.createElement('input');
+    this.input.type = 'text';
+    this.input.value = valorDefecto || '';
+    this.valorDefecto = valorDefecto || '';
+    this.resetBtn = document.createElement('button');
+    this.resetBtn.className = 'ue-reset-btn';
+    this.resetBtn.type = 'button';
+    this.resetBtn.textContent = '↺';
+    this.resetBtn.title = 'Restablecer valor predeterminado';
+    fila.appendChild(this.input);
+    fila.appendChild(this.resetBtn);
+    wrapper.appendChild(fila);
+    this.dom.appendChild(wrapper);
+    this.onCambio = onCambio;
+    this.actualizarEstado();
+    this.input.addEventListener('input', () => {
+      this.actualizarEstado();
+      if (this.onCambio) this.onCambio(this.input.value);
+    });
+    this.resetBtn.addEventListener('click', () => {
+      this.input.value = this.valorDefecto;
+      this.actualizarEstado();
+      if (this.onCambio) this.onCambio(this.input.value);
+    });
+  }
+  actualizarEstado() {
+    if (this.input.value !== this.valorDefecto) this.resetBtn.classList.add('modified');
+    else this.resetBtn.classList.remove('modified');
+  }
+  setValidationStatus(estado) {
+    this.input.classList.remove('valido', 'invalido');
+    if (estado === 'valido') this.input.classList.add('valido');
+    else if (estado === 'invalido') this.input.classList.add('invalido');
+  }
+  get valor() { return this.input.value; }
+  setValor(v) { this.input.value = v; this.actualizarEstado(); }
+}
+
+class UISelect {
+  constructor(etiqueta, opciones, valorSeleccionado, onCambio) {
+    this.dom = document.createElement('div');
+    this.dom.className = 'control-group';
+    if (etiqueta) {
+      const label = document.createElement('label');
+      label.textContent = etiqueta;
+      this.dom.appendChild(label);
+    }
+    this.select = document.createElement('select');
+    this.select.className = 'select-filtro';
+    opciones.forEach(op => {
+      const o = document.createElement('option');
+      o.value = op.value;
+      o.textContent = op.texto;
+      if (op.value === valorSeleccionado) o.selected = true;
+      this.select.appendChild(o);
+    });
+    this.dom.appendChild(this.select);
+    this.select.addEventListener('change', () => onCambio(this.select.value));
+  }
+  get valor() { return this.select.value; }
+}
+
+class UIFileInput {
+  constructor(etiqueta, aceptar, onArchivo) {
+    this.dom = document.createElement('button');
+    this.dom.className = 'btn-filtro btn-filtro-archivo';
+    this.dom.textContent = etiqueta;
+    this.input = document.createElement('input');
+    this.input.type = 'file';
+    if (aceptar) this.input.accept = aceptar;
+    this.input.addEventListener('change', () => {
+      if (this.input.files && this.input.files[0]) onArchivo(this.input.files[0]);
+      this.input.value = '';
+    });
+    this.dom.appendChild(this.input);
+  }
+}
+
+class AlgoritmosColor {
+  limite(v,b=0,c=1) { if(v>c){v=c;}if(v<b){v=b;} return v;}
+  valor1o0(v) { return Math.max(0, Math.min(1, v)); }
+  operacionMatematica(rgba, val, operacion) {
+    if (operacion === '*') {
+      rgba.r = this.valor1o0(rgba.r * val); rgba.g = this.valor1o0(rgba.g * val); rgba.b = this.valor1o0(rgba.b * val);
+    } else if (operacion === '+') {
+      rgba.r = this.valor1o0(rgba.r + val); rgba.g = this.valor1o0(rgba.g + val); rgba.b = this.valor1o0(rgba.b + val);
+    } else if (operacion === 'pow') {
+      rgba.r = this.valor1o0(Math.pow(rgba.r, val)); rgba.g = this.valor1o0(Math.pow(rgba.g, val)); rgba.b = this.valor1o0(Math.pow(rgba.b, val));
+    }
+    return rgba;
+  }
+  saturationGio(tex, ec5) {
+    const maxx = Math.max(tex.r, tex.g, tex.b);
+    if (tex.r !== maxx) tex.r += (maxx - tex.r) * ec5;
+    if (tex.g !== maxx) tex.g += (maxx - tex.g) * ec5;
+    if (tex.b !== maxx) tex.b += (maxx - tex.b) * ec5;
+    tex.r = this.valor1o0(tex.r); tex.g = this.valor1o0(tex.g); tex.b = this.valor1o0(tex.b);
+    return tex;
+  }
+  colorDivide(color1) {
+    const maxx0 = Math.max(color1.r, color1.g, color1.b) + 0.00001;
+    const minx = Math.min(color1.r, color1.g, color1.b);
+    return minx / (maxx0 + 0.0000001);
+  }
+  simpleLinealFuncion(x1, y1, x2, y2, val) {
+    const dx = (x2 - x1) + 0.00001;
+    const dy = y2 - y1;
+    const m = dy / dx;
+    const b = y2 - m * x2;
+    return m * val + b;
+  }
+  mixerHtmlPasaColor(rgbax, rgba2, porcent, bool) {
+    const maxx0 = Math.max(rgbax.r, rgbax.g, rgbax.b);
+    const clmd = 1 - porcent;
+    rgbax.r = rgbax.r * clmd + rgba2.r * porcent;
+    rgbax.g = rgbax.g * clmd + rgba2.g * porcent;
+    rgbax.b = rgbax.b * clmd + rgba2.b * porcent;
+    if (bool) {
+      const max2 = Math.max(rgbax.r, rgbax.g, rgbax.b);
+      this.operacionMatematica(rgbax, maxx0 / (max2 + 0.00001), '*');
+    }
+    return rgbax;
+  }
+  radialPixelesGio(imageData, f) {
+    const data = imageData.data;
+    const width = imageData.width, height = imageData.height;
+    const centerX = width / 2, centerY = height / 2;
+    const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+    const rgba = { r: 0, g: 0, b: 0 };
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const index = (y * width + x) * 4;
+        const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+        let gradientValue = 1 - distance / maxDistance;
+        gradientValue = Math.max(0, Math.min(1, gradientValue));
+        rgba.r = data[index] / 255; rgba.g = data[index + 1] / 255; rgba.b = data[index + 2] / 255;
+        const out = f ? f(rgba, gradientValue) : rgba;
+        data[index] = out.r * 255; data[index + 1] = out.g * 255; data[index + 2] = out.b * 255;
+      }
+    }
+    return imageData;
+  }
+  colormasrepetidomaxdv() { return { color: { r: 0.54, g: 0.44, b: 0.35 } }; }
+  colorinihunyuan(imageData) {
+    const data = imageData.data;
+    let rgba = { r: 0, g: 0, b: 0 };
+    const rgba2 = { r: 0, g: 0, b: 0 };
+    let contador = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      const maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+      if (maxpx > 0.3 && maxpx < 0.7) { rgba2.r += rgba.r; rgba2.g += rgba.g; rgba2.b += rgba.b; contador++; }
+    }
+    contador = contador || 1;
+    rgba2.r /= contador; rgba2.g /= contador; rgba2.b /= contador;
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      const maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+      this.operacionMatematica(rgba, (1 - this.valor1o0(maxpx * 2)) * 0.1, '+');
+      this.operacionMatematica(rgba, this.simpleLinealFuncion(1, 0.5, 0, 1.2, maxpx), '*');
+      const dv = this.colorDivide(rgba);
+      rgba = this.mixerHtmlPasaColor(rgba, rgba2, this.valor1o0(this.simpleLinealFuncion(1, 1, 0.4, 0, dv)), true);
+      data[i] = rgba.r * 255; data[i + 1] = rgba.g * 255; data[i + 2] = rgba.b * 255;
+    }
+    return imageData;
+  }
+  colorinihunyuan2(imageData) {
+    const data = imageData.data;
+    let rgba = { r: 0, g: 0, b: 0 };
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      const maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+      this.operacionMatematica(rgba, this.simpleLinealFuncion(1, 0.63, 0, 0.3, maxpx) / (maxpx + 0.00001), '*');
+      for (let paso = 0; paso < 8; paso++) {
+        const dv = this.colorDivide(rgba);
+        rgba = this.saturationGio(rgba, dv * -0.5);
+      }
+      const dv = this.colorDivide(rgba);
+      rgba = this.saturationGio(rgba, 0.3 - dv);
+      data[i] = rgba.r * 255; data[i + 1] = rgba.g * 255; data[i + 2] = rgba.b * 255;
+    }
+    return imageData;
+  }
+  colorsaturacionideal(imageData) {
+    const data = imageData.data;
+    let rgba = { r: 0, g: 0, b: 0 };
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      const maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+      this.operacionMatematica(rgba, this.simpleLinealFuncion(1, 0.7, 0, 1.25, maxpx), '*');
+      const dv = this.colorDivide(rgba);
+      rgba = this.saturationGio(rgba, 0.28 - dv);
+      data[i] = rgba.r * 255; data[i + 1] = rgba.g * 255; data[i + 2] = rgba.b * 255;
+    }
+    return imageData;
+  }
+  colorpasocolor3dmesh(imageData, usarMultiplicador) {
+    const data = imageData.data;
+    let rgba = { r: 0, g: 0, b: 0 };
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      let maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+      if (usarMultiplicador) {
+        rgba = this.operacionMatematica(rgba, this.simpleLinealFuncion(1, 0.7, 0, 0.09, maxpx) / (maxpx + 0.000001), '*');
+      } else {
+        rgba = this.operacionMatematica(rgba, 0.05, '+');
+        maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+        if (maxpx > 0.5) rgba = this.operacionMatematica(rgba, 0.5 / (maxpx + 0.00001), '*');
+        const dv = this.colorDivide(rgba);
+        this.saturationGio(rgba, 0.3 - dv);
+      }
+      data[i] = rgba.r * 255; data[i + 1] = rgba.g * 255; data[i + 2] = rgba.b * 255;
+    }
+    return imageData;
+  }
+  meshpaintcolor(imageData, modoExtendido) {
+    const data = imageData.data;
+    let rgba = { r: 0, g: 0, b: 0 };
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      if (modoExtendido) {
+        let maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+        this.operacionMatematica(rgba, this.simpleLinealFuncion(1, 0, 0, 0.2, maxpx), '+');
+        let dv = this.colorDivide(rgba);
+        this.saturationGio(rgba, 0.5 - dv);
+        maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+        if (maxpx > 0.67) this.operacionMatematica(rgba, 0.67 / (maxpx + 0.000001), '*');
+        dv = this.colorDivide(rgba);
+        this.saturationGio(rgba, -dv * 0.3);
+      } else {
+        const maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+        this.operacionMatematica(rgba, (1 - maxpx) * 0.2 * maxpx, '+');
+      }
+      data[i] = rgba.r * 255; data[i + 1] = rgba.g * 255; data[i + 2] = rgba.b * 255;
+    }
+    return imageData;
+  }
+  mejorarcolor3dmesh(imageData ) {
+    const data = imageData.data;
+    let rgba = { r: 0, g: 0, b: 0 };
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      const maxpx = Math.max(rgba.r, rgba.g, rgba.b);       
+      for(var ix=0; ix<2; ix++){
+        let dv=this.colorDivide(rgba);
+        let ev=this.limite( -0.3 + 1.5*dv);
+        this.saturationGio(rgba, dv*dv *-1);
+      }       
+      data[i] = rgba.r * 255; data[i + 1] = rgba.g * 255; data[i + 2] = rgba.b * 255;
+    }
+    return imageData;
+  }
+  meshPasoExperimental(imageData, paso2, sum) {
+    const data = imageData.data;
+    let rgba = { r: 0, g: 0, b: 0 };
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      const maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+      if (!paso2) {
+        this.operacionMatematica(rgba, this.simpleLinealFuncion(1, -0.3, 0, sum, maxpx), '+');
+        for (let k = 0; k < 2; k++) { const dv = this.colorDivide(rgba); this.saturationGio(rgba, 0.5 - dv); }
+      } else {
+        this.operacionMatematica(rgba, this.simpleLinealFuncion(1, 0.67, 0, 1.5, this.valor1o0(maxpx * 2)), '*');
+        this.operacionMatematica(rgba, (1 - maxpx) * (0.1 + sum) * maxpx, '+');
+        for (let k = 0; k < 2; k++) { const dv = this.colorDivide(rgba); this.saturationGio(rgba, 0.5 - dv); }
+      }
+      data[i] = rgba.r * 255; data[i + 1] = rgba.g * 255; data[i + 2] = rgba.b * 255;
+    }
+    return imageData;
+  }
+  colorDiferencial(imageData, valsat) {
+    const f1 = (rgba, gradientValue) => {
+      const maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+      this.operacionMatematica(rgba, this.valor1o0(Math.max(0.9 - gradientValue, this.simpleLinealFuncion(1, 1.3, 0, 0.3, maxpx))) / (maxpx + 0.0001), '*');
+      const dv = this.colorDivide(rgba);
+      this.saturationGio(rgba, valsat - dv);
+      this.operacionMatematica(rgba, 0.67, '*');
+      return rgba;
+    };
+    return this.radialPixelesGio(imageData, f1);
+  }
+  maxmultoliCnSaturacion(imageData, valmulpx, valsat) {
+    const data = imageData.data;
+    let rgba = { r: 0, g: 0, b: 0 };
+    let maxipx = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      maxipx = Math.max(rgba.r, rgba.g, rgba.b, maxipx);
+    }
+    maxipx += 0.0001;
+    const mul = valmulpx / maxipx;
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      const dv = this.colorDivide(rgba);
+      this.saturationGio(rgba, valsat - dv);
+      this.operacionMatematica(rgba, mul, '*');
+      data[i] = rgba.r * 255; data[i + 1] = rgba.g * 255; data[i + 2] = rgba.b * 255;
+    }
+    return imageData;
+  }
+  fwoodtransfomation(imageData, modo) {
+    const data = imageData.data;
+    let rgba = { r: 0, g: 0, b: 0 };
+    let rgbacolor = { r: 0, g: 0, b: 0 };
+    const rgba3 = { r: 0.54, g: 0.44, b: 0.35 };
+    const rgba4 = { r: 0.524, g: 0.49, b: 0.4828 };
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      rgbacolor.r = rgba.r; rgbacolor.g = rgba.g; rgbacolor.b = rgba.b;
+      if (modo === 1) { rgba.r = rgba3.r; rgba.g = rgba3.g; rgba.b = rgba3.b; }
+      if (modo === 2) { rgba.r = rgba4.r; rgba.g = rgba4.g; rgba.b = rgba4.b; }
+      if (modo !== 0) {
+        let maxPx = Math.max(rgbacolor.r, rgbacolor.g, rgbacolor.b);
+        this.operacionMatematica(rgbacolor, (0.6 - maxPx) * 0.45, '+');
+        maxPx = Math.max(rgbacolor.r, rgbacolor.g, rgbacolor.b);
+        this.operacionMatematica(rgba, maxPx, '*');
+      } else {
+        let maxPx = Math.max(rgba.r, rgba.g, rgba.b);
+        this.operacionMatematica(rgba, this.simpleLinealFuncion(1, -0.2, 0, 0.3, maxPx * maxPx), '+');
+        maxPx = Math.max(rgba.r, rgba.g, rgba.b);
+        const minpx = Math.min(rgba.r, rgba.g, rgba.b);
+        const dv = minpx / (maxPx + 0.000001);
+        this.saturationGio(rgba, -0.3 * dv);
+      }
+      data[i] = rgba.r * 255; data[i + 1] = rgba.g * 255; data[i + 2] = rgba.b * 255;
+    }
+    return imageData;
+  }
+  ftilelimites(imageData, imageDatawhite, vluemenosamas, saturation) {
+    const data = imageData.data;
+    const data2 = imageDatawhite.data;
+    let rgba = { r: 0, g: 0, b: 0 };
+    const obj = this.colormasrepetidomaxdv();
+    for (let i = 0; i < data.length; i += 4) {
+      rgba.r = data[i] / 255; rgba.g = data[i + 1] / 255; rgba.b = data[i + 2] / 255;
+      const maxpx2 = data2[i] / 255;
+      let maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+      let z = (1 - maxpx * maxpx * 1.1) * (1 - maxpx) * 0.5;
+      if (z > 0.7) z = 0.7;
+      this.operacionMatematica(rgba, z * vluemenosamas, '+');
+      maxpx = Math.max(rgba.r, rgba.g, rgba.b);
+      this.mixerHtmlPasaColor(rgba, obj.color, 1 - maxpx, true);
+      let a = 1 - maxpx2 + 0.5;
+      if (a > 1) a = 1;
+      this.operacionMatematica(rgba, a, 'pow');
+      this.saturationGio(rgba, -saturation);
+      data[i] = rgba.r * 255; data[i + 1] = rgba.g * 255; data[i + 2] = rgba.b * 255;
+    }
+    return imageData;
+  }
+}
+
+class EditorCurvas {
+  constructor(ancho, alto) {
+    this.ancho = ancho;
+    this.alto = alto;
+    this.margen = 8;
+    this.canales = {
+      master: this.puntosPorDefecto(),
+      r: this.puntosPorDefecto(),
+      g: this.puntosPorDefecto(),
+      b: this.puntosPorDefecto()
+    };
+    this.colores = { master: '#e8e8e8', r: '#ff5b5b', g: '#4ee36a', b: '#5b9dff' };
+    this.canalActivo = 'master';
+    this.indiceArrastrado = -1;
+    this.radioPunto = 6;
+    this.canvas = document.createElement('canvas');
+    this.canvas.id = 'lienzoCurvas';
+    this.canvas.width = ancho;
+    this.canvas.height = alto;
+    this.ctx = this.canvas.getContext('2d');
+    this.enlazarEventos();
+    this.redibujar();
+  }
+  puntosPorDefecto() {
+    return [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+  }
+  reiniciarCanal() {
+    this.canales[this.canalActivo] = this.puntosPorDefecto();
+    this.redibujar();
+  }
+  reiniciarTodo() {
+    for (const k in this.canales) this.canales[k] = this.puntosPorDefecto();
+    this.redibujar();
+  }
+  xAPixel(x) { return this.margen + (x / 255) * (this.ancho - this.margen * 2); }
+  yAPixel(y) { return this.alto - this.margen - (y / 255) * (this.alto - this.margen * 2); }
+  pixelAX(px) { return Math.max(0, Math.min(255, ((px - this.margen) / (this.ancho - this.margen * 2)) * 255)); }
+  pixelAY(py) { return Math.max(0, Math.min(255, ((this.alto - this.margen - py) / (this.alto - this.margen * 2)) * 255)); }
+  puntosOrdenados(canal) { return this.canales[canal].slice().sort((a, b) => a.x - b.x); }
+  encontrarPuntoCercano(px, py) {
+    const pts = this.canales[this.canalActivo];
+    for (let i = 0; i < pts.length; i++) {
+      const sx = this.xAPixel(pts[i].x);
+      const sy = this.yAPixel(pts[i].y);
+      if (Math.hypot(sx - px, sy - py) <= this.radioPunto + 4) return i;
+    }
+    return -1;
+  }
+  enlazarEventos() {
+    const posDesdeEvento = ev => {
+      const rect = this.canvas.getBoundingClientRect();
+      const cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      return { px: (cx - rect.left) * (this.canvas.width / rect.width), py: (cy - rect.top) * (this.canvas.height / rect.height) };
+    };
+    this.canvas.addEventListener('mousedown', ev => {
+      const p = posDesdeEvento(ev);
+      const idx = this.encontrarPuntoCercano(p.px, p.py);
+      if (idx >= 0) {
+        this.indiceArrastrado = idx;
+      } else {
+        const x = this.pixelAX(p.px);
+        const y = this.pixelAY(p.py);
+        this.canales[this.canalActivo].push({ x, y });
+        this.canales[this.canalActivo].sort((a, b) => a.x - b.x);
+        this.indiceArrastrado = this.canales[this.canalActivo].findIndex(pt => pt.x === x && pt.y === y);
+        this.redibujar();
+      }
+    });
+    window.addEventListener('mousemove', ev => {
+      if (this.indiceArrastrado < 0) return;
+      const p = posDesdeEvento(ev);
+      const pts = this.canales[this.canalActivo];
+      let nx = this.pixelAX(p.px);
+      const ny = this.pixelAY(p.py);
+      const esExtremo = this.indiceArrastrado === 0 || this.indiceArrastrado === pts.length - 1;
+      if (this.indiceArrastrado === 0) nx = 0;
+      if (this.indiceArrastrado === pts.length - 1) nx = 255;
+      if (!esExtremo) {
+        nx = Math.max(pts[this.indiceArrastrado - 1].x + 1, Math.min(pts[this.indiceArrastrado + 1].x - 1, nx));
+      }
+      pts[this.indiceArrastrado].x = nx;
+      pts[this.indiceArrastrado].y = ny;
+      this.redibujar();
+    });
+    window.addEventListener('mouseup', () => { this.indiceArrastrado = -1; });
+    this.canvas.addEventListener('dblclick', ev => {
+      const p = posDesdeEvento(ev);
+      const idx = this.encontrarPuntoCercano(p.px, p.py);
+      const pts = this.canales[this.canalActivo];
+      if (idx > 0 && idx < pts.length - 1) { pts.splice(idx, 1); this.redibujar(); }
+    });
+  }
+  catmullRom(p0, p1, p2, p3, t) {
+    const t2 = t * t, t3 = t2 * t;
+    return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+  }
+  evaluarCurva(pts, x) {
+    if (x <= pts[0].x) return pts[0].y;
+    if (x >= pts[pts.length - 1].x) return pts[pts.length - 1].y;
+    let i = 0;
+    while (i < pts.length - 1 && pts[i + 1].x < x) i++;
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const t = (x - p1.x) / ((p2.x - p1.x) + 0.0001);
+    return this.catmullRom(p0.y, p1.y, p2.y, p3.y, t);
+  }
+  calcularLUT(canal) {
+    const pts = this.puntosOrdenados(canal);
+    const lut = new Uint8ClampedArray(256);
+    for (let x = 0; x < 256; x++) lut[x] = Math.round(this.evaluarCurva(pts, x));
+    return lut;
+  }
+  calcularTodasLUT() {
+    return { master: this.calcularLUT('master'), r: this.calcularLUT('r'), g: this.calcularLUT('g'), b: this.calcularLUT('b') };
+  }
+  redibujar() {
+    const ctx = this.ctx, w = this.ancho, h = this.alto;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#141414';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    for (let i = 0; i <= 4; i++) {
+      const gx = this.margen + (i / 4) * (w - this.margen * 2);
+      const gy = this.margen + (i / 4) * (h - this.margen * 2);
+      ctx.beginPath(); ctx.moveTo(gx, this.margen); ctx.lineTo(gx, h - this.margen); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(this.margen, gy); ctx.lineTo(w - this.margen, gy); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath(); ctx.moveTo(this.xAPixel(0), this.yAPixel(0)); ctx.lineTo(this.xAPixel(255), this.yAPixel(255)); ctx.stroke();
+    const orden = ['r', 'g', 'b', 'master'].filter(c => c !== this.canalActivo);
+    orden.push(this.canalActivo);
+    for (const canal of orden) {
+      const pts = this.puntosOrdenados(canal);
+      const activo = canal === this.canalActivo;
+      ctx.strokeStyle = this.colores[canal];
+      ctx.globalAlpha = activo ? 1 : 0.25;
+      ctx.lineWidth = activo ? 2 : 1;
+      ctx.beginPath();
+      for (let x = 0; x <= 255; x++) {
+        const y = this.evaluarCurva(pts, x);
+        const px = this.xAPixel(x), py = this.yAPixel(y);
+        if (x === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      if (activo) {
+        for (const p of pts) {
+          ctx.beginPath();
+          ctx.arc(this.xAPixel(p.x), this.yAPixel(p.y), this.radioPunto, 0, Math.PI * 2);
+          ctx.fillStyle = '#0b0b0b'; ctx.fill();
+          ctx.lineWidth = 2; ctx.strokeStyle = this.colores[canal]; ctx.stroke();
+        }
+      }
+    }
+  }
+}
+
+class GestorFiltros {
+  constructor(app) {
+    this.app = app;
+    this.fxCanvas = null;
+    this.algoritmos = new AlgoritmosColor();
+    this.ruido = new RuidoSimplex();
+    try { this.fxCanvas = fx.canvas(); } catch (err) { this.fxCanvas = null; }
+  }
+  obtenerCapa() { return this.app.capaActiva; }
+  aplicarFiltroCss(cadenaFiltro) {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    const temp = document.createElement('canvas');
+    temp.width = capa.ancho;
+    temp.height = capa.alto;
+    const tctx = temp.getContext('2d');
+    tctx.filter = cadenaFiltro;
+    tctx.drawImage(capa.canvas, 0, 0);
+    capa.ctx.clearRect(0, 0, capa.ancho, capa.alto);
+    capa.ctx.drawImage(temp, 0, 0);
+    this.app.renderizar();
+  }
+  aplicarGLFX(nombre, params) {
+    const capa = this.obtenerCapa();
+    if (!capa || !this.fxCanvas) { alert('GLFX no disponible (revisa tu conexión a internet)'); return; }
+    this.app.guardarHistorial();
+    const w = capa.ancho, h = capa.alto;
+    const textura = this.fxCanvas.texture(capa.canvas);
+    let pipeline = this.fxCanvas.draw(textura);
+    if (nombre === 'brillo_contraste') pipeline.brightnessContrast(params.brillo, params.contraste);
+    else if (nombre === 'matiz_saturacion') pipeline.hueSaturation(params.matiz, params.saturacion);
+    else if (nombre === 'vivacidad') pipeline.vibrance(params.cantidad);
+    else if (nombre === 'reducir_ruido') pipeline.denoise(params.exponente);
+    else if (nombre === 'enfocar') pipeline.unsharpMask(params.radio, params.fuerza);
+    else if (nombre === 'ruido') pipeline.noise(params.cantidad);
+    else if (nombre === 'sepia') pipeline.sepia(params.cantidad);
+    else if (nombre === 'vineta') pipeline.vignette(params.tamano, params.cantidad);
+    else if (nombre === 'desenfoque_zoom') pipeline.zoomBlur(w / 2, h / 2, params.fuerza);
+    else if (nombre === 'desenfoque_triangular') pipeline.triangleBlur(params.radio);
+    else if (nombre === 'tilt_shift') pipeline.tiltShift(0, h / 2, w, h / 2, params.desenfoque, params.gradiente);
+    else if (nombre === 'remolino') pipeline.swirl(w / 2, h / 2, params.radio, params.angulo);
+    else if (nombre === 'burbuja') pipeline.bulgePinch(w / 2, h / 2, params.radio, params.fuerza);
+    else if (nombre === 'tinta') pipeline.ink(params.fuerza);
+    else if (nombre === 'pixelado_hex') pipeline.hexagonalPixelate(w / 2, h / 2, params.escala);
+    else if (nombre === 'pantalla_puntos') pipeline.dotScreen(w / 2, h / 2, params.angulo, params.tamano);
+    else return;
+    pipeline.update();
+    capa.ctx.clearRect(0, 0, w, h);
+    capa.ctx.drawImage(this.fxCanvas, 0, 0);
+    this.app.renderizar();
+  }
+  aplicarCurvas(editorCurvas) {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    const luts = editorCurvas.calcularTodasLUT();
+    const datos = capa.ctx.getImageData(0, 0, capa.ancho, capa.alto);
+    const d = datos.data;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = luts.r[luts.master[d[i]]];
+      d[i + 1] = luts.g[luts.master[d[i + 1]]];
+      d[i + 2] = luts.b[luts.master[d[i + 2]]];
+    }
+    capa.ctx.putImageData(datos, 0, 0);
+    this.app.renderizar();
+  }
+  aplicarAlgoritmo(nombreMetodo, ...args) {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    let datos = capa.ctx.getImageData(0, 0, capa.ancho, capa.alto);
+    datos = this.algoritmos[nombreMetodo](datos, ...args);
+    capa.ctx.putImageData(datos, 0, 0);
+    this.app.renderizar();
+  }
+  
+  aplicarMejorarcolor3dmesh() {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    const w = capa.ancho, h = capa.alto;   
+    let datos = capa.ctx.getImageData(0, 0, w, h);
+    datos = this.algoritmos.mejorarcolor3dmesh(datos );
+    capa.ctx.putImageData(datos, 0, 0);
+    this.app.renderizar();
+  }
+  aplicarGradienteBlanco(vluemenosamas, saturation) {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    const w = capa.ancho, h = capa.alto;
+    const aux = document.createElement('canvas');
+    aux.width = w; aux.height = h;
+    const actx = aux.getContext('2d');
+    const grad = actx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) / 2);
+    grad.addColorStop(0, 'white');
+    grad.addColorStop(1, 'black');
+    actx.fillStyle = grad;
+    actx.fillRect(0, 0, w, h);
+    const datosBlanco = actx.getImageData(0, 0, w, h);
+    let datos = capa.ctx.getImageData(0, 0, w, h);
+    datos = this.algoritmos.ftilelimites(datos, datosBlanco, vluemenosamas, saturation);
+    capa.ctx.putImageData(datos, 0, 0);
+    this.app.renderizar();
+  }
+  generarNormalMap(bias, strength, invertir, usarR, usarG) {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    const w = capa.ancho, h = capa.alto;
+    const datos = capa.ctx.getImageData(0, 0, w, h);
+    const data = datos.data;
+    const nueva = new Uint8ClampedArray(data.length);
+    const getRed = (x, y) => { if (x < 0 || x >= w || y < 0 || y >= h) return 0; return data[(y * w + x) * 4]; };
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = (y * w + x) * 4;
+        const d1 = getRed(x + 1, y) / 255, d2 = getRed(x - 1, y) / 255;
+        const d3 = getRed(x, y + 1) / 255, d4 = getRed(x, y - 1) / 255;
+        const dx = (d2 - d1) * strength * (invertir ? -1 : 1);
+        const dy = (d4 - d3) * strength * (invertir ? -1 : 1);
+        const dz = 1 / Math.max(bias, 0.01);
+        const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        nueva[idx] = usarR ? Math.floor((dx / len * 0.5 + 0.5) * 255) : data[idx];
+        nueva[idx + 1] = usarG ? Math.floor((dy / len * 0.5 + 0.5) * 255) : data[idx + 1];
+        nueva[idx + 2] = Math.floor((dz / len * 0.5 + 0.5) * 255);
+        nueva[idx + 3] = 255;
+      }
+    }
+    capa.ctx.putImageData(new ImageData(nueva, w, h), 0, 0);
+    this.app.renderizar();
+  }
+  mejorarImagen() {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    const escala = 2;
+    const temp = document.createElement('canvas');
+    temp.width = capa.ancho * escala;
+    temp.height = capa.alto * escala;
+    const tctx = temp.getContext('2d');
+    tctx.imageSmoothingEnabled = true;
+    tctx.imageSmoothingQuality = 'high';
+    tctx.filter = 'contrast(110%) brightness(105%) saturate(110%)';
+    tctx.drawImage(capa.canvas, 0, 0, temp.width, temp.height);
+    capa.redimensionar(temp.width, temp.height);
+    capa.ctx.clearRect(0, 0, capa.ancho, capa.alto);
+    capa.ctx.drawImage(temp, 0, 0);
+    this.app.renderizar();
+  }
+  centrarEIncrustar() {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    const resolucion = parseInt(prompt('Resolución de salida:', '2048')) || 2048;
+    const margen = parseInt(prompt('Margen de centrado (px):', '45')) || 45;
+    const esBlanco = confirm('¿Fondo blanco? (Cancelar = negro)');
+    this.app.guardarHistorial();
+    const temp = document.createElement('canvas');
+    temp.width = resolucion; temp.height = resolucion;
+    const tctx = temp.getContext('2d');
+    tctx.fillStyle = esBlanco ? '#ffffff' : '#000000';
+    tctx.fillRect(0, 0, resolucion, resolucion);
+    const anchoActual = capa.ancho, altoActual = capa.alto;
+    const maxDim = resolucion - margen * 2;
+    let escaladoAncho, escaladoAlto;
+    if (anchoActual > altoActual) { escaladoAncho = maxDim; escaladoAlto = altoActual * maxDim / anchoActual; }
+    else { escaladoAlto = maxDim; escaladoAncho = anchoActual * maxDim / altoActual; }
+    const x = (resolucion - escaladoAncho) / 2;
+    const y = (resolucion - escaladoAlto) / 2;
+    tctx.drawImage(capa.canvas, x, y, escaladoAncho, escaladoAlto);
+    capa.redimensionar(resolucion, resolucion);
+    capa.x = 0; capa.y = 0;
+    capa.ctx.clearRect(0, 0, resolucion, resolucion);
+    capa.ctx.drawImage(temp, 0, 0);
+    this.app.renderizar();
+  }
+  async removerFondoIA(elementoEstado) {
+    const capa = this.obtenerCapa();
+    if (!capa || !window.removeBackground) { alert('IA no disponible (revisa tu conexión)'); return; }
+    if (elementoEstado) { elementoEstado.style.display = 'block'; elementoEstado.textContent = 'Procesando remoción de fondo...'; }
+    this.app.guardarHistorial();
+    try {
+      const blob = await window.removeBackground(capa.canvas.toDataURL());
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        capa.ctx.clearRect(0, 0, capa.ancho, capa.alto);
+        capa.ctx.drawImage(img, 0, 0, capa.ancho, capa.alto);
+        this.app.renderizar();
+        if (elementoEstado) { elementoEstado.textContent = 'Fondo removido'; setTimeout(() => elementoEstado.style.display = 'none', 2000); }
+      };
+      img.src = url;
+    } catch (err) {
+      alert('Error removiendo fondo: ' + err.message);
+      if (elementoEstado) elementoEstado.style.display = 'none';
+    }
+  }
+  generarOxido(cantidad, fuerza, escala, ruido) {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    const w = capa.ancho, h = capa.alto;
+    capa.ctx.fillStyle = '#686C70';
+    capa.ctx.fillRect(0, 0, w, h);
+    const imageData = capa.ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const x = (i / 4) % w, y = Math.floor((i / 4) / w);
+      const n1 = ruido.ruido2D(x / escala, y / escala);
+      const n2 = ruido.ruido2D(x / (escala / 2), y / (escala / 2));
+      const noiseVal = (n1 + n2) / 2;
+      if (noiseVal > 1 - cantidad) {
+        const factor = Math.min((noiseVal - (1 - cantidad)) * (1 / cantidad) * (fuerza * 4), 1);
+        data[i] = data[i] + (122 - data[i]) * factor;
+        data[i + 1] = data[i + 1] + (58 - data[i + 1]) * factor;
+        data[i + 2] = data[i + 2] + (13 - data[i + 2]) * factor;
+      }
+    }
+    capa.ctx.putImageData(imageData, 0, 0);
+    this.app.renderizar();
+  }
+  generarRoca(escala, fuerza, ruido) {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    const w = capa.ancho, h = capa.alto;
+    const imageData = capa.ctx.createImageData(w, h);
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const x = (i / 4) % w, y = Math.floor((i / 4) / w);
+      let noiseVal = 0, amp = 1, freq = escala / 1000;
+      for (let j = 0; j < 4; j++) { noiseVal += ruido.ruido2D(x * freq, y * freq) * amp; amp *= 0.5; freq *= 2; }
+      noiseVal = (noiseVal + 1) / 2;
+      const color = Math.min(255, Math.max(0, 255 * Math.pow(noiseVal, fuerza)));
+      data[i] = color; data[i + 1] = color; data[i + 2] = color; data[i + 3] = 255;
+    }
+    capa.ctx.putImageData(imageData, 0, 0);
+    this.app.renderizar();
+  }
+  generarLadrillos(anchoLadrillo, altoLadrillo, espaciado, varColor) {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    const w = capa.ancho, h = capa.alto;
+    const ctx = capa.ctx;
+    ctx.fillStyle = '#888888';
+    ctx.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += altoLadrillo + espaciado) {
+      for (let x = -anchoLadrillo; x < w + anchoLadrillo; x += anchoLadrillo + espaciado) {
+        const offsetX = (Math.floor(y / (altoLadrillo + espaciado)) % 2) * (anchoLadrillo / 2);
+        const r = Math.min(255, Math.max(0, 150 - Math.random() * 255 * varColor));
+        const g = Math.min(255, Math.max(0, 70 - Math.random() * 255 * varColor));
+        const b = Math.min(255, Math.max(0, 50 - Math.random() * 255 * varColor));
+        ctx.fillStyle = `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
+        ctx.fillRect(x - offsetX, y, anchoLadrillo, altoLadrillo);
+      }
+    }
+    this.app.renderizar();
+  }
+  generarMadera(escalaVeta, distorsion, fuerzaAnillos, ruido) {
+    const capa = this.obtenerCapa();
+    if (!capa) return;
+    this.app.guardarHistorial();
+    const w = capa.ancho, h = capa.alto;
+    const imageData = capa.ctx.createImageData(w, h);
+    const data = imageData.data;
+    const wood1 = { r: 139, g: 69, b: 19 }, wood2 = { r: 193, g: 154, b: 107 };
+    for (let i = 0; i < data.length; i += 4) {
+      const x = (i / 4) % w, y = Math.floor((i / 4) / w);
+      const yStretched = y * escalaVeta;
+      const xDistort = x + ruido.ruido2D(x / (distorsion * 2), y / (distorsion * 2)) * distorsion;
+      const noiseVal = ruido.ruido2D(xDistort / 100, yStretched / 100);
+      const ringVal = 0.5 + 0.5 * Math.sin((noiseVal * 10 + y / 20) * Math.PI);
+      const finalVal = Math.pow(ringVal, fuerzaAnillos);
+      data[i] = wood1.r + (wood2.r - wood1.r) * finalVal;
+      data[i + 1] = wood1.g + (wood2.g - wood1.g) * finalVal;
+      data[i + 2] = wood1.b + (wood2.b - wood1.b) * finalVal;
+      data[i + 3] = 255;
+    }
+    capa.ctx.putImageData(imageData, 0, 0);
+    this.app.renderizar();
+  }
+}
+
+const app = new AplicacionPaint();
+
+const gestorFiltros = new GestorFiltros(app);
+
+const panelFiltros = new UIPanel('Filtros & Generadores', { top: '70px', right: '20px' });
+document.getElementById('btnAbrirFiltros').addEventListener('click', () => panelFiltros.toggle());
+
+const secAjustes = panelFiltros.addSection('Ajustes rápidos', false);
+const valoresAjuste = { brillo: 100, contraste: 100, saturacion: 100, matiz: 0, desenfoque: 0 };
+secAjustes.add(new UISlider('Brillo', 0, 200, 1, 100, v => valoresAjuste.brillo = v));
+secAjustes.add(new UISlider('Contraste', 0, 200, 1, 100, v => valoresAjuste.contraste = v));
+secAjustes.add(new UISlider('Saturación', 0, 200, 1, 100, v => valoresAjuste.saturacion = v));
+secAjustes.add(new UISlider('Matiz', 0, 360, 1, 0, v => valoresAjuste.matiz = v));
+secAjustes.add(new UISlider('Desenfoque', 0, 20, 0.5, 0, v => valoresAjuste.desenfoque = v));
+secAjustes.add(new UIButton('Aplicar ajustes', () => {
+  const cadena = `brightness(${valoresAjuste.brillo}%) contrast(${valoresAjuste.contraste}%) saturate(${valoresAjuste.saturacion}%) hue-rotate(${valoresAjuste.matiz}deg) blur(${valoresAjuste.desenfoque}px)`;
+  gestorFiltros.aplicarFiltroCss(cadena);
+}));
+secAjustes.add(new UIButton('Escala de grises', () => gestorFiltros.aplicarFiltroCss('grayscale(100%)')));
+secAjustes.add(new UIButton('Sepia', () => gestorFiltros.aplicarFiltroCss('sepia(80%)')));
+secAjustes.add(new UIButton('Invertir', () => gestorFiltros.aplicarFiltroCss('invert(100%)')));
+secAjustes.add(new UIButton('Escala de mejorarcolor 3d mesh', () => gestorFiltros.aplicarMejorarcolor3dmesh( )));
+
+const secCurvas = panelFiltros.addSection('Curvas de color', true);
+const editorCurvas = new EditorCurvas(256, 180);
+const tabsCurvas = document.createElement('div');
+tabsCurvas.className = 'tabsCurvas';
+const nombresCanal = { master: 'Master', r: 'R', g: 'G', b: 'B' };
+for (const key in nombresCanal) {
+  const btn = document.createElement('button');
+  btn.textContent = nombresCanal[key];
+  btn.style.color = editorCurvas.colores[key];
+  btn.addEventListener('click', () => { editorCurvas.canalActivo = key; editorCurvas.redibujar(); });
+  tabsCurvas.appendChild(btn);
+}
+secCurvas.add({ dom: tabsCurvas });
+secCurvas.add({ dom: editorCurvas.canvas });
+secCurvas.add(new UIButton('Reset canal', () => editorCurvas.reiniciarCanal()));
+secCurvas.add(new UIButton('Reset todo', () => editorCurvas.reiniciarTodo()));
+secCurvas.add(new UIButton('Aplicar curva', () => gestorFiltros.aplicarCurvas(editorCurvas)));
+
+function armarSeccionGLFX(titulo, definiciones) {
+  const seccion = panelFiltros.addSection(titulo, true);
+  definiciones.forEach(def => {
+    const valores = {};
+    def.controles.forEach(c => { valores[c.id] = c.valor; seccion.add(new UISlider(c.label, c.min, c.max, c.step, c.valor, v => valores[c.id] = v)); });
+    seccion.add(new UIButton('Aplicar ' + def.titulo, () => gestorFiltros.aplicarGLFX(def.nombre, valores)));
+  });
+}
+
+armarSeccionGLFX('GLFX Ajustes', [
+  { titulo: 'Brillo/Contraste', nombre: 'brillo_contraste', controles: [{ id: 'brillo', label: 'Brillo', min: -1, max: 1, step: 0.05, valor: 0 }, { id: 'contraste', label: 'Contraste', min: -1, max: 1, step: 0.05, valor: 0 }] },
+  { titulo: 'Matiz/Saturación', nombre: 'matiz_saturacion', controles: [{ id: 'matiz', label: 'Matiz', min: -1, max: 1, step: 0.05, valor: 0 }, { id: 'saturacion', label: 'Saturación', min: -1, max: 1, step: 0.05, valor: 0 }] },
+  { titulo: 'Vivacidad', nombre: 'vivacidad', controles: [{ id: 'cantidad', label: 'Cantidad', min: -1, max: 1, step: 0.05, valor: 0 }] },
+  { titulo: 'Reducir ruido', nombre: 'reducir_ruido', controles: [{ id: 'exponente', label: 'Exponente', min: 0, max: 50, step: 1, valor: 20 }] },
+  { titulo: 'Enfocar', nombre: 'enfocar', controles: [{ id: 'radio', label: 'Radio', min: 0, max: 100, step: 1, valor: 5 }, { id: 'fuerza', label: 'Fuerza', min: 0, max: 5, step: 0.1, valor: 1 }] },
+  { titulo: 'Ruido', nombre: 'ruido', controles: [{ id: 'cantidad', label: 'Cantidad', min: 0, max: 1, step: 0.05, valor: 0.2 }] },
+  { titulo: 'Sepia GLFX', nombre: 'sepia', controles: [{ id: 'cantidad', label: 'Cantidad', min: 0, max: 1, step: 0.05, valor: 0.5 }] },
+  { titulo: 'Viñeta', nombre: 'vineta', controles: [{ id: 'tamano', label: 'Tamaño', min: 0, max: 1, step: 0.05, valor: 0.5 }, { id: 'cantidad', label: 'Cantidad', min: 0, max: 1, step: 0.05, valor: 0.5 }] }
+]);
+
+armarSeccionGLFX('GLFX Blur', [
+  { titulo: 'Zoom Blur', nombre: 'desenfoque_zoom', controles: [{ id: 'fuerza', label: 'Fuerza', min: 0, max: 1, step: 0.02, valor: 0.1 }] },
+  { titulo: 'Triangle Blur', nombre: 'desenfoque_triangular', controles: [{ id: 'radio', label: 'Radio', min: 0, max: 100, step: 1, valor: 10 }] },
+  { titulo: 'Tilt Shift', nombre: 'tilt_shift', controles: [{ id: 'desenfoque', label: 'Desenfoque', min: 0, max: 50, step: 1, valor: 20 }, { id: 'gradiente', label: 'Gradiente', min: 0, max: 200, step: 5, valor: 100 }] }
+]);
+
+armarSeccionGLFX('GLFX Warp y Efectos', [
+  { titulo: 'Remolino', nombre: 'remolino', controles: [{ id: 'radio', label: 'Radio', min: 10, max: 500, step: 10, valor: 200 }, { id: 'angulo', label: 'Ángulo', min: -10, max: 10, step: 0.5, valor: 3 }] },
+  { titulo: 'Burbuja/Pellizco', nombre: 'burbuja', controles: [{ id: 'radio', label: 'Radio', min: 10, max: 500, step: 10, valor: 200 }, { id: 'fuerza', label: 'Fuerza', min: -1, max: 1, step: 0.05, valor: 0.5 }] },
+  { titulo: 'Tinta', nombre: 'tinta', controles: [{ id: 'fuerza', label: 'Fuerza', min: 0, max: 1, step: 0.05, valor: 0.25 }] },
+  { titulo: 'Pixelado Hexagonal', nombre: 'pixelado_hex', controles: [{ id: 'escala', label: 'Escala', min: 2, max: 100, step: 1, valor: 20 }] },
+  { titulo: 'Pantalla de Puntos', nombre: 'pantalla_puntos', controles: [{ id: 'angulo', label: 'Ángulo', min: 0, max: 3.14, step: 0.1, valor: 1.1 }, { id: 'tamano', label: 'Tamaño', min: 1, max: 30, step: 1, valor: 8 }] }
+]);
+
+const secProcedural = panelFiltros.addSection('Generadores Procedurales', true);
+let oxidoCantidad = 0.5, oxidoFuerza = 1, oxidoEscala = 50;
+secProcedural.add(new UISlider('Óxido: Cantidad', 0.01, 1, 0.05, 0.5, v => oxidoCantidad = v));
+secProcedural.add(new UISlider('Óxido: Fuerza', 0.1, 2, 0.1, 1, v => oxidoFuerza = v));
+secProcedural.add(new UISlider('Óxido: Escala', 1, 200, 5, 50, v => oxidoEscala = v));
+secProcedural.add(new UIButton('Generar Óxido', () => gestorFiltros.generarOxido(oxidoCantidad, oxidoFuerza, oxidoEscala, gestorFiltros.ruido)));
+
+let rocaEscala = 100, rocaFuerza = 1;
+secProcedural.add(new UISlider('Roca: Escala', 10, 500, 10, 100, v => rocaEscala = v));
+secProcedural.add(new UISlider('Roca: Fuerza', 0.1, 5, 0.1, 1, v => rocaFuerza = v));
+secProcedural.add(new UIButton('Generar Roca', () => gestorFiltros.generarRoca(rocaEscala, rocaFuerza, gestorFiltros.ruido)));
+
+let ladrilloAncho = 60, ladrilloAlto = 30, ladrilloEspaciado = 4, ladrilloVarColor = 0.2;
+secProcedural.add(new UISlider('Ladrillo: Ancho', 10, 200, 5, 60, v => ladrilloAncho = v));
+secProcedural.add(new UISlider('Ladrillo: Alto', 10, 100, 2, 30, v => ladrilloAlto = v));
+secProcedural.add(new UISlider('Ladrillo: Espaciado', 1, 20, 1, 4, v => ladrilloEspaciado = v));
+secProcedural.add(new UISlider('Ladrillo: Var. Color', 0, 1, 0.05, 0.2, v => ladrilloVarColor = v));
+secProcedural.add(new UIButton('Generar Ladrillos', () => gestorFiltros.generarLadrillos(ladrilloAncho, ladrilloAlto, ladrilloEspaciado, ladrilloVarColor)));
+
+let maderaVeta = 1, maderaDistorsion = 20, maderaFuerza = 1;
+secProcedural.add(new UISlider('Madera: Escala Veta', 0.1, 10, 0.1, 1, v => maderaVeta = v));
+secProcedural.add(new UISlider('Madera: Distorsión', 1, 100, 2, 20, v => maderaDistorsion = v));
+secProcedural.add(new UISlider('Madera: Fuerza Anillos', 0.1, 5, 0.1, 1, v => maderaFuerza = v));
+secProcedural.add(new UIButton('Generar Madera', () => gestorFiltros.generarMadera(maderaVeta, maderaDistorsion, maderaFuerza, gestorFiltros.ruido)));
+
+const secColor = panelFiltros.addSection('Algoritmos de Color', true);
+secColor.add(new UIButton('Color Ini Hunyuan 1', () => gestorFiltros.aplicarAlgoritmo('colorinihunyuan')));
+secColor.add(new UIButton('Color Ini Hunyuan 2', () => gestorFiltros.aplicarAlgoritmo('colorinihunyuan2')));
+const chkMeshMul = new UICheckbox('Mesh 3D: usar multiplicador', false, () => {});
+secColor.add(chkMeshMul);
+secColor.add(new UIButton('Mesh Paint Color 3D', () => gestorFiltros.aplicarAlgoritmo('colorpasocolor3dmesh', chkMeshMul.valor)));
+const chkMeshExtendido = new UICheckbox('Mesh Paint: modo extendido', false, () => {});
+secColor.add(chkMeshExtendido);
+secColor.add(new UIButton('Mesh Paint Color', () => gestorFiltros.aplicarAlgoritmo('meshpaintcolor', chkMeshExtendido.valor)));
+const chkPaso2 = new UICheckbox('Mesh Paso 2 (en vez de paso 1)', false, () => {});
+let sliderMeshSum = 0.1;
+secColor.add(chkPaso2);
+secColor.add(new UISlider('Mesh: valor de suma', 0, 1, 0.05, 0.1, v => sliderMeshSum = v));
+secColor.add(new UIButton('Mesh Paso Experimental', () => gestorFiltros.aplicarAlgoritmo('meshPasoExperimental', chkPaso2.valor, sliderMeshSum)));
+secColor.add(new UIButton('Saturación Ideal', () => gestorFiltros.aplicarAlgoritmo('colorsaturacionideal')));
+let colorDiferencialSat = 0.5;
+secColor.add(new UISlider('Color Diferencial: Saturación', 0, 1, 0.05, 0.5, v => colorDiferencialSat = v));
+secColor.add(new UIButton('Radial / Color Diferencial', () => gestorFiltros.aplicarAlgoritmo('colorDiferencial', colorDiferencialSat)));
+let maxMulBrillo = 0.7, maxMulSat = 0.46;
+secColor.add(new UISlider('Max Mult: Brillo', 0.1, 2, 0.05, 0.7, v => maxMulBrillo = v));
+secColor.add(new UISlider('Max Mult: Saturación', 0, 1, 0.02, 0.46, v => maxMulSat = v));
+secColor.add(new UIButton('Max Multiplicador + Saturación', () => gestorFiltros.aplicarAlgoritmo('maxmultoliCnSaturacion', maxMulBrillo, maxMulSat)));
+let modoWood = 0;
+secColor.add(new UIButton('Wood: Sin Color Base', () => modoWood = 0));
+secColor.add(new UIButton('Wood: Color Madera 1', () => modoWood = 1));
+secColor.add(new UIButton('Wood: Color Madera 2', () => modoWood = 2));
+secColor.add(new UIButton('Aplicar Transformación Wood', () => gestorFiltros.aplicarAlgoritmo('fwoodtransfomation', modoWood)));
+let tileVolumen = 0.5, tileSaturacion = 0.2;
+secColor.add(new UISlider('Tile: Volumen', 0, 1, 0.05, 0.5, v => tileVolumen = v));
+secColor.add(new UISlider('Tile: Saturación', 0, 1, 0.05, 0.2, v => tileSaturacion = v));
+secColor.add(new UIButton('Aplicar White Tile Gradient', () => gestorFiltros.aplicarGradienteBlanco(tileVolumen, tileSaturacion)));
+
+const secNormal = panelFiltros.addSection('Normal Map', true);
+let nmBias = 0.1, nmStrength = 5, nmInvertir = false, nmR = true, nmG = true;
+secNormal.add(new UISlider('Bias', 0.01, 1, 0.05, 0.1, v => nmBias = v));
+secNormal.add(new UISlider('Strength', 0.5, 20, 0.5, 5, v => nmStrength = v));
+secNormal.add(new UICheckbox('Invertir dirección', false, v => nmInvertir = v));
+secNormal.add(new UICheckbox('Usar canal rojo', true, v => nmR = v));
+secNormal.add(new UICheckbox('Usar canal verde', true, v => nmG = v));
+secNormal.add(new UIButton('Generar Normal Map', () => gestorFiltros.generarNormalMap(nmBias, nmStrength, nmInvertir, nmR, nmG)));
+
+const secAvanzado = panelFiltros.addSection('Herramientas Avanzadas', true);
+const estadoIA = document.createElement('div');
+estadoIA.id = 'loadingIA';
+secAvanzado.add({ dom: estadoIA });
+secAvanzado.add(new UIButton('Remover Fondo (IA)', () => gestorFiltros.removerFondoIA(estadoIA)));
+secAvanzado.add(new UIButton('Enhance (Escalar x2 + Filtro)', () => gestorFiltros.mejorarImagen()));
+secAvanzado.add(new UIButton('Centrar e Incrustar Imagen', () => gestorFiltros.centrarEIncrustar()));
+
+
+
+
+const gestorSesiones = new GestorSesionesManager(app);
+
+
+
+ 
+AplicacionPaint.prototype.mezclarCapas = function(modo, opacidad = 1.0) {
+  if (this.indiceActiva <= 0) {
+    alert('Select a layer that has another layer below');
+    return;
+  }
+  
+  const capaSuperior = this.capas[this.indiceActiva];
+  const capaInferior = this.capas[this.indiceActiva - 1];
+  
+  this.guardarHistorial();
+  
+  const mezclador = new ModosMezcla({ modo, opacidad });
+  const nuevaCapa = mezclador.aplicarACapa(capaSuperior, capaInferior, modo, opacidad);
+  
+  if (nuevaCapa) {
+    this.capas.splice(this.indiceActiva + 1, 0, nuevaCapa);
+    this.indiceActiva = this.indiceActiva + 1;
+    this.actualizarPanelCapas();
+    this.renderizar();
+  }
+};
+
+
+class Ajustecss{
+
+    static aplicarClaseATag=(tag, claseCSS)=> {
+    
+    const elementos = document.querySelectorAll(tag);
+ 
+    elementos.forEach(elemento => { 
+        const clases = claseCSS.split(' ');
+        elemento.classList.add(...clases);
+    });
+
+    console.log(`Se aplicó la clase "${claseCSS}" a ${elementos.length} elementos <${tag}>.`);
+}
+}
+window.addEventListener('load', () => {
+    Ajustecss.aplicarClaseATag('button', 'btnCl');
+ 
+});
+
+</script>
+ 
+ 
+ 
+</body>
+</html>
