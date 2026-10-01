@@ -3,34 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PaintJS Studio Pro</title>
+<title>PaintJS Studio Pro AI</title>
+<script>window.programaId = "paintjs_studio_pro";</script>
 <script src="https://unonibes4a.github.io/pintaresta/a.js"></script>
 <script src="https://evanw.github.io/glfx.js/glfx.js"></script>
 <script type="module">
 import { removeBackground } from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.6.0/+esm';
 window.removeBackground = removeBackground;
 </script>
-<style>
-* { box-sizing: border-box; }
-body { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background: #0c0e12; display: flex; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-#columnaIzquierda { width: 310px; min-width: 310px; height: 100%; overflow-y: auto; background: #14171d; border-right: 1px solid #232731; padding: 6px; display: flex; flex-direction: column; gap: 6px; }
-#areaLienzoCentral { flex: 1; height: 100%; overflow: auto; display: flex; align-items: center; justify-content: center; position: relative; background: #08090b; }
-#contenedorCanvas { position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.9); border: 1px solid #232731; background-color: #14171f; background-image: conic-gradient(#232733 25%, #14171f 0 50%, #232733 0 75%, #14171f 0); background-size: 16px 16px; }
-#lienzoComposicion { display: block; cursor: crosshair; }
-#previsualizacionPincel { position: absolute; pointer-events: none; border: 1px solid #ffffff; border-radius: 50%; transform: translate(-50%,-50%); mix-blend-mode: difference; display: none; z-index: 10; }
-#columnaDerecha { width: 350px; min-width: 350px; height: 100%; overflow-y: auto; background: #14171d; border-left: 1px solid #232731; padding: 6px; display: flex; flex-direction: column; gap: 6px; }
-</style>
 </head>
 <body>
 
-<div id="columnaIzquierda"></div>
-<div id="areaLienzoCentral">
-  <div id="contenedorCanvas">
-    <canvas id="lienzoComposicion"></canvas>
-    <div id="previsualizacionPincel"></div>
+<div id="areaLienzoCentral" style="width:100vw;height:100vh;overflow:hidden;position:absolute;top:0;left:0;display:flex;align-items:center;justify-content:center;background:#08090b;">
+  <div id="contenedorCanvas" style="position:relative;background:#14171f;">
+    <canvas id="lienzoComposicion" style="display:block;cursor:crosshair;"></canvas>
+    <div id="previsualizacionPincel" style="position:absolute;pointer-events:none;border:1px solid #ffffff;border-radius:50%;transform:translate(-50%,-50%);mix-blend-mode:difference;display:none;z-index:10;"></div>
   </div>
 </div>
-<div id="columnaDerecha"></div>
 
 <input type="file" id="archivoCapa" accept="image/*" style="display:none">
 <input type="file" id="archivoSello" accept="image/*" style="display:none">
@@ -165,7 +154,6 @@ class CanvasCurvesStandalone {
     this._dragIdx = -1;
     this._hoverIdx = -1;
     this._infoLabel = null;
-    this._chBtns = {};
     this._cw = 260;
     this._ch = 210;
     this._padL = 22;
@@ -196,7 +184,6 @@ class CanvasCurvesStandalone {
   setChannel(ch) {
     if (!this.curves[ch]) return;
     this.active = ch;
-    this._updateChannelButtons();
     this._drawEditor();
     this._updateInfo(null, null);
   }
@@ -291,47 +278,28 @@ class CanvasCurvesStandalone {
     const ny = (y / 255).toFixed(3);
     this._infoLabel.setText(`X: ${nx}   Y: ${ny}`);
   }
-  _updateChannelButtons() {
-    ['rgb', 'r', 'g', 'b'].forEach(ch => {
-      const b = this._chBtns[ch];
-      if (!b || !b.element) return;
-      const on = ch === this.active;
-      b.element.style.background = on ? this.colors[ch] : '#161920';
-      b.element.style.color = on ? '#000000' : this.colors[ch];
-      b.element.style.fontWeight = on ? 'bold' : 'normal';
-      b.element.style.borderColor = on ? this.colors[ch] : '#282d38';
-    });
-  }
-  mount(parent) {
-    if (this._panel) return;
-    const p = new UISmartPanel({ title: 'Curves Editor', floating: false });
-
+  buildInsideAccordion(accordionItem) {
     const infoLabel = new UILabel({ text: 'X: ---   Y: ---' });
-    infoLabel.element.style.fontFamily = 'ui-monospace,SFMono-Regular,Menlo,monospace';
-    infoLabel.element.style.fontSize = '10px';
-    infoLabel.element.style.textAlign = 'right';
-    infoLabel.element.style.flex = '1';
-    infoLabel.element.style.color = '#7dd3fc';
     this._infoLabel = infoLabel;
+    accordionItem.addRow(new UILabel({ text: 'Norm:' }), infoLabel);
 
-    p.addRow(new UILabel({ text: 'Normalized Value:' }), infoLabel);
-
-    const rowCh = new UIRow({ align: 0 });
-    ['rgb', 'r', 'g', 'b'].forEach(ch => {
-      const b = new UIButton({ text: ch.toUpperCase() });
-      b.element.style.flex = '1';
-      b.element.onclick = () => this.setChannel(ch);
-      rowCh.append(b);
-      this._chBtns[ch] = b;
+    const radChannels = new UIRadioGroup({
+      items: [
+        { label: 'RGB', value: 'rgb' },
+        { label: 'R', value: 'r' },
+        { label: 'G', value: 'g' },
+        { label: 'B', value: 'b' }
+      ],
+      activeIndex: 0,
+      onChange: (ch) => this.setChannel(ch)
     });
-    p.body.appendChild(rowCh.element);
-    this._updateChannelButtons();
+    accordionItem.append(radChannels);
 
     const ec = document.createElement('canvas');
     ec.width = this._cw;
     ec.height = this._ch;
-    ec.style.cssText = 'display:block; width:100%; background:#090b0e; border:1px solid #232731; border-radius:4px; cursor:crosshair; user-select:none; margin:6px 0;';
-    p.body.appendChild(ec);
+    ec.style.cssText = 'display:block;width:100%;cursor:crosshair;margin:4px 0;';
+    accordionItem.append(ec);
     this._ec = ec;
     this._ecx = ec.getContext('2d');
     ec.addEventListener('mousedown', this._onMouseDown.bind(this));
@@ -343,16 +311,17 @@ class CanvasCurvesStandalone {
     });
     ec.addEventListener('contextmenu', e => e.preventDefault());
 
-    const bGray = new UIButton({ text: 'Gray' });
-    bGray.element.onclick = () => { this.grayscale = !this.grayscale; this._render(); };
-    const bReset = new UIButton({ text: 'Reset', variant: 'danger' });
-    bReset.element.onclick = () => this.reset();
-    const bApply = new UIButton({ text: 'Apply', variant: 'primary' });
-    bApply.element.onclick = () => this.apply();
-    p.addRow(bGray, bReset, bApply);
+    const tglGray = new UIToggle({
+      label: 'Grayscale',
+      value: false,
+      onChange: (v) => { this.grayscale = v; this._render(); }
+    });
+    accordionItem.append(tglGray);
 
-    p.mount(parent);
-    this._panel = p;
+    const bReset = new UIButton({ text: 'Reset', variant: 'danger', onClick: () => this.reset() });
+    const bApply = new UIButton({ text: 'Apply', variant: 'primary', onClick: () => this.apply() });
+    accordionItem.addRow(bReset, bApply);
+
     this._drawEditor();
     this._updateInfo(null, null);
   }
@@ -362,17 +331,17 @@ class CanvasCurvesStandalone {
     const W = this._cw, H = this._ch;
     const PL = this._padL, PT = this._padT, PW = this._pw, PH = this._ph;
     cx.clearRect(0, 0, W, H);
-    cx.fillStyle = '#090b0e'; cx.fillRect(0, 0, W, H);
-    cx.fillStyle = '#050608'; cx.fillRect(PL, PT, PW, PH);
+    cx.fillStyle = '#14161a'; cx.fillRect(0, 0, W, H);
+    cx.fillStyle = '#0d0e12'; cx.fillRect(PL, PT, PW, PH);
 
-    cx.strokeStyle = '#181c24'; cx.lineWidth = 1;
+    cx.strokeStyle = '#242730'; cx.lineWidth = 1;
     for (let i = 1; i < 4; i++) {
       const x = PL + (i / 4) * PW, y = PT + (i / 4) * PH;
       cx.beginPath(); cx.moveTo(x + 0.5, PT); cx.lineTo(x + 0.5, PT + PH); cx.stroke();
       cx.beginPath(); cx.moveTo(PL, y + 0.5); cx.lineTo(PL + PW, y + 0.5); cx.stroke();
     }
 
-    cx.strokeStyle = '#282d38'; cx.setLineDash([3, 3]);
+    cx.strokeStyle = '#3d4452'; cx.setLineDash([3, 3]);
     cx.beginPath(); cx.moveTo(PL, PT + PH); cx.lineTo(PL + PW, PT);
     cx.stroke();
     cx.setLineDash([]);
@@ -381,7 +350,7 @@ class CanvasCurvesStandalone {
     const toX = x => PL + (x / 255) * PW;
     const toY = y => PT + PH - (y / 255) * PH;
 
-    cx.font = '8px ui-monospace,monospace';
+    cx.font = '8px monospace';
     cx.fillStyle = '#64748b';
     cx.textAlign = 'center';
     cx.textBaseline = 'top';
@@ -520,45 +489,34 @@ class GimpColorPicker {
     this.r = 255; this.g = 255; this.b = 255;
     this.h = 0; this.s = 0; this.v = 1;
     this.colorAnterior = '#ffffff';
-    this.panel = null;
-    this.tam2D = 150; this.altoHue = 150; this.anchoHue = 20;
+    this.tam2D = 130; this.altoHue = 130; this.anchoHue = 18;
     this.arrastrando2D = false; this.arrastrandoHue = false;
-    this.paleta = ['#ffffff', '#000000', '#7d7d7d', '#c0392b', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#34495e'];
   }
-  abrir(colorInicial = '#ffffff') {
-    if (this.panel) {
-      this.panel.destroy();
-      this.panel = null;
-    }
+  buildInsideAccordion(accordionItem, colorInicial = '#ffffff') {
     this.colorAnterior = colorInicial;
     this.hexAColor(colorInicial);
-    const p = new UISmartPanel({ title: 'GIMP Color Picker', floating: true });
-    p.element.style.top = '60px';
-    p.element.style.left = '320px';
-    p.element.style.width = '380px';
-    p.element.style.zIndex = '9999';
 
     const filaGraficos = document.createElement('div');
-    filaGraficos.style.cssText = 'display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;';
+    filaGraficos.style.cssText = 'display:flex;gap:6px;align-items:flex-start;width:100%;';
 
     const c2D = document.createElement('canvas');
     c2D.width = this.tam2D; c2D.height = this.tam2D;
-    c2D.style.cssText = 'border:1px solid #232731; border-radius:3px; cursor:crosshair; display:block;';
+    c2D.style.cssText = 'border:1px solid var(--ui-border);border-radius:4px;cursor:crosshair;';
     this.c2D = c2D; this.ctx2D = c2D.getContext('2d');
 
     const cHue = document.createElement('canvas');
     cHue.width = this.anchoHue; cHue.height = this.altoHue;
-    cHue.style.cssText = 'border:1px solid #232731; border-radius:3px; cursor:pointer; display:block;';
+    cHue.style.cssText = 'border:1px solid var(--ui-border);border-radius:4px;cursor:pointer;';
     this.cHue = cHue; this.ctxHue = cHue.getContext('2d');
 
     const colPrevia = document.createElement('div');
-    colPrevia.style.cssText = 'display:flex; flex-direction:column; gap:4px; flex:1;';
+    colPrevia.style.cssText = 'display:flex;flex-direction:column;gap:4px;flex:1;';
     const boxActual = document.createElement('div');
-    boxActual.style.cssText = 'height:36px; border:1px solid #232731; border-radius:3px; background:' + colorInicial;
+    boxActual.style.cssText = 'height:30px;border:1px solid var(--ui-border);border-radius:4px;background:' + colorInicial;
     this.boxActual = boxActual;
 
     const boxAnt = document.createElement('div');
-    boxAnt.style.cssText = 'height:36px; border:1px solid #232731; border-radius:3px; background:' + this.colorAnterior;
+    boxAnt.style.cssText = 'height:30px;border:1px solid var(--ui-border);border-radius:4px;background:' + this.colorAnterior;
     boxAnt.onclick = () => { this.hexAColor(this.colorAnterior); this.actualizarUI(); };
 
     colPrevia.appendChild(new UILabel({ text: 'Current:' }).element);
@@ -569,7 +527,7 @@ class GimpColorPicker {
     filaGraficos.appendChild(c2D);
     filaGraficos.appendChild(cHue);
     filaGraficos.appendChild(colPrevia);
-    p.body.appendChild(filaGraficos);
+    accordionItem.append(filaGraficos);
 
     this.inHex = new UIInputText({ placeholder: 'Hex (#ffffff)', value: colorInicial });
     this.inHex.element.addEventListener('change', () => {
@@ -580,74 +538,32 @@ class GimpColorPicker {
         this.actualizarUI();
       }
     });
-    p.addRow(new UILabel({ text: 'Hex:' }), this.inHex);
+    accordionItem.addRow(new UILabel({ text: 'Hex:' }), this.inHex);
 
     const fila255 = new UIRow({ align: 0 });
-    this.inR255 = new UIInputText({ value: String(this.r) });
-    this.inG255 = new UIInputText({ value: String(this.g) });
-    this.inB255 = new UIInputText({ value: String(this.b) });
+    this.inR255 = new UIInputNumberInt({ value: this.r, min: 0, max: 255 });
+    this.inG255 = new UIInputNumberInt({ value: this.g, min: 0, max: 255 });
+    this.inB255 = new UIInputNumberInt({ value: this.b, min: 0, max: 255 });
     [this.inR255, this.inG255, this.inB255].forEach(inp => {
-      inp.element.style.flex = '1';
       inp.element.addEventListener('change', () => {
-        this.r = Math.max(0, Math.min(255, parseInt(this.inR255.getValue()) || 0));
-        this.g = Math.max(0, Math.min(255, parseInt(this.inG255.getValue()) || 0));
-        this.b = Math.max(0, Math.min(255, parseInt(this.inB255.getValue()) || 0));
+        this.r = this.inR255.getValue();
+        this.g = this.inG255.getValue();
+        this.b = this.inB255.getValue();
         this.rgbAHsv();
         this.actualizarUI();
       });
     });
-    fila255.append(new UILabel({ text: '0..255:' }));
+    fila255.append(new UILabel({ text: 'RGB:' }));
     fila255.append(this.inR255); fila255.append(this.inG255); fila255.append(this.inB255);
-    p.body.appendChild(fila255.element);
+    accordionItem.append(fila255);
 
-    const filaNorm = new UIRow({ align: 0 });
-    this.inRNorm = new UIInputText({ value: (this.r / 255).toFixed(3) });
-    this.inGNorm = new UIInputText({ value: (this.g / 255).toFixed(3) });
-    this.inBNorm = new UIInputText({ value: (this.b / 255).toFixed(3) });
-    [this.inRNorm, this.inGNorm, this.inBNorm].forEach(inp => {
-      inp.element.style.flex = '1';
-      inp.element.addEventListener('change', () => {
-        this.r = Math.round(Math.max(0, Math.min(1, parseFloat(this.inRNorm.getValue()) || 0)) * 255);
-        this.g = Math.round(Math.max(0, Math.min(1, parseFloat(this.inGNorm.getValue()) || 0)) * 255);
-        this.b = Math.round(Math.max(0, Math.min(1, parseFloat(this.inBNorm.getValue()) || 0)) * 255);
-        this.rgbAHsv();
-        this.actualizarUI();
-      });
-    });
-    filaNorm.append(new UILabel({ text: '0..1:' }));
-    filaNorm.append(this.inRNorm); filaNorm.append(this.inGNorm); filaNorm.append(this.inBNorm);
-    p.body.appendChild(filaNorm.element);
-
-    const contPaleta = document.createElement('div');
-    contPaleta.style.cssText = 'display:flex; gap:4px; margin:6px 0;';
-    this.paleta.forEach(color => {
-      const b = document.createElement('div');
-      b.style.cssText = `flex:1; height:18px; border:1px solid #232731; border-radius:2px; background:${color}; cursor:pointer;`;
-      b.onclick = () => { this.hexAColor(color); this.actualizarUI(); };
-      contPaleta.appendChild(b);
-    });
-    p.body.appendChild(contPaleta);
-
-    const secStats = document.createElement('div');
-    secStats.style.cssText = 'background:#0f1116; border:1px solid #232731; border-radius:4px; padding:6px; margin:6px 0; font-size:11px; display:flex; flex-direction:column; gap:4px; color:#ffffff;';
     this.lblInfoStats = document.createElement('div');
-    this.lblInfoStats.textContent = 'Layer Analysis: Click Analyze';
-    this.lblInfoStats.style.cssText = 'color:#9ca3af; font-family:monospace;';
-    const btnAnalizar = new UIButton({ text: 'Analyze Layer Pixels' });
-    btnAnalizar.element.onclick = () => this.analizarCapa();
-    secStats.appendChild(this.lblInfoStats);
-    secStats.appendChild(btnAnalizar.element);
-    p.body.appendChild(secStats);
-
-    const btnAceptar = new UIButton({ text: 'Accept', variant: 'primary' });
-    btnAceptar.element.onclick = () => { p.destroy(); this.panel = null; };
-    const btnRestablecer = new UIButton({ text: 'Reset' });
-    btnRestablecer.element.onclick = () => { this.hexAColor(this.colorAnterior); this.actualizarUI(); };
-    p.addRow(btnRestablecer, btnAceptar);
+    this.lblInfoStats.className = 'ui-label';
+    this.lblInfoStats.textContent = 'Analysis: Not calculated';
+    const btnAnalizar = new UIButton({ text: 'Analyze Layer', onClick: () => this.analizarCapa() });
+    accordionItem.addRow(this.lblInfoStats, btnAnalizar);
 
     this.enlazarCanvases();
-    p.mount(document.body);
-    this.panel = p;
     this.dibujarHue();
     this.actualizarUI();
   }
@@ -714,14 +630,9 @@ class GimpColorPicker {
     if (this.boxActual) this.boxActual.style.background = hex;
     if (this.inHex) this.inHex.setValue(hex);
     if (this.inR255) {
-      this.inR255.setValue(String(this.r));
-      this.inG255.setValue(String(this.g));
-      this.inB255.setValue(String(this.b));
-    }
-    if (this.inRNorm) {
-      this.inRNorm.setValue((this.r / 255).toFixed(3));
-      this.inGNorm.setValue((this.g / 255).toFixed(3));
-      this.inBNorm.setValue((this.b / 255).toFixed(3));
+      this.inR255.setValue(this.r);
+      this.inG255.setValue(this.g);
+      this.inB255.setValue(this.b);
     }
   }
   analizarCapa() {
@@ -742,9 +653,8 @@ class GimpColorPicker {
       totalVisibles++;
     }
     if (totalVisibles === 0) minVal = 0;
-    const satProm = totalVisibles ? (sumaSat / totalVisibles).toFixed(4) : '0';
-    const satPixel = (Math.min(this.r, this.g, this.b) / (Math.max(this.r, this.g, this.b) + 0.00001)).toFixed(4);
-    this.lblInfoStats.innerHTML = `Max gio: ${maxVal} (${(maxVal / 255).toFixed(3)}) | Min: ${minVal} (${(minVal / 255).toFixed(3)})<br>Div Sat Layer: ${satProm} | Current Color Sat: ${satPixel}`;
+    const satProm = totalVisibles ? (sumaSat / totalVisibles).toFixed(3) : '0';
+    this.lblInfoStats.textContent = `Max: ${maxVal} | Min: ${minVal} | Sat: ${satProm}`;
   }
   hexAColor(h) {
     const n = parseInt(h.replace('#', ''), 16);
@@ -1011,99 +921,6 @@ class GestorSeleccion {
     this.portapapeles = null;
     this.enlazarTeclas();
   }
-  async setImagenComoCapa(fuenteImagen, nombre = 'Layer Image') {
-    if (!fuenteImagen) return null;
-    let imgElement = null;
-    if (fuenteImagen instanceof HTMLImageElement) {
-      imgElement = fuenteImagen;
-    } else if (fuenteImagen instanceof HTMLCanvasElement) {
-      const c = new Capa(fuenteImagen.width, fuenteImagen.height, nombre);
-      c.ctx.drawImage(fuenteImagen, 0, 0);
-      this._integrarNuevaCapa(c);
-      return c;
-    } else if (fuenteImagen instanceof Blob || fuenteImagen instanceof File) {
-      imgElement = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = ev => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = ev.target.result;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(fuenteImagen);
-      });
-    } else if (typeof fuenteImagen === 'string') {
-      imgElement = await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = fuenteImagen;
-      });
-    }
-    if (!imgElement) return null;
-    const w = imgElement.naturalWidth || imgElement.width;
-    const h = imgElement.naturalHeight || imgElement.height;
-    const nuevaCapa = new Capa(w, h, nombre);
-    nuevaCapa.ctx.drawImage(imgElement, 0, 0);
-    this._integrarNuevaCapa(nuevaCapa);
-    return nuevaCapa;
-  } 
-  setTagImgComoCapa(imgElement, nombre = 'Layer Image') {
-    if (!imgElement) return null;
-    const w = imgElement.naturalWidth || imgElement.width;
-    const h = imgElement.naturalHeight || imgElement.height;
-    if (!w || !h) return null;
-    const nuevaCapa = new Capa(w, h, nombre);
-    nuevaCapa.ctx.drawImage(imgElement, 0, 0);
-    this._integrarNuevaCapa(nuevaCapa);
-    return nuevaCapa;
-  }
-  async setUrlComoCapa(url, nombre = 'Layer URL') {
-    if (!url || typeof url !== 'string') return null;
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(this.setTagImgComoCapa(img, nombre));
-      img.onerror = (err) => {
-        console.error('Error loading image from URL', err);
-        resolve(null);
-      };
-      img.src = url;
-    });
-  }
-  setResultFileInputReadComoCapa(resultReader, nombre = 'Layer File') {
-    if (!resultReader) return null;
-    if (typeof resultReader === 'string') return this.setUrlComoCapa(resultReader, nombre);
-    if (resultReader instanceof ArrayBuffer) {
-      const blob = new Blob([resultReader]);
-      const url = URL.createObjectURL(blob);
-      return this.setUrlComoCapa(url, nombre).finally(() => URL.revokeObjectURL(url));
-    }
-    return null;
-  }
-  setImageDataComoCapa(imageData, nombre = 'Layer ImageData') {
-    if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
-      console.error('El objeto proporcionado no es un ImageData válido.');
-      return null;
-    }
-    const nuevaCapa = new Capa(imageData.width, imageData.height, nombre);
-    nuevaCapa.ctx.putImageData(imageData, 0, 0);
-    this._integrarNuevaCapa(nuevaCapa);
-    return nuevaCapa;
-  } 
-  _integrarNuevaCapa(capa) {
-    this.guardarHistorial();
-    this.capas.push(capa);
-    this.indiceActiva = this.capas.length - 1; 
-    if (capa.ancho > this.documento.ancho || capa.alto > this.documento.alto) {
-      this.documento.ancho = Math.max(this.documento.ancho, capa.ancho);
-      this.documento.alto = Math.max(this.documento.alto, capa.alto);
-    }
-    this.notificarCapas();
-    this.renderizar();
-  }
   activarModo(m) {
     this.limpiar();
     this.modo = m;
@@ -1354,6 +1171,87 @@ class AplicacionPaint {
   deshacer() { if (this.historial.deshacer(this.capas)) { this.renderizar(); this.notificarCapas(); } }
   rehacer() { if (this.historial.rehacer(this.capas)) { this.renderizar(); this.notificarCapas(); } }
 
+  async setImagenComoCapa(fuenteImagen, nombre = 'Layer Image') {
+    if (!fuenteImagen) return null;
+    let imgElement = null;
+    if (fuenteImagen instanceof HTMLImageElement) {
+      imgElement = fuenteImagen;
+    } else if (fuenteImagen instanceof HTMLCanvasElement) {
+      const c = new Capa(fuenteImagen.width, fuenteImagen.height, nombre);
+      c.ctx.drawImage(fuenteImagen, 0, 0);
+      this._integrarNuevaCapa(c);
+      return c;
+    } else if (fuenteImagen instanceof Blob || fuenteImagen instanceof File) {
+      imgElement = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = ev.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(fuenteImagen);
+      });
+    } else if (typeof fuenteImagen === 'string') {
+      imgElement = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = fuenteImagen;
+      });
+    }
+    if (!imgElement) return null;
+    const w = imgElement.naturalWidth || imgElement.width;
+    const h = imgElement.naturalHeight || imgElement.height;
+    const nuevaCapa = new Capa(w, h, nombre);
+    nuevaCapa.ctx.drawImage(imgElement, 0, 0);
+    this._integrarNuevaCapa(nuevaCapa);
+    return nuevaCapa;
+  }
+  setTagImgComoCapa(imgElement, nombre = 'Layer Image') {
+    if (!imgElement) return null;
+    const w = imgElement.naturalWidth || imgElement.width;
+    const h = imgElement.naturalHeight || imgElement.height;
+    if (!w || !h) return null;
+    const nuevaCapa = new Capa(w, h, nombre);
+    nuevaCapa.ctx.drawImage(imgElement, 0, 0);
+    this._integrarNuevaCapa(nuevaCapa);
+    return nuevaCapa;
+  }
+  async setUrlComoCapa(url, nombre = 'Layer URL') {
+    if (!url || typeof url !== 'string') return null;
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(this.setTagImgComoCapa(img, nombre));
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  }
+  setResultFileInputReadComoCapa(resultReader, nombre = 'Layer File') {
+    if (!resultReader) return null;
+    if (typeof resultReader === 'string') return this.setUrlComoCapa(resultReader, nombre);
+    if (resultReader instanceof ArrayBuffer) {
+      const blob = new Blob([resultReader]);
+      const url = URL.createObjectURL(blob);
+      return this.setUrlComoCapa(url, nombre).finally(() => URL.revokeObjectURL(url));
+    }
+    return null;
+  }
+  _integrarNuevaCapa(capa) {
+    this.guardarHistorial();
+    this.capas.push(capa);
+    this.indiceActiva = this.capas.length - 1; 
+    if (capa.ancho > this.documento.ancho || capa.alto > this.documento.alto) {
+      this.documento.ancho = Math.max(this.documento.ancho, capa.ancho);
+      this.documento.alto = Math.max(this.documento.alto, capa.alto);
+    }
+    this.notificarCapas();
+    this.renderizar();
+  }
+
   enlazarPasteGlobal() {
     this._pasteHandler = async (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -1585,7 +1483,7 @@ class AplicacionPaint {
     this.color = hex;
     if (this.gimpPicker) {
       this.gimpPicker.hexAColor(hex);
-      if (this.gimpPicker.panel) this.gimpPicker.actualizarUI();
+      this.gimpPicker.actualizarUI();
     }
     this.notificarColor();
   }
@@ -1761,7 +1659,7 @@ class AplicacionPaint {
 
   aplicarGLFX(tipo, params = {}) {
     const c = this.capaActiva;
-    if (!c || !this.fxCanvas) return alert('GLFX WebGL engine not available.');
+    if (!c || !this.fxCanvas) return alert('GLFX WebGL not available.');
     this.guardarHistorial();
     const w = c.ancho, h = c.alto;
     const tex = this.fxCanvas.texture(c.canvas);
@@ -1824,33 +1722,12 @@ class AplicacionPaint {
 }
 
 class InterfazUsuario {
-  constructor(app, contenedorIzq, contenedorDer, contenedorCentral) {
+  constructor(app, contenedorCentral) {
     this.app = app;
-    this.contenedorIzq = contenedorIzq;
-    this.contenedorDer = contenedorDer;
     this.contenedorCentral = contenedorCentral;
-    this.btnsH = {};
-    this.panelSesionesModal = null;
-    this.init();
-  }
-  init() {
-    UI.Theme.inject();
-    UI.Theme.set({
-      'panel-width': '100%',
-      'font-size-panel-title': '11px',
-      'font-size-label': '10px',
-      'font-size-btn': '10px'
-    });
-    this.construirPanelHerramientas();
-    this.construirPanelClipboard();
-    this.construirPanelPropiedades();
-    this.construirPanelZoom();
-    this.construirPanelCapas();
-    this.construirPanelCurvas();
-    this.construirPanelMirror();
-    this.construirPanelFiltrosClasicos();
-    this.construirPanelGLFX();
-    this.construirPanelExportar();
+    this.setupContainers();
+    this.construirPanelIzquierdo();
+    this.construirPanelDerecho();
     this.enlazarEventosLienzo();
 
     this.app.onCapasActualizadas = () => this.actualizarPanelCapas();
@@ -1858,64 +1735,122 @@ class InterfazUsuario {
     this.app.onZoomActualizado = z => { if (this.lblZoom) this.lblZoom.setText(Math.round(z * 100) + '%'); };
   }
 
-  construirPanelHerramientas() {
-    const p = new UISmartPanel({ title: 'Tools & Shapes', floating: false });
-    const inBuscar = new UIInputText({ placeholder: 'Search tool...', value: '' });
-    p.addRow(inBuscar);
+  setupContainers() {
+    this.topBar = new UIContainer({
+      id: 'app_top_bar',
+      direction: 'row',
+      width: '100vw',
+      height: '36px',
+      gap: 6
+    });
+    Object.assign(this.topBar.element.style, {
+      position: 'fixed', top: '0', left: '0', zIndex: '2000',
+      borderBottom: '1px solid var(--ui-border)', justifyContent: 'space-between'
+    });
+    this.topBar.mount(document.body);
 
-    this.listaH = [
-      ['pincel', 'Brush (B)'],
-      ['borrador', 'Eraser (E)'],
-      ['linea', 'Straight Line'],
-      ['rectangulo', 'Rectangle'],
-      ['circulo', 'Circle / Ellipse'],
-      ['flecha', 'Arrow'],
-      ['cuentagotas', 'Eyedropper'],
-      ['clonar', 'Clone (C, Alt+Click)'],
-      ['sello', 'Image Stamp (S)'],
-      ['mover', 'Move Layer (M)'],
-      ['sel_rect', 'Rect Select'],
-      ['sel_lasso', 'Lasso Select']
-    ];
+    const leftSlot = document.createElement('div');
+    leftSlot.style.display = 'flex';
+    leftSlot.style.gap = '4px';
+    leftSlot.style.alignItems = 'center';
 
-    const cont = document.createElement('div');
-    cont.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
-    this.listaH.forEach(([id, txt]) => {
-      const b = new UIButton({ text: txt });
-      b.element.style.width = '100%';
-      b.element.onclick = () => {
+    const rightSlot = document.createElement('div');
+    rightSlot.style.display = 'flex';
+    rightSlot.style.gap = '4px';
+    rightSlot.style.alignItems = 'center';
+
+    const btnToggleLeft = new UIButton({ text: '◧ LEFT PANEL', onClick: () => this.leftGroup.toggle() });
+    const btnUndo = new UIButton({ text: '↶ UNDO', onClick: () => this.app.deshacer() });
+    const btnRedo = new UIButton({ text: '↷ REDO', onClick: () => this.app.rehacer() });
+
+    btnToggleLeft.mount(leftSlot);
+    btnUndo.mount(leftSlot);
+    btnRedo.mount(leftSlot);
+
+    const btnLayouts = new UIButton({ text: 'LAYOUT ☰', onClick: () => UILayoutManager.open() });
+    const btnToggleRight = new UIButton({ text: 'RIGHT PANEL ◨', onClick: () => this.rightGroup.toggle() });
+
+    btnLayouts.mount(rightSlot);
+    btnToggleRight.mount(rightSlot);
+
+    this.topBar.element.appendChild(leftSlot);
+    this.topBar.element.appendChild(rightSlot);
+
+    this.leftGroup = new UIContainer({
+      id: 'col_izquierda',
+      direction: 'column',
+      width: '296px',
+      height: 'calc(100vh - 44px)',
+      gap: 8
+    });
+    Object.assign(this.leftGroup.element.style, {
+      position: 'fixed', top: '40px', left: '6px', zIndex: '1500',
+      overflowY: 'auto', overflowX: 'hidden'
+    });
+    this.leftGroup.mount(document.body);
+
+    this.rightGroup = new UIContainer({
+      id: 'col_derecha',
+      direction: 'column',
+      width: '296px',
+      height: 'calc(100vh - 44px)',
+      gap: 8
+    });
+    Object.assign(this.rightGroup.element.style, {
+      position: 'fixed', top: '40px', right: '6px', zIndex: '1500',
+      overflowY: 'auto', overflowX: 'hidden'
+    });
+    this.rightGroup.mount(document.body);
+  }
+
+  construirPanelIzquierdo() {
+    this.panelIzq = new UISmartPanel({
+      id: 'panel_izq_herramientas',
+      title: 'Tools & Brush Dynamics',
+      width: 290,
+      floating: false
+    });
+
+    const accordion = new UIAccordion({ exclusive: false });
+    this.panelIzq.append(accordion);
+
+    const secTools = accordion.addItem({ title: 'Tool Selection', open: true });
+    this.radTools = new UIRadioGroup({
+      items: [
+        { label: 'Brush (B)', value: 'pincel' },
+        { label: 'Eraser (E)', value: 'borrador' },
+        { label: 'Line', value: 'linea' },
+        { label: 'Rectangle', value: 'rectangulo' },
+        { label: 'Circle', value: 'circulo' },
+        { label: 'Arrow', value: 'flecha' },
+        { label: 'Eyedropper', value: 'cuentagotas' },
+        { label: 'Clone Stamp (C)', value: 'clonar' },
+        { label: 'Image Stamp (S)', value: 'sello' },
+        { label: 'Move Layer (M)', value: 'mover' },
+        { label: 'Rect Select', value: 'sel_rect' },
+        { label: 'Lasso Select', value: 'sel_lasso' }
+      ],
+      activeIndex: 0,
+      onChange: (id) => {
         this.app.herramienta = id;
         if (id === 'sel_rect') this.app.gestorSeleccion.activarModo('rect');
         else if (id === 'sel_lasso') this.app.gestorSeleccion.activarModo('lasso');
         else this.app.gestorSeleccion.modo = 'ninguno';
-
-        if (id === 'cuentagotas') {
-          this.app.gimpPicker.abrir(this.app.color);
-        }
-
-        this.actualizarToolsUI(id);
-      };
-      this.btnsH[id] = b;
-      cont.appendChild(b.element);
+      }
     });
-    p.body.appendChild(cont);
+    secTools.append(this.radTools);
 
-    inBuscar.element.addEventListener('input', () => {
-      const q = inBuscar.getValue().toLowerCase();
-      this.listaH.forEach(([id, txt]) => {
-        this.btnsH[id].element.style.display = txt.toLowerCase().includes(q) ? 'block' : 'none';
-      });
-    });
-
-    const chkRellenar = new UICheckbox({
+    const tglRellenar = new UIToggle({
       label: 'Fill Shape',
-      checked: false,
-      onChange: v => { this.app.rellenarForma = v; }
+      value: false,
+      onChange: (v) => { this.app.rellenarForma = v; }
     });
-    p.addRow(chkRellenar);
+    secTools.append(tglRellenar);
 
-    const btnCargarSello = new UIButton({ text: 'Load Stamp Image' });
-    btnCargarSello.element.onclick = () => document.getElementById('archivoSello').click();
+    const btnCargarSello = new UIButton({
+      text: 'Load Stamp Texture',
+      onClick: () => document.getElementById('archivoSello').click()
+    });
     document.getElementById('archivoSello').onchange = e => {
       if (e.target.files && e.target.files[0]) {
         const rd = new FileReader();
@@ -1924,7 +1859,7 @@ class InterfazUsuario {
           im.onload = () => {
             this.app.imagenSello = im;
             this.app.herramienta = 'sello';
-            this.actualizarToolsUI('sello');
+            this.radTools.setValue('sello');
           };
           im.src = ev.target.result;
         };
@@ -1932,146 +1867,132 @@ class InterfazUsuario {
         e.target.value = '';
       }
     };
-    p.addRow(btnCargarSello);
-    p.mount(this.contenedorIzq);
-    this.actualizarToolsUI('pincel');
-  }
+    secTools.append(btnCargarSello);
 
-  actualizarToolsUI(act) {
-    this.listaH.forEach(([id]) => {
-      const el = this.btnsH[id].element;
-      if (id === act) { el.style.background = '#3b82f6'; el.style.color = '#fff'; }
-      else { el.style.background = ''; el.style.color = ''; }
-    });
-  }
+    const secClip = accordion.addItem({ title: 'Clipboard & Selection', open: false });
+    const btnCopiar = new UIButton({ text: 'Copy', onClick: () => this.app.gestorSeleccion.copiar() });
+    const btnCortar = new UIButton({ text: 'Cut', onClick: () => this.app.gestorSeleccion.cortar() });
+    const btnPegar = new UIButton({ text: 'Paste As Layer', variant: 'primary', onClick: () => this.app.gestorSeleccion.pegarComoCapa() });
+    const btnBorrar = new UIButton({ text: 'Delete Area', variant: 'danger', onClick: () => this.app.gestorSeleccion.eliminar() });
+    secClip.addRow(btnCopiar, btnCortar);
+    secClip.addRow(btnPegar, btnBorrar);
 
-  construirPanelClipboard() {
-    const p = new UISmartPanel({ title: 'Clip & Selection', floating: false });
-    const btnCopiar = new UIButton({ text: 'Copy' });
-    btnCopiar.element.onclick = () => this.app.gestorSeleccion.copiar();
-    const btnCortar = new UIButton({ text: 'Cut' });
-    btnCortar.element.onclick = () => this.app.gestorSeleccion.cortar();
-    const btnPegar = new UIButton({ text: 'Paste Crop', variant: 'primary' });
-    btnPegar.element.onclick = () => this.app.gestorSeleccion.pegarComoCapa();
-    const btnBorrar = new UIButton({ text: 'Delete Area', variant: 'danger' });
-    btnBorrar.element.onclick = () => this.app.gestorSeleccion.eliminar();
-    p.addRow(btnCopiar, btnCortar);
-    p.addRow(btnPegar, btnBorrar);
-    p.mount(this.contenedorIzq);
-  }
-
-  construirPanelPropiedades() {
-    const p = new UISmartPanel({ title: 'Brush & Color Properties', floating: false });
-    const slTam = new UIConfigurableSlider({ label: 'Size', min: 1, max: 1200, step: 1, value: 30, onChange: v => { this.app.tamano = v; } });
+    const secBrush = accordion.addItem({ title: 'Brush Settings', open: true });
+    const slTam = new UIConfigurableSlider({ label: 'Brush Size', min: 1, max: 1200, step: 1, value: 30, onChange: v => { this.app.tamano = v; } });
     const slDur = new UIConfigurableSlider({ label: 'Hardness', min: 0, max: 1, step: 0.05, value: 0.7, onChange: v => { this.app.dureza = v; } });
-    const slFza = new UIConfigurableSlider({ label: 'Strength', min: 0.05, max: 1, step: 0.05, value: 1, onChange: v => { this.app.fuerza = v; } });
-    const slRot = new UIConfigurableSlider({ label: 'Rotation', min: 0, max: 360, step: 1, value: 0, onChange: v => { this.app.rotacion = v; } });
-
-    const slFeather = new UIConfigurableSlider({ 
-      label: 'Edge Feather (Decay)', 
-      min: 0, 
-      max: 1, 
-      step: 0.02, 
-      value: 0.5, 
-      onChange: v => { 
-        this.app.desgasteBorde = v; 
-        this.app.mascaraCache = null;
-      } 
+    const slFza = new UIConfigurableSlider({ label: 'Opacity / Strength', min: 0.05, max: 1, step: 0.05, value: 1, onChange: v => { this.app.fuerza = v; } });
+    const slRot = new UIConfigurableSlider({ label: 'Angle / Rotation', min: 0, max: 360, step: 1, value: 0, onChange: v => { this.app.rotacion = v; } });
+    const slFeather = new UIConfigurableSlider({
+      label: 'Edge Decay (Feather)', min: 0, max: 1, step: 0.02, value: 0.5,
+      onChange: v => { this.app.desgasteBorde = v; this.app.mascaraCache = null; }
     });
+    secBrush.append(slTam);
+    secBrush.append(slDur);
+    secBrush.append(slFza);
+    secBrush.append(slRot);
+    secBrush.append(slFeather);
 
     const inCol = document.createElement('input');
     inCol.type = 'color'; inCol.value = '#ffffff';
-    inCol.style.cssText = 'flex:1; height:26px; border:none; background:transparent; cursor:pointer;';
+    inCol.style.cssText = 'flex:1;height:26px;border:none;background:transparent;cursor:pointer;';
     inCol.oninput = e => { this.app.color = e.target.value; };
     this.inColor = inCol;
+    secBrush.addRow(new UILabel({ text: 'Main Color:' }), inCol);
 
-    const btnGimp = new UIButton({ text: 'GIMP Picker', variant: 'primary' });
-    btnGimp.element.onclick = () => this.app.gimpPicker.abrir(this.app.color);
-
-    p.addRow(slTam); 
-    p.addRow(slDur); 
-    p.addRow(slFza); 
-    p.addRow(slRot);
-    p.addRow(slFeather);
-    p.addRow(new UILabel({ text: 'Color:' }), inCol, btnGimp);
-    p.mount(this.contenedorIzq);
-  }
-
-  construirPanelZoom() {
-    const p = new UISmartPanel({ title: 'Document & Zoom', floating: false });
-    const btnZoomMenos = new UIButton({ text: '-' });
-    btnZoomMenos.element.onclick = () => this.app.cambiarZoom(this.app.zoom / 1.25);
-    const btnZoomMas = new UIButton({ text: '+' });
-    btnZoomMas.element.onclick = () => this.app.cambiarZoom(this.app.zoom * 1.25);
-    const btnZoom100 = new UIButton({ text: '100%' });
-    btnZoom100.element.onclick = () => this.app.cambiarZoom(1);
-    const btnFit = new UIButton({ text: 'Fit Canvas' });
-    btnFit.element.onclick = () => {
-      const r = this.contenedorCentral.getBoundingClientRect();
-      const z = Math.min((r.width - 60) / this.app.documento.ancho, (r.height - 60) / this.app.documento.alto);
-      this.app.cambiarZoom(Math.max(0.05, z));
-    };
+    const secCanvas = accordion.addItem({ title: 'Canvas & Zoom', open: false });
+    const btnZoomMenos = new UIButton({ text: '-', onClick: () => this.app.cambiarZoom(this.app.zoom / 1.25) });
+    const btnZoomMas = new UIButton({ text: '+', onClick: () => this.app.cambiarZoom(this.app.zoom * 1.25) });
+    const btnZoom100 = new UIButton({ text: '100%', onClick: () => this.app.cambiarZoom(1) });
+    const btnFit = new UIButton({
+      text: 'Fit Viewport',
+      onClick: () => {
+        const r = this.contenedorCentral.getBoundingClientRect();
+        const z = Math.min((r.width - 60) / this.app.documento.ancho, (r.height - 60) / this.app.documento.alto);
+        this.app.cambiarZoom(Math.max(0.05, z));
+      }
+    });
     this.lblZoom = new UILabel({ text: '100%' });
-    p.addRow(btnZoomMenos, this.lblZoom, btnZoomMas);
-    p.addRow(btnZoom100, btnFit);
+    secCanvas.addRow(btnZoomMenos, this.lblZoom, btnZoomMas);
+    secCanvas.addRow(btnZoom100, btnFit);
 
-    const btnFitLayer = new UIButton({ text: 'Fit Canvas to Layer (Q)', variant: 'primary' });
-    btnFitLayer.element.onclick = () => this.app.ajustarCanvasACapa();
-    p.addRow(btnFitLayer);
-    p.mount(this.contenedorIzq);
+    const btnFitLayer = new UIButton({
+      text: 'Fit Canvas to Layer (Q)',
+      variant: 'primary',
+      onClick: () => this.app.ajustarCanvasACapa()
+    });
+    secCanvas.append(btnFitLayer);
+
+    this.leftGroup.addPanel(this.panelIzq);
   }
 
-  construirPanelCapas() {
-    const p = new UISmartPanel({ title: 'Layers & Blend Modes', floating: false });
-    const btnNC = new UIButton({ text: 'New', variant: 'primary' });
-    btnNC.element.onclick = () => this.app.nuevaCapa();
-    const btnDC = new UIButton({ text: 'Duplicate' });
-    btnDC.element.onclick = () => this.app.duplicarCapa();
-    const btnEC = new UIButton({ text: 'Delete', variant: 'danger' });
-    btnEC.element.onclick = () => this.app.eliminarCapa();
-    p.addRow(btnNC, btnDC, btnEC);
-
-    const btnSub = new UIButton({ text: 'Move Up' });
-    btnSub.element.onclick = () => this.app.subirCapa();
-    const btnBaj = new UIButton({ text: 'Move Down' });
-    btnBaj.element.onclick = () => this.app.bajarCapa();
-    p.addRow(btnSub, btnBaj);
-
-    const btnVolH = new UIButton({ text: 'Flip H' });
-    btnVolH.element.onclick = () => { if (this.app.capaActiva) { this.app.guardarHistorial(); this.app.capaActiva.voltear(true); this.app.renderizar(); } };
-    const btnVolV = new UIButton({ text: 'Flip V' });
-    btnVolV.element.onclick = () => { if (this.app.capaActiva) { this.app.guardarHistorial(); this.app.capaActiva.voltear(false); this.app.renderizar(); } };
-    p.addRow(btnVolH, btnVolV);
-
-    const selModo = document.createElement('select');
-    selModo.style.cssText = 'flex:1; background:#0f1116; color:#eee; border:1px solid #232731; border-radius:4px; padding:4px; font-size:10px;';
-    ['normal', 'multiply', 'screen', 'overlay', 'difference'].forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m; opt.textContent = m.toUpperCase();
-      selModo.appendChild(opt);
+  construirPanelDerecho() {
+    this.panelDer = new UISmartPanel({
+      id: 'panel_der_gestion',
+      title: 'Layers & Color Filters',
+      width: 290,
+      floating: false
     });
 
-    const btnMerge = new UIButton({ text: 'Merge Down', variant: 'primary' });
-    btnMerge.element.onclick = () => {
-      if (this.app.indiceActiva <= 0) return alert('Select a layer that has another layer below it.');
-      const sup = this.app.capas[this.app.indiceActiva];
-      const inf = this.app.capas[this.app.indiceActiva - 1];
-      const res = this.app.mezclador.mezclar(sup, inf, selModo.value, sup.opacidad);
-      if (res) {
-        this.app.guardarHistorial();
-        inf.redimensionar(res.ancho, res.alto);
-        inf.x = res.x; inf.y = res.y;
-        inf.ctx.putImageData(res.imageData, 0, 0);
-        this.app.capas.splice(this.app.indiceActiva, 1);
-        this.app.indiceActiva = Math.max(0, this.app.indiceActiva - 1);
-        this.actualizarPanelCapas();
-        this.app.renderizar();
-      }
-    };
-    p.addRow(selModo, btnMerge);
+    const accordion = new UIAccordion({ exclusive: false });
+    this.panelDer.append(accordion);
 
-    const btnLoadImg = new UIButton({ text: 'Import Image as Layer' });
-    btnLoadImg.element.onclick = () => document.getElementById('archivoCapa').click();
+    const secLayers = accordion.addItem({ title: 'Layer Stack', open: true });
+    const btnNC = new UIButton({ text: '+ Layer', variant: 'primary', onClick: () => this.app.nuevaCapa() });
+    const btnDC = new UIButton({ text: 'Duplicate', onClick: () => this.app.duplicarCapa() });
+    const btnEC = new UIButton({ text: 'Delete', variant: 'danger', onClick: () => this.app.eliminarCapa() });
+    secLayers.addRow(btnNC, btnDC, btnEC);
+
+    const btnSub = new UIButton({ text: 'Move Up', onClick: () => this.app.subirCapa() });
+    const btnBaj = new UIButton({ text: 'Move Down', onClick: () => this.app.bajarCapa() });
+    secLayers.addRow(btnSub, btnBaj);
+
+    const btnVolH = new UIButton({
+      text: 'Flip Horiz',
+      onClick: () => { if (this.app.capaActiva) { this.app.guardarHistorial(); this.app.capaActiva.voltear(true); this.app.renderizar(); } }
+    });
+    const btnVolV = new UIButton({
+      text: 'Flip Vert',
+      onClick: () => { if (this.app.capaActiva) { this.app.guardarHistorial(); this.app.capaActiva.voltear(false); this.app.renderizar(); } }
+    });
+    secLayers.addRow(btnVolH, btnVolV);
+
+    this.selModoMezcla = new UISelect({
+      options: [
+        { value: 'normal', label: 'NORMAL' },
+        { value: 'multiply', label: 'MULTIPLY' },
+        { value: 'screen', label: 'SCREEN' },
+        { value: 'overlay', label: 'OVERLAY' },
+        { value: 'difference', label: 'DIFFERENCE' }
+      ],
+      value: 'normal'
+    });
+
+    const btnMerge = new UIButton({
+      text: 'Merge Down',
+      variant: 'primary',
+      onClick: () => {
+        if (this.app.indiceActiva <= 0) return alert('Select a layer that has a layer below it.');
+        const sup = this.app.capas[this.app.indiceActiva];
+        const inf = this.app.capas[this.app.indiceActiva - 1];
+        const res = this.app.mezclador.mezclar(sup, inf, this.selModoMezcla.getValue(), sup.opacidad);
+        if (res) {
+          this.app.guardarHistorial();
+          inf.redimensionar(res.ancho, res.alto);
+          inf.x = res.x; inf.y = res.y;
+          inf.ctx.putImageData(res.imageData, 0, 0);
+          this.app.capas.splice(this.app.indiceActiva, 1);
+          this.app.indiceActiva = Math.max(0, this.app.indiceActiva - 1);
+          this.actualizarPanelCapas();
+          this.app.renderizar();
+        }
+      }
+    });
+    secLayers.addRow(this.selModoMezcla, btnMerge);
+
+    const btnLoadImg = new UIButton({
+      text: 'Import Image to Layer',
+      onClick: () => document.getElementById('archivoCapa').click()
+    });
     document.getElementById('archivoCapa').onchange = e => {
       if (e.target.files && e.target.files[0]) {
         const f = e.target.files[0];
@@ -2092,163 +2013,154 @@ class InterfazUsuario {
         e.target.value = '';
       }
     };
-    p.addRow(btnLoadImg);
+    secLayers.append(btnLoadImg);
 
-    this.contListaCapas = document.createElement('div');
-    this.contListaCapas.style.cssText = 'display:flex; flex-direction:column; gap:4px; margin-top:6px;';
-    p.body.appendChild(this.contListaCapas);
-    p.mount(this.contenedorDer);
-    this.actualizarPanelCapas();
-  }
+    this.reorderListCapas = new UIReorderList({
+      items: this.app.capas,
+      maxHeight: 160,
+      onSelect: (capa, idx) => {
+        this.app.indiceActiva = idx;
+        this.actualizarSliderOpacidad();
+      },
+      onVisibilityChange: (capa, idx, visible) => {
+        capa.visible = visible;
+        this.app.renderizar();
+      },
+      onReorder: (nuevasCapas) => {
+        this.app.capas = nuevasCapas;
+        this.app.renderizar();
+      }
+    });
+    secLayers.append(this.reorderListCapas);
 
-  actualizarPanelCapas() {
-    if (!this.contListaCapas) return;
-    this.contListaCapas.innerHTML = '';
-    for (let i = this.app.capas.length - 1; i >= 0; i--) {
-      const c = this.app.capas[i];
-      const row = new UIRow({ align: 0 });
-      const chk = new UICheckbox({
-        label: c.nombre,
-        checked: c.visible,
-        onChange: v => { c.visible = v; this.app.renderizar(); }
-      });
-      chk.element.style.flex = '1';
-      chk.element.onclick = e => {
-        if (e.target.tagName !== 'INPUT') {
-          this.app.indiceActiva = i;
-          this.actualizarPanelCapas();
+    this.sliderOpacCapa = new UIConfigurableSlider({
+      label: 'Layer Opacity (%)', min: 0, max: 100, step: 1, value: 100,
+      onChange: (v) => {
+        if (this.app.capaActiva) {
+          this.app.capaActiva.opacidad = v / 100;
+          this.app.renderizar();
+          this.reorderListCapas.render();
         }
-      };
-      if (i === this.app.indiceActiva) chk.element.style.color = '#3b82f6';
-      row.append(chk);
-      const sl = new UIConfigurableSlider({
-        label: '', min: 0, max: 100, step: 1, value: Math.round(c.opacidad * 100),
-        onChange: v => { c.opacidad = v / 100; this.app.renderizar(); }
-      });
-      sl.element.style.width = '80px';
-      row.append(sl);
-      this.contListaCapas.appendChild(row.element);
-    }
-  }
+      }
+    });
+    secLayers.append(this.sliderOpacCapa);
 
-  construirPanelCurvas() {
-    this.app.curvas.mount(this.contenedorDer);
-  }
+    const secColor = accordion.addItem({ title: 'GIMP Color Inspector', open: false });
+    this.app.gimpPicker.buildInsideAccordion(secColor, this.app.color);
 
-  construirPanelMirror() {
-    const p = new UISmartPanel({ title: 'Mirror Transformations', floating: false });
-    const lblDesc = new UILabel({ text: 'Duplicate & Invert (Max dimension 4096px):' });
-    lblDesc.element.style.fontSize = '10px';
-    lblDesc.element.style.color = '#9ca3af';
-    p.addRow(lblDesc);
+    const secCurvas = accordion.addItem({ title: 'Color Curves Adjustment', open: false });
+    this.app.curvas.buildInsideAccordion(secCurvas);
 
-    const btnMirrorH = new UIButton({ text: 'Mirror Horizontal (x2 Width)', variant: 'primary' });
-    btnMirrorH.element.onclick = () => this.app.aplicarMirror(true);
+    const secMirror = accordion.addItem({ title: 'Mirror Extension', open: false });
+    const btnMirrorH = new UIButton({ text: 'Mirror Horiz (2x Width)', variant: 'primary', onClick: () => this.app.aplicarMirror(true) });
+    const btnMirrorV = new UIButton({ text: 'Mirror Vert (2x Height)', variant: 'primary', onClick: () => this.app.aplicarMirror(false) });
+    secMirror.addRow(btnMirrorH, btnMirrorV);
 
-    const btnMirrorV = new UIButton({ text: 'Mirror Vertical (x2 Height)', variant: 'primary' });
-    btnMirrorV.element.onclick = () => this.app.aplicarMirror(false);
-
-    p.addRow(btnMirrorH, btnMirrorV);
-    p.mount(this.contenedorDer);
-  }
-
-  construirPanelFiltrosClasicos() {
-    const p = new UISmartPanel({ title: 'Classic Filters & Adjustments', floating: false });
+    const secFiltros = accordion.addItem({ title: 'Image Filters & Adjustments', open: false });
     const slBri = new UIConfigurableSlider({ label: 'Brightness', min: 0, max: 200, step: 1, value: 100 });
     const slCon = new UIConfigurableSlider({ label: 'Contrast', min: 0, max: 200, step: 1, value: 100 });
     const slSat = new UIConfigurableSlider({ label: 'Saturation', min: 0, max: 200, step: 1, value: 100 });
-    const slBlur = new UIConfigurableSlider({ label: 'Blur px', min: 0, max: 30, step: 0.5, value: 0 });
+    const slBlur = new UIConfigurableSlider({ label: 'Blur Radius (px)', min: 0, max: 30, step: 0.5, value: 0 });
 
-    const btnApplyCSS = new UIButton({ text: 'Apply Adjustments', variant: 'primary' });
-    btnApplyCSS.element.onclick = () => {
-      const c = this.app.capaActiva;
-      if (!c) return;
-      this.app.guardarHistorial();
-      const t = document.createElement('canvas');
-      t.width = c.ancho; t.height = c.alto;
-      const tc = t.getContext('2d');
-      tc.filter = `brightness(${slBri.getValue()}%) contrast(${slCon.getValue()}%) saturate(${slSat.getValue()}%) blur(${slBlur.getValue()}px)`;
-      tc.drawImage(c.canvas, 0, 0);
-      c.ctx.clearRect(0, 0, c.ancho, c.alto);
-      c.ctx.drawImage(t, 0, 0);
-      this.app.renderizar();
-    };
-    p.addRow(slBri); p.addRow(slCon); p.addRow(slSat); p.addRow(slBlur); p.addRow(btnApplyCSS);
-
-    const btnGray = new UIButton({ text: 'Grayscale' });
-    btnGray.element.onclick = () => this.app.aplicarFiltroPixel((r, g, b, a) => {
-      const v = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-      return [v, v, v, a];
+    const btnApplyCSS = new UIButton({
+      text: 'Apply Adjustments', variant: 'primary',
+      onClick: () => {
+        const c = this.app.capaActiva;
+        if (!c) return;
+        this.app.guardarHistorial();
+        const t = document.createElement('canvas');
+        t.width = c.ancho; t.height = c.alto;
+        const tc = t.getContext('2d');
+        tc.filter = `brightness(${slBri.getValue()}%) contrast(${slCon.getValue()}%) saturate(${slSat.getValue()}%) blur(${slBlur.getValue()}px)`;
+        tc.drawImage(c.canvas, 0, 0);
+        c.ctx.clearRect(0, 0, c.ancho, c.alto);
+        c.ctx.drawImage(t, 0, 0);
+        this.app.renderizar();
+      }
     });
-    const btnBW = new UIButton({ text: 'Black & White' });
-    btnBW.element.onclick = () => this.app.aplicarFiltroPixel((r, g, b, a) => {
-      const v = (0.299 * r + 0.587 * g + 0.114 * b) > 128 ? 255 : 0;
-      return [v, v, v, a];
+    secFiltros.append(slBri);
+    secFiltros.append(slCon);
+    secFiltros.append(slSat);
+    secFiltros.append(slBlur);
+    secFiltros.append(btnApplyCSS);
+
+    const btnGray = new UIButton({
+      text: 'Grayscale',
+      onClick: () => this.app.aplicarFiltroPixel((r, g, b, a) => {
+        const v = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        return [v, v, v, a];
+      })
     });
-    p.addRow(btnGray, btnBW);
-
-    const btnInvert = new UIButton({ text: 'Invert Colors' });
-    btnInvert.element.onclick = () => this.app.aplicarFiltroPixel((r, g, b, a) => [255 - r, 255 - g, 255 - b, a]);
-    const btnSepia = new UIButton({ text: 'Sepia Vintage' });
-    btnSepia.element.onclick = () => this.app.aplicarFiltroPixel((r, g, b, a) => {
-      const nr = Math.min(255, (r * 0.393) + (g * 0.769) + (b * 0.189));
-      const ng = Math.min(255, (r * 0.349) + (g * 0.686) + (b * 0.168));
-      const nb = Math.min(255, (r * 0.272) + (g * 0.534) + (b * 0.131));
-      return [nr, ng, nb, a];
+    const btnBW = new UIButton({
+      text: 'Threshold (B&W)',
+      onClick: () => this.app.aplicarFiltroPixel((r, g, b, a) => {
+        const v = (0.299 * r + 0.587 * g + 0.114 * b) > 128 ? 255 : 0;
+        return [v, v, v, a];
+      })
     });
-    p.addRow(btnInvert, btnSepia);
-    p.mount(this.contenedorDer);
-  }
+    secFiltros.addRow(btnGray, btnBW);
 
-  construirPanelGLFX() {
-    const p = new UISmartPanel({ title: 'WebGL Hardware Filters (GLFX)', floating: false });
+    const btnInvert = new UIButton({
+      text: 'Invert Colors',
+      onClick: () => this.app.aplicarFiltroPixel((r, g, b, a) => [255 - r, 255 - g, 255 - b, a])
+    });
+    const btnSepia = new UIButton({
+      text: 'Sepia Tone',
+      onClick: () => this.app.aplicarFiltroPixel((r, g, b, a) => {
+        const nr = Math.min(255, (r * 0.393) + (g * 0.769) + (b * 0.189));
+        const ng = Math.min(255, (r * 0.349) + (g * 0.686) + (b * 0.168));
+        const nb = Math.min(255, (r * 0.272) + (g * 0.534) + (b * 0.131));
+        return [nr, ng, nb, a];
+      })
+    });
+    secFiltros.addRow(btnInvert, btnSepia);
 
-    const btnDenoise = new UIButton({ text: 'Denoise' });
-    btnDenoise.element.onclick = () => this.app.aplicarGLFX('reducir_ruido', { exponente: 25 });
-    const btnSharpen = new UIButton({ text: 'Sharpen' });
-    btnSharpen.element.onclick = () => this.app.aplicarGLFX('enfocar', { radio: 5, fuerza: 1.2 });
-    p.addRow(btnDenoise, btnSharpen);
+    const secGLFX = accordion.addItem({ title: 'WebGL Acceleration (GLFX)', open: false });
+    const btnDenoise = new UIButton({ text: 'Denoise', onClick: () => this.app.aplicarGLFX('reducir_ruido', { exponente: 25 }) });
+    const btnSharpen = new UIButton({ text: 'Sharpen', onClick: () => this.app.aplicarGLFX('enfocar', { radio: 5, fuerza: 1.2 }) });
+    secGLFX.addRow(btnDenoise, btnSharpen);
 
-    const btnNoise = new UIButton({ text: 'Add Noise' });
-    btnNoise.element.onclick = () => this.app.aplicarGLFX('ruido', { cantidad: 0.15 });
-    const btnVignette = new UIButton({ text: 'Vignette' });
-    btnVignette.element.onclick = () => this.app.aplicarGLFX('vineta', { tamano: 0.5, cantidad: 0.6 });
-    p.addRow(btnNoise, btnVignette);
+    const btnNoise = new UIButton({ text: 'Add Noise', onClick: () => this.app.aplicarGLFX('ruido', { cantidad: 0.15 }) });
+    const btnVignette = new UIButton({ text: 'Vignette', onClick: () => this.app.aplicarGLFX('vineta', { tamano: 0.5, cantidad: 0.6 }) });
+    secGLFX.addRow(btnNoise, btnVignette);
 
-    p.mount(this.contenedorDer);
-  }
+    const secExport = accordion.addItem({ title: 'Export & Project Files', open: false });
+    const btnDLpng = new UIButton({
+      text: 'Download PNG', variant: 'primary',
+      onClick: () => {
+        const a = document.createElement('a');
+        a.download = 'render.png'; a.href = this.app.lienzo.toDataURL('image/png'); a.click();
+      }
+    });
+    const btnDLjpg = new UIButton({
+      text: 'Download JPG',
+      onClick: () => {
+        const t = document.createElement('canvas');
+        t.width = this.app.lienzo.width; t.height = this.app.lienzo.height;
+        const tc = t.getContext('2d');
+        tc.fillStyle = '#ffffff'; tc.fillRect(0, 0, t.width, t.height);
+        tc.drawImage(this.app.lienzo, 0, 0);
+        const a = document.createElement('a');
+        a.download = 'render.jpg'; a.href = t.toDataURL('image/jpeg', 0.95); a.click();
+      }
+    });
+    secExport.addRow(btnDLpng, btnDLjpg);
 
-  construirPanelExportar() {
-    const p = new UISmartPanel({ title: 'Export & File Storage', floating: false });
-
-    const btnDLpng = new UIButton({ text: 'Download PNG', variant: 'primary' });
-    btnDLpng.element.onclick = () => {
-      const a = document.createElement('a');
-      a.download = 'render.png'; a.href = this.app.lienzo.toDataURL('image/png'); a.click();
-    };
-    const btnDLjpg = new UIButton({ text: 'Download JPG' });
-    btnDLjpg.element.onclick = () => {
-      const t = document.createElement('canvas');
-      t.width = this.app.lienzo.width; t.height = this.app.lienzo.height;
-      const tc = t.getContext('2d');
-      tc.fillStyle = '#ffffff'; tc.fillRect(0, 0, t.width, t.height);
-      tc.drawImage(this.app.lienzo, 0, 0);
-      const a = document.createElement('a');
-      a.download = 'render.jpg'; a.href = t.toDataURL('image/jpeg', 0.95); a.click();
-    };
-    p.addRow(btnDLpng, btnDLjpg);
-
-    const btnGuardarJSON = new UIButton({ text: 'Export JSON' });
-    btnGuardarJSON.element.onclick = async () => {
-      const st = await this.app.exportarEstado();
-      const b = new Blob([JSON.stringify(st)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(b);
-      a.download = `project_${Date.now()}.json`;
-      a.click();
-    };
-    const btnCargarJSON = new UIButton({ text: 'Import JSON' });
-    btnCargarJSON.element.onclick = () => document.getElementById('archivoJSON').click();
+    const btnGuardarJSON = new UIButton({
+      text: 'Save Project (JSON)',
+      onClick: async () => {
+        const st = await this.app.exportarEstado();
+        const b = new Blob([JSON.stringify(st)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = `project_${Date.now()}.json`;
+        a.click();
+      }
+    });
+    const btnCargarJSON = new UIButton({
+      text: 'Load Project (JSON)',
+      onClick: () => document.getElementById('archivoJSON').click()
+    });
     document.getElementById('archivoJSON').onchange = e => {
       if (e.target.files && e.target.files[0]) {
         const rd = new FileReader();
@@ -2257,9 +2169,306 @@ class InterfazUsuario {
         e.target.value = '';
       }
     };
-    p.addRow(btnGuardarJSON, btnCargarJSON);
+    secExport.addRow(btnGuardarJSON, btnCargarJSON);
 
-    p.mount(this.contenedorDer);
+    this.construirPanelIAGenerator();
+    this.construirPanelSDTurbo();
+
+    this.rightGroup.addPanel(this.panelDer);
+  }
+
+  construirPanelIAGenerator() {
+    this.panelAI = new UISmartPanel({
+      id: 'panel_ai_generator_studio',
+      title: 'AI Image Generator Studio',
+      width: 290,
+      floating: false
+    });
+
+    const accordion = new UIAccordion({ exclusive: false });
+    this.panelAI.append(accordion);
+
+    const secDirect = accordion.addItem({ title: 'One-Click Photo 8K', open: true });
+    secDirect.append(new UIButton({
+      text: '⚡ Generate 8K Photo Layer',
+      variant: 'primary',
+      onClick: () => this.generarFoto8kDirecto()
+    }));
+
+    const secConfig = accordion.addItem({ title: 'Studio Model Config', open: true });
+    this.aiBaseModel = new UISelect({
+      options: [
+        { value: 'sd_xl_base_1.0.safetensors', label: 'SDXL Standard' },
+        { value: 'realisticStockPhoto_v20.safetensors', label: 'Realistic Stock v2.0' },
+        { value: 'juggernautXL_v8Rundiffusion.safetensors', label: 'Juggernaut XL v8' }
+      ],
+      value: 'sd_xl_base_1.0.safetensors'
+    });
+    secConfig.addRow(new UILabel({ text: 'Base Model:' }), this.aiBaseModel);
+
+    this.aiPerf = new UIRadioGroup({
+      items: [
+        { label: 'Speed', value: 'Speed' },
+        { label: 'Quality', value: 'Quality' },
+        { label: 'Lightning', value: 'Lightning' }
+      ],
+      activeIndex: 0
+    });
+    secConfig.append(this.aiPerf);
+
+    this.aiAspect = new UISelect({
+      options: [
+        { value: '1024×1024', label: '1024×1024 (1:1)' },
+        { value: '1152×896', label: '1152×896 (9:7)' },
+        { value: '896×1152', label: '896×1152 (7:9)' },
+        { value: '1216×832', label: '1216×832 (3:2)' },
+        { value: '1344×768', label: '1344×768 (16:9)' }
+      ],
+      value: '1024×1024'
+    });
+    secConfig.addRow(new UILabel({ text: 'Resolution:' }), this.aiAspect);
+
+    this.aiUseActiveLayer = new UIToggle({ label: 'Use Active Layer Input', value: true });
+    secConfig.append(this.aiUseActiveLayer);
+
+    this.aiNumImages = new UIConfigurableSlider({ label: 'Image Count', min: 1, max: 4, step: 1, value: 1 });
+    secConfig.append(this.aiNumImages);
+
+    const secPrompts = accordion.addItem({ title: 'Prompts Setup', open: true });
+    secPrompts.append(new UILabel({ text: 'Positive Prompt:' }));
+    this.txtAiPrompt = document.createElement('textarea');
+    this.txtAiPrompt.rows = 3;
+    this.txtAiPrompt.className = 'ui-input';
+    this.txtAiPrompt.style.cssText = 'width:100%;height:60px;box-sizing:border-box;resize:vertical;';
+    this.txtAiPrompt.value = 'Concept art of an industrial sci-fi machine, pure background, sharp focus, 8k render';
+    secPrompts.append(this.txtAiPrompt);
+
+    secPrompts.append(new UILabel({ text: 'Negative Prompt:' }));
+    this.txtAiNeg = document.createElement('textarea');
+    this.txtAiNeg.rows = 2;
+    this.txtAiNeg.className = 'ui-input';
+    this.txtAiNeg.style.cssText = 'width:100%;height:45px;box-sizing:border-box;resize:vertical;';
+    this.txtAiNeg.value = 'blurry, unfocused, bad anatomy, low quality, artifacts, watermark';
+    secPrompts.append(this.txtAiNeg);
+
+    const secAction = accordion.addItem({ title: 'Execution', open: true });
+    this.lblAiStatus = document.createElement('div');
+    this.lblAiStatus.className = 'ui-label';
+    this.lblAiStatus.style.cssText = 'text-align:center;width:100%;min-height:16px;';
+    secAction.append(this.lblAiStatus);
+
+    this.btnRunStudio = new UIButton({
+      text: '⚡ Generate Images Studio',
+      variant: 'primary',
+      onClick: () => this.ejecutarGeneracionStudio()
+    });
+    secAction.append(this.btnRunStudio);
+
+    this.rightGroup.addPanel(this.panelAI);
+  }
+
+  construirPanelSDTurbo() {
+    this.panelTurbo = new UISmartPanel({
+      id: 'panel_sd_turbo_generator',
+      title: 'Fast AI (SD Turbo / Lightning)',
+      width: 290,
+      floating: false
+    });
+
+    const accordion = new UIAccordion({ exclusive: false });
+    this.panelTurbo.append(accordion);
+
+    const secConfig = accordion.addItem({ title: 'Parameters', open: true });
+    this.radTurboModel = new UIRadioGroup({
+      items: [
+        { label: 'SD-Turbo (Fast)', value: 0 },
+        { label: 'SDXL-Lightning', value: 1 }
+      ],
+      activeIndex: 0
+    });
+    secConfig.append(this.radTurboModel);
+
+    this.tglTurboLayer = new UIToggle({ label: 'Use Layer as Input (img2img)', value: false });
+    secConfig.append(this.tglTurboLayer);
+
+    this.sliderTurboStrength = new UIConfigurableSlider({ label: 'Denoising Strength', min: 0.1, max: 0.95, step: 0.01, value: 0.5 });
+    secConfig.append(this.sliderTurboStrength);
+
+    this.sliderTurboNum = new UIConfigurableSlider({ label: 'Images to Generate', min: 1, max: 4, step: 1, value: 1 });
+    secConfig.append(this.sliderTurboNum);
+
+    const secPrompt = accordion.addItem({ title: 'Prompt & Dimensions', open: true });
+    this.txtTurboPrompt = document.createElement('textarea');
+    this.txtTurboPrompt.rows = 3;
+    this.txtTurboPrompt.className = 'ui-input';
+    this.txtTurboPrompt.style.cssText = 'width:100%;height:60px;box-sizing:border-box;resize:vertical;';
+    this.txtTurboPrompt.value = 'photorealistic cinematic environment, volumetric light, highly detailed 8k photography';
+    secPrompt.append(this.txtTurboPrompt);
+
+    this.inTurboW = new UIInputNumberInt({ value: 1024, min: 128, max: 2048 });
+    this.inTurboH = new UIInputNumberInt({ value: 1024, min: 128, max: 2048 });
+    secPrompt.addRow(
+      new UILabel({ text: 'W:' }), this.inTurboW,
+      new UILabel({ text: 'H:' }), this.inTurboH
+    );
+
+    const secRun = accordion.addItem({ title: 'Generate', open: true });
+    this.lblTurboStatus = document.createElement('div');
+    this.lblTurboStatus.className = 'ui-label';
+    this.lblTurboStatus.style.cssText = 'text-align:center;width:100%;min-height:16px;';
+    secRun.append(this.lblTurboStatus);
+
+    this.btnRunTurbo = new UIButton({
+      text: '⚡ Generate Fast Image',
+      variant: 'primary',
+      onClick: () => this.ejecutarGeneracionTurbo()
+    });
+    secRun.append(this.btnRunTurbo);
+
+    this.rightGroup.addPanel(this.panelTurbo);
+  }
+
+  async generarFoto8kDirecto() {
+    const act = this.app.capaActiva;
+    if (!act) return alert('No active layer selected.');
+
+    const temp = document.createElement('canvas');
+    temp.width = 1024; temp.height = 1024;
+    const tCtx = temp.getContext('2d');
+    tCtx.drawImage(act.canvas, 0, 0, 1024, 1024);
+
+    const payload = {
+      prompt: 'photorealistic, high quality, 8k resolution, professional photography, highly detailed, sharp focus, clean lighting, 8k uhd',
+      model: 0,
+      image: temp.toDataURL('image/png'),
+      strength: 0.1,
+      width: 1024,
+      height: 1024,
+      image_num: 1
+    };
+
+    try {
+      const res = await fetch('http://127.0.0.1:7860/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const url = (data.images && data.images.length > 0) ? data.images[0] : data.image;
+      await this.app.setUrlComoCapa(url, 'AI Photo 8K');
+    } catch (err) {
+      alert('AI Server Error (7860): ' + err.message);
+    }
+  }
+
+  async ejecutarGeneracionStudio() {
+    const pmt = this.txtAiPrompt.value.trim();
+    if (!pmt) return alert('Enter a prompt.');
+
+    let imgBase64 = null;
+    if (this.aiUseActiveLayer.getValue() && this.app.capaActiva) {
+      const temp = document.createElement('canvas');
+      temp.width = 1024; temp.height = 1024;
+      temp.getContext('2d').drawImage(this.app.capaActiva.canvas, 0, 0, 1024, 1024);
+      imgBase64 = temp.toDataURL('image/png');
+    }
+
+    const payload = {
+      prompt: pmt,
+      negative_prompt: this.txtAiNeg.value.trim(),
+      base_model: this.aiBaseModel.getValue(),
+      performance: this.aiPerf.getValue(),
+      aspect_ratio: this.aiAspect.getValue(),
+      input_image: imgBase64,
+      ip_type: 'ImagePrompt',
+      ip_stop: 0.5,
+      ip_weight: 0.6,
+      image_number: this.aiNumImages.getValue()
+    };
+
+    this.btnRunStudio.setDisabled(true);
+    this.lblAiStatus.textContent = 'Generating with Studio AI...';
+
+    try {
+      const res = await fetch('http://127.0.0.1:7865/custom_api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(`Code ${res.status}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Generation failed.');
+      const imgs = data.images || [];
+      for (let i = 0; i < imgs.length; i++) {
+        await this.app.setUrlComoCapa(imgs[i], `AI Studio (${i + 1})`);
+      }
+      this.lblAiStatus.textContent = '✓ Generation complete!';
+      setTimeout(() => { this.lblAiStatus.textContent = ''; }, 3000);
+    } catch (err) {
+      this.lblAiStatus.textContent = 'Error: ' + err.message;
+    } finally {
+      this.btnRunStudio.setDisabled(false);
+    }
+  }
+
+  async ejecutarGeneracionTurbo() {
+    const pmt = this.txtTurboPrompt.value.trim();
+    if (!pmt) return alert('Enter a prompt.');
+
+    let imgBase64 = null;
+    if (this.tglTurboLayer.getValue() && this.app.capaActiva) {
+      const temp = document.createElement('canvas');
+      temp.width = 1024; temp.height = 1024;
+      temp.getContext('2d').drawImage(this.app.capaActiva.canvas, 0, 0, 1024, 1024);
+      imgBase64 = temp.toDataURL('image/png');
+    }
+
+    const modelIdx = Number(this.radTurboModel.getValue());
+    const payload = {
+      prompt: pmt,
+      model: modelIdx,
+      image: imgBase64,
+      strength: this.sliderTurboStrength.getValue(),
+      width: this.inTurboW.getValue() || 1024,
+      height: this.inTurboH.getValue() || 1024,
+      image_num: this.sliderTurboNum.getValue()
+    };
+
+    this.btnRunTurbo.setDisabled(true);
+    const mName = modelIdx === 1 ? 'SDXL-Lightning' : 'SD-Turbo';
+    this.lblTurboStatus.textContent = `Generating with ${mName}...`;
+
+    try {
+      const res = await fetch('http://127.0.0.1:7860/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const imgs = data.images && data.images.length > 0 ? data.images : [data.image];
+      for (let i = 0; i < imgs.length; i++) {
+        await this.app.setUrlComoCapa(imgs[i], `${mName} (${i + 1})`);
+      }
+      this.lblTurboStatus.textContent = '✓ Done!';
+      setTimeout(() => { this.lblTurboStatus.textContent = ''; }, 3000);
+    } catch (err) {
+      this.lblTurboStatus.textContent = 'Error: ' + err.message;
+    } finally {
+      this.btnRunTurbo.setDisabled(false);
+    }
+  }
+
+  actualizarPanelCapas() {
+    if (!this.reorderListCapas) return;
+    this.reorderListCapas.setItems(this.app.capas, this.app.indiceActiva);
+    this.actualizarSliderOpacidad();
+  }
+
+  actualizarSliderOpacidad() {
+    if (!this.sliderOpacCapa || !this.app.capaActiva) return;
+    this.sliderOpacCapa.setValue(Math.round(this.app.capaActiva.opacidad * 100));
   }
 
   enlazarEventosLienzo() {
@@ -2284,11 +2493,11 @@ class InterfazUsuario {
       if (ev.ctrlKey && !ev.shiftKey && k === 'z') { ev.preventDefault(); this.app.deshacer(); return; }
       if ((ev.ctrlKey && ev.shiftKey && k === 'z') || (ev.ctrlKey && k === 'y')) { ev.preventDefault(); this.app.rehacer(); return; }
       if (k === 'q') { ev.preventDefault(); this.app.ajustarCanvasACapa(); return; }
-      if (k === 'b') { this.app.herramienta = 'pincel'; this.actualizarToolsUI('pincel'); return; }
-      if (k === 'e') { this.app.herramienta = 'borrador'; this.actualizarToolsUI('borrador'); return; }
-      if (k === 'c') { this.app.herramienta = 'clonar'; this.actualizarToolsUI('clonar'); return; }
-      if (k === 's') { this.app.herramienta = 'sello'; this.actualizarToolsUI('sello'); return; }
-      if (k === 'm') { this.app.herramienta = 'mover'; this.actualizarToolsUI('mover'); return; }
+      if (k === 'b') { this.app.herramienta = 'pincel'; this.radTools.setValue('pincel'); return; }
+      if (k === 'e') { this.app.herramienta = 'borrador'; this.radTools.setValue('borrador'); return; }
+      if (k === 'c') { this.app.herramienta = 'clonar'; this.radTools.setValue('clonar'); return; }
+      if (k === 's') { this.app.herramienta = 'sello'; this.radTools.setValue('sello'); return; }
+      if (k === 'm') { this.app.herramienta = 'mover'; this.radTools.setValue('mover'); return; }
     });
   }
 }
@@ -2301,8 +2510,6 @@ const appInstancia = new AplicacionPaint(
 
 const uiInstancia = new InterfazUsuario(
   appInstancia,
-  document.getElementById('columnaIzquierda'),
-  document.getElementById('columnaDerecha'),
   document.getElementById('areaLienzoCentral')
 );
 </script>
