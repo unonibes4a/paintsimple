@@ -37,7 +37,6 @@ body { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; bac
 <input type="file" id="archivoJSON" accept=".json" style="display:none">
 
 <script>
-// --- PROCEDURAL SIMPLEX NOISE ---
 const F2 = 0.5 * (Math.sqrt(3) - 1);
 const G2 = (3 - Math.sqrt(3)) / 6;
 const grad3 = new Float32Array([1,1,0,-1,1,0,1,-1,0,-1,-1,0,1,0,1,-1,0,1,1,0,-1,-1,0,-1,0,1,1,0,-1,1,0,1,-1,0,-1,-1]);
@@ -102,7 +101,6 @@ class RuidoSimplex {
   }
 }
 
-// --- COLOR ALGORITHMS ENGINE ---
 class AlgoritmosColor {
   limite(v, b = 0, c = 1) { if (v > c) v = c; if (v < b) v = b; return v; }
   valor1o0(v) { return Math.max(0, Math.min(1, v)); }
@@ -150,7 +148,6 @@ class AlgoritmosColor {
   }
 }
 
-// --- CURVES EDITOR STANDALONE ---
 class CanvasCurvesStandalone {
   constructor(opciones = {}) {
     this.onGetImageData = opciones.onGetImageData || (() => null);
@@ -516,7 +513,6 @@ class CanvasCurvesStandalone {
   }
 }
 
-// --- GIMP COLOR PICKER ---
 class GimpColorPicker {
   constructor(opciones = {}) {
     this.onColorChange = opciones.onColorChange || (() => {});
@@ -800,7 +796,6 @@ class GimpColorPicker {
   }
 }
 
-// --- MODOS MEZCLA, IDB & CAPA ---
 class ModosMezcla {
   mezclar(capaSup, capaInf, modo = 'normal', op = 1) {
     if (!capaSup || !capaInf) return null;
@@ -830,7 +825,7 @@ class ModosMezcla {
           g = g2 < 0.5 ? 2 * g1 * g2 : 1 - 2 * (1 - g1) * (1 - g2);
           b = b2 < 0.5 ? 2 * b1 * b2 : 1 - 2 * (1 - b1) * (1 - b2);
           break;
-        case 'difference': r = Math.abs(r1 - r2); g = Math.abs(g1 - g2); b = Math.abs(b1 - b2); break;
+        case 'difference': r = Math.abs(r1 - r2); g = Math.abs(g1 - g2); b = Math.abs(g1 - g2); break;
         default:
           r = r1 * a1 * op + r2 * a2 * (1 - a1 * op);
           g = g1 * a1 * op + g2 * a2 * (1 - a1 * op);
@@ -1016,12 +1011,9 @@ class GestorSeleccion {
     this.portapapeles = null;
     this.enlazarTeclas();
   }
-  // --- FUNCIÓN 1: Cargar y crear capa desde HTMLImage, Canvas, Blob o URL/Base64 ---
   async setImagenComoCapa(fuenteImagen, nombre = 'Layer Image') {
     if (!fuenteImagen) return null;
-
     let imgElement = null;
-
     if (fuenteImagen instanceof HTMLImageElement) {
       imgElement = fuenteImagen;
     } else if (fuenteImagen instanceof HTMLCanvasElement) {
@@ -1050,12 +1042,9 @@ class GestorSeleccion {
         img.src = fuenteImagen;
       });
     }
-
     if (!imgElement) return null;
-
     const w = imgElement.naturalWidth || imgElement.width;
     const h = imgElement.naturalHeight || imgElement.height;
-
     const nuevaCapa = new Capa(w, h, nombre);
     nuevaCapa.ctx.drawImage(imgElement, 0, 0);
     this._integrarNuevaCapa(nuevaCapa);
@@ -1066,13 +1055,11 @@ class GestorSeleccion {
     const w = imgElement.naturalWidth || imgElement.width;
     const h = imgElement.naturalHeight || imgElement.height;
     if (!w || !h) return null;
-
     const nuevaCapa = new Capa(w, h, nombre);
     nuevaCapa.ctx.drawImage(imgElement, 0, 0);
     this._integrarNuevaCapa(nuevaCapa);
     return nuevaCapa;
   }
-
   async setUrlComoCapa(url, nombre = 'Layer URL') {
     if (!url || typeof url !== 'string') return null;
     return new Promise((resolve, reject) => {
@@ -1086,12 +1073,9 @@ class GestorSeleccion {
       img.src = url;
     });
   }
-
   setResultFileInputReadComoCapa(resultReader, nombre = 'Layer File') {
     if (!resultReader) return null;
-    if (typeof resultReader === 'string') {
-      return this.setUrlComoCapa(resultReader, nombre);
-    }
+    if (typeof resultReader === 'string') return this.setUrlComoCapa(resultReader, nombre);
     if (resultReader instanceof ArrayBuffer) {
       const blob = new Blob([resultReader]);
       const url = URL.createObjectURL(blob);
@@ -1099,18 +1083,12 @@ class GestorSeleccion {
     }
     return null;
   }
-
-   
   setImageDataComoCapa(imageData, nombre = 'Layer ImageData') {
     if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
       console.error('El objeto proporcionado no es un ImageData válido.');
       return null;
     }
-
-    const w = imageData.width;
-    const h = imageData.height;
-
-    const nuevaCapa = new Capa(w, h, nombre);
+    const nuevaCapa = new Capa(imageData.width, imageData.height, nombre);
     nuevaCapa.ctx.putImageData(imageData, 0, 0);
     this._integrarNuevaCapa(nuevaCapa);
     return nuevaCapa;
@@ -1123,7 +1101,6 @@ class GestorSeleccion {
       this.documento.ancho = Math.max(this.documento.ancho, capa.ancho);
       this.documento.alto = Math.max(this.documento.alto, capa.alto);
     }
-
     this.notificarCapas();
     this.renderizar();
   }
@@ -1248,7 +1225,6 @@ class GestorSeleccion {
   }
 }
 
-// --- MAIN APPLICATION CORE ---
 class AplicacionPaint {
   constructor(canvasElement, previewElement, contenedorWorkspace) {
     this.lienzo = canvasElement;
@@ -1263,7 +1239,7 @@ class AplicacionPaint {
     this.tamano = 30;
     this.dureza = 0.7;
     this.fuerza = 1;
-    this.desgasteBorde = 0.5; // Desgaste radial de alfa (0: sin desgaste, 1: máximo desgaste)
+    this.desgasteBorde = 0.5;
     this.espaciado = 0.25;
     this.zoom = 1;
     this.rellenarForma = false;
@@ -1378,7 +1354,6 @@ class AplicacionPaint {
   deshacer() { if (this.historial.deshacer(this.capas)) { this.renderizar(); this.notificarCapas(); } }
   rehacer() { if (this.historial.rehacer(this.capas)) { this.renderizar(); this.notificarCapas(); } }
 
-   
   enlazarPasteGlobal() {
     this._pasteHandler = async (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -1431,6 +1406,7 @@ class AplicacionPaint {
 
     window.addEventListener('paste', this._pasteHandler);
   }
+
   obtenerMascara() {
     const k = this.tamano + '_' + this.dureza + '_' + this.desgasteBorde;
     if (this.mascaraClave === k && this.mascaraCache) return this.mascaraCache;
@@ -1451,6 +1427,7 @@ class AplicacionPaint {
     this.mascaraClave = k;
     return c;
   }
+
   colocarDab(xDoc, yDoc) {
     const c = this.capaActiva;
     if (!c) return;
@@ -1464,18 +1441,34 @@ class AplicacionPaint {
       c.ctx.drawImage(m, x - this.tamano / 2, y - this.tamano / 2);
       c.ctx.restore();
     } else if (this.herramienta === 'sello' && this.imagenSello) {
-      // Estampa con desgaste de alfa (al centro 1, orillas 0)
       const rad = (this.rotacion * Math.PI) / 180;
       const tmp = document.createElement('canvas');
       tmp.width = tmp.height = this.tamano;
       const tc = tmp.getContext('2d');
+
       tc.save();
       tc.translate(this.tamano / 2, this.tamano / 2);
       tc.rotate(rad);
       tc.drawImage(this.imagenSello, -this.tamano / 2, -this.tamano / 2, this.tamano, this.tamano);
       tc.restore();
+
+      if (this.color.toLowerCase() !== '#ffffff') {
+        tc.save();
+        tc.globalCompositeOperation = 'multiply';
+        tc.fillStyle = this.color;
+        tc.fillRect(0, 0, this.tamano, this.tamano);
+        tc.restore();
+
+        tc.save();
+        tc.globalCompositeOperation = 'destination-in';
+        tc.translate(this.tamano / 2, this.tamano / 2);
+        tc.rotate(rad);
+        tc.drawImage(this.imagenSello, -this.tamano / 2, -this.tamano / 2, this.tamano, this.tamano);
+        tc.restore();
+      }
+
       tc.globalCompositeOperation = 'destination-in';
-      tc.drawImage(m, 0, 0); // Aplica el desgaste de borde a la estampa
+      tc.drawImage(m, 0, 0);
 
       c.ctx.save();
       c.ctx.globalAlpha = this.fuerza;
@@ -1486,9 +1479,25 @@ class AplicacionPaint {
       const tmp = document.createElement('canvas');
       tmp.width = tmp.height = this.tamano;
       const tc = tmp.getContext('2d');
+
       tc.drawImage(this.canvasClonadoSnapshot, xF - this.tamano / 2, yF - this.tamano / 2, this.tamano, this.tamano, 0, 0, this.tamano, this.tamano);
+
+      if (this.color.toLowerCase() !== '#ffffff') {
+        tc.save();
+        tc.globalCompositeOperation = 'multiply';
+        tc.fillStyle = this.color;
+        tc.fillRect(0, 0, this.tamano, this.tamano);
+        tc.restore();
+
+        tc.save();
+        tc.globalCompositeOperation = 'destination-in';
+        tc.drawImage(this.canvasClonadoSnapshot, xF - this.tamano / 2, yF - this.tamano / 2, this.tamano, this.tamano, 0, 0, this.tamano, this.tamano);
+        tc.restore();
+      }
+
       tc.globalCompositeOperation = 'destination-in';
       tc.drawImage(m, 0, 0);
+
       c.ctx.save();
       c.ctx.globalAlpha = this.fuerza;
       c.ctx.drawImage(tmp, x - this.tamano / 2, y - this.tamano / 2);
@@ -1814,7 +1823,6 @@ class AplicacionPaint {
   }
 }
 
-// --- USER INTERFACE (WIDGET INTEGRATION) ---
 class InterfazUsuario {
   constructor(app, contenedorIzq, contenedorDer, contenedorCentral) {
     this.app = app;
@@ -1881,7 +1889,6 @@ class InterfazUsuario {
         else if (id === 'sel_lasso') this.app.gestorSeleccion.activarModo('lasso');
         else this.app.gestorSeleccion.modo = 'ninguno';
 
-        // Al hacer click en Eyedropper se abre la data/panel de GimpColorPicker
         if (id === 'cuentagotas') {
           this.app.gimpPicker.abrir(this.app.color);
         }
@@ -1953,7 +1960,6 @@ class InterfazUsuario {
     p.mount(this.contenedorIzq);
   }
 
-  // --- PANEL PROPIEDADES CON EL SLIDER EDGE FEATHER / RADIAL DECAY ---
   construirPanelPropiedades() {
     const p = new UISmartPanel({ title: 'Brush & Color Properties', floating: false });
     const slTam = new UIConfigurableSlider({ label: 'Size', min: 1, max: 1200, step: 1, value: 30, onChange: v => { this.app.tamano = v; } });
@@ -1961,7 +1967,6 @@ class InterfazUsuario {
     const slFza = new UIConfigurableSlider({ label: 'Strength', min: 0.05, max: 1, step: 0.05, value: 1, onChange: v => { this.app.fuerza = v; } });
     const slRot = new UIConfigurableSlider({ label: 'Rotation', min: 0, max: 360, step: 1, value: 0, onChange: v => { this.app.rotacion = v; } });
 
-    // Slider de Desgaste de Borde (Edge Feather / Alfa 1 al centro, 0 a las orillas)
     const slFeather = new UIConfigurableSlider({ 
       label: 'Edge Feather (Decay)', 
       min: 0, 
@@ -1970,7 +1975,7 @@ class InterfazUsuario {
       value: 0.5, 
       onChange: v => { 
         this.app.desgasteBorde = v; 
-        this.app.mascaraCache = null; // Invalida caché para recalcular
+        this.app.mascaraCache = null;
       } 
     });
 
@@ -1987,7 +1992,7 @@ class InterfazUsuario {
     p.addRow(slDur); 
     p.addRow(slFza); 
     p.addRow(slRot);
-    p.addRow(slFeather); // Añadido debajo de Rotation
+    p.addRow(slFeather);
     p.addRow(new UILabel({ text: 'Color:' }), inCol, btnGimp);
     p.mount(this.contenedorIzq);
   }
@@ -2288,7 +2293,6 @@ class InterfazUsuario {
   }
 }
 
-// Initializing PaintJS Studio Pro
 const appInstancia = new AplicacionPaint(
   document.getElementById('lienzoComposicion'),
   document.getElementById('previsualizacionPincel'),
