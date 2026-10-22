@@ -10,10 +10,177 @@
             localStorage.setItem(`ui_force_factory_${window.programaId}`, 'true');
         } catch(e) {}
     </script>
-    <script src="https://unonibes4a.github.io/pintaresta/a.js"></script>
+<script src="../a.js"></script> 
     <style>
+    .cllcssopTolls {
+    position: fixed;
+    top: 12px;
+    left: 76px;
+    max-width: 90vw;
+    height: 100px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 9px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 16px;
+    z-index: 9999;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(6px);
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.cllcssopTolls > * {
+    flex-shrink: 0;
+}
+
+.btn-sq-custom {
+    width: 38px;
+    height: 38px;
+    background: #1f232c;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: #e0e0e0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.btn-sq-custom:hover {
+    background: #2a303d;
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+.btn-sq-custom.active {
+    background: #3b82f6;
+    border-color: #60a5fa;
+    color: #ffffff;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+}
+
+.custom-slider-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 140px;
+}
+
+.custom-slider-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #94a3b8;
+    font-family: monospace;
+}
+
+.custom-slider-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 5px;
+    background: #2c2d30;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+
+.custom-slider-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #ffffff42;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.custom-slider-range::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.custom-slider-range::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #ffffff88;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+}
+.ui-fixed-tr {
+    position: fixed !important;
+    top: 12px;
+    right: 14px;
+    bottom: 12px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    z-index: 900;
+}
+
+ 
+.ui-fixed-tl {
+    position: fixed !important;
+    top: 12px;
+    left: 14px;
+    bottom: 12px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    z-index: 900;
+}
+
+.ui-fixed-top-right-compact {
+    position: fixed !important;
+    top: 12px;
+    right: 14px;
+    z-index: 1000;
+}
+/* Barra de herramientas superior horizontal */ 
+
+.cllcssopTolls {
+    position: fixed;
+    top: 0px;
+    left: 76px;
+    max-width: 90vw;
+    height: 45px;
+    background-color: rgba(0, 0, 0, 0);
+    border-radius: 7px;
+    overflow-x: auto; 
+    padding: 0 16px;
+    z-index: 9999;
+    
+    backdrop-filter: blur(6px);
+    box-sizing: border-box;
+    white-space: nowrap;
+
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	justify-content: space-around;
+	align-items: center;
+	align-content: space-between;
+
+ 
+}
+
+/* Evita que los sliders se encojan en el scroll horizontal */
+.cllcssopTolls > * {
+    flex-shrink: 0;
+}
+.cllcssopTolls .ui-slider-card {
+    width: 190px !important;
+}
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #0d0e12; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #0d0e12; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;   }
         #app-viewport-root { position: absolute; inset: 0; width: 100vw; height: 100vh; overflow: hidden; }
         #canvas-stage { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; touch-action: none; background: radial-gradient(circle at 50% 50%, #22252c 0%, #0d0e12 100%); }
         #viewport-transform { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; pointer-events: none; width: 0; height: 0; }
@@ -347,6 +514,119 @@ const MathCad = {
     }
 };
 
+
+
+
+class FloodFillTool {
+    static hexToRgba(hex) {
+        let c = String(hex).replace('#', '');
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        const num = parseInt(c, 16);
+        return {
+            r: (num >> 16) & 255,
+            g: (num >> 8) & 255,
+            b: num & 255,
+            a: 255
+        };
+    }
+
+    static fill(layer, startX, startY, fillColorHex, tolerance = 15, selectionManager = null) {
+        if (!layer) return false;
+        const w = layer.width;
+        const h = layer.height;
+        const x0 = Math.floor(startX);
+        const y0 = Math.floor(startY);
+
+        if (x0 < 0 || x0 >= w || y0 < 0 || y0 >= h) return false;
+
+        const imgData = layer.ctx.getImageData(0, 0, w, h);
+        const data32 = new Uint32Array(imgData.data.buffer);
+        const startIndex = y0 * w + x0;
+        const targetColor = data32[startIndex];
+
+        const fc = this.hexToRgba(fillColorHex);
+        const fillColor32 = (fc.a << 24) | (fc.b << 16) | (fc.g << 8) | fc.r;
+
+        if (targetColor === fillColor32) return false;
+
+        // Soporte para máscara de selección
+        let selData = null;
+        if (selectionManager && selectionManager.hasSelection) {
+            selData = selectionManager.maskCtx.getImageData(0, 0, w, h).data;
+        }
+
+        const tR = targetColor & 0xFF;
+        const tG = (targetColor >> 8) & 0xFF;
+        const tB = (targetColor >> 16) & 0xFF;
+        const tA = (targetColor >> 24) & 0xFF;
+        const maxDiff = (tolerance / 100) * 255;
+
+        const matchesTarget = (col) => {
+            const r = col & 0xFF;
+            const g = (col >> 8) & 0xFF;
+            const b = (col >> 16) & 0xFF;
+            const a = (col >> 24) & 0xFF;
+            return Math.abs(r - tR) <= maxDiff &&
+                   Math.abs(g - tG) <= maxDiff &&
+                   Math.abs(b - tB) <= maxDiff &&
+                   Math.abs(a - tA) <= maxDiff;
+        };
+
+        const isAllowed = (px, py) => {
+            if (!selData) return true;
+            return selData[(py * w + px) * 4 + 3] > 0;
+        };
+
+        if (!isAllowed(x0, y0)) return false;
+
+        const visited = new Uint8Array(w * h);
+        const queue = [x0, y0];
+
+        while (queue.length > 0) {
+            const y = queue.pop();
+            const x = queue.pop();
+            const idx = y * w + x;
+
+            if (visited[idx]) continue;
+            visited[idx] = 1;
+
+            if (!matchesTarget(data32[idx])) continue;
+            data32[idx] = fillColor32;
+
+            if (x > 0 && !visited[idx - 1] && isAllowed(x - 1, y)) queue.push(x - 1, y);
+            if (x < w - 1 && !visited[idx + 1] && isAllowed(x + 1, y)) queue.push(x + 1, y);
+            if (y > 0 && !visited[idx - w] && isAllowed(x, y - 1)) queue.push(x, y - 1);
+            if (y < h - 1 && !visited[idx + w] && isAllowed(x, y + 1)) queue.push(x, y + 1);
+        }
+
+        layer.ctx.putImageData(imgData, 0, 0);
+        return true;
+    }
+}
+class LayerCopier {
+    static copyActiveLayer(layerStack) {
+        const active = layerStack.getActiveLayer();
+        if (!active) return null;
+        return this.clone(active);
+    }
+
+    static clone(sourceLayer) {
+        if (!sourceLayer) return null;
+        const copyCanvas = document.createElement('canvas');
+        copyCanvas.width = sourceLayer.width;
+        copyCanvas.height = sourceLayer.height;
+        copyCanvas.getContext('2d').drawImage(sourceLayer.canvas, 0, 0);
+
+        return {
+            name: `${sourceLayer.name} (Copia)`,
+            width: sourceLayer.width,
+            height: sourceLayer.height,
+            canvas: copyCanvas,
+            opacity: sourceLayer.opacity,
+            visible: sourceLayer.visible
+        };
+    }
+}
 class PureCadCurve {
     constructor({ type = 'bezier', degree = 3, style = {} } = {}) {
         this.type = type;
@@ -960,19 +1240,23 @@ class LayerStackEngine {
         this.activeLayerId = null;
         this.counter = 0;
     }
-    createLayer(name = null, width = null, height = null) {
-        this.counter++;
-        const id = 'layer_' + this.counter + '_' + Math.random().toString(36).substring(2, 7);
-        const layerName = name || `Capa ${this.counter}`;
-        const w = width || this.defaultWidth;
-        const h = height || this.defaultHeight;
-        const layer = new Layer(id, layerName, w, h);
-        this.layers.push(layer);
-        this.activeLayerId = id;
-        this.syncDOM();
-        this.onStackChanged(this.getLayerList(), this.activeLayerId);
-        return layer;
-    }
+     createLayer(name = null, width = null, height = null) {
+    this.counter++;
+    const id = 'layer_' + this.counter + '_' + Math.random().toString(36).substring(2, 7);
+    const layerName = name || `Capa ${this.counter}`;
+    
+    // Hereda tamaño de la capa activa actual
+    const active = this.getActiveLayer();
+    const w = width || (active ? active.width : this.defaultWidth);
+    const h = height || (active ? active.height : this.defaultHeight);
+    
+    const layer = new Layer(id, layerName, w, h);
+    this.layers.push(layer);
+    this.activeLayerId = id;
+    this.syncDOM();
+    this.onStackChanged(this.getLayerList(), this.activeLayerId);
+    return layer;
+}
     duplicateLayer(id) {
         const src = this.getLayerById(id);
         if (!src) return null;
@@ -1320,11 +1604,43 @@ class ToolManager {
         this.currentTool = tool;
         if (this.cad) this.cad.active = (tool === 'cad');
     }
+cancelSelection() {
+    this.lassoPoints = [];
+    this.polyPoints = [];
+    this.isDrawing = false;
+    if (this.preview && this.pctx) {
+        this.pctx.clearRect(0, 0, this.preview.width, this.preview.height);
+    }
+    if (this.selection) {
+        this.selection.clear();
+    }
+}
     pointerDown(x, y, e) {
         if (this.currentTool === 'cad' && this.cad) {
             this.cad.handlePointerDown(x, y, e);
             return;
         }
+ 
+if (this.currentTool === 'fill') {
+    const layer = this.layers.getActiveLayer();
+    if (layer) { 
+        this.onStrokeStart(layer); 
+        const filled = FloodFillTool.fill(
+            layer, 
+            x, 
+            y, 
+            this.brush.mainColor, 
+            15, 
+            this.selection
+        );
+        
+        if (filled) {
+            this.onStrokeFinished(layer);
+        }
+    }
+    this.isDrawing = false;
+    return;
+}
 
         if ((e.button === 2 || e.altKey) && this.currentTool === 'clone') {
             const active = this.layers.getActiveLayer();
@@ -1555,6 +1871,7 @@ class ApplicationAdapter {
         this.initDOM();
         this.initEngines();
         this.buildLeftVerticalToolbar();
+         this.buildTopBrushBar();  
         this.buildRightUI();
         this.bindEvents();
     }
@@ -1567,7 +1884,109 @@ class ApplicationAdapter {
         this.selectionCanvas = document.getElementById('selection-canvas');
         this.syncInteractiveCanvases(this.defaultWidth, this.defaultHeight);
     }
-    syncInteractiveCanvases(w, h) {
+   
+   buildTopBrushBar() {
+    const topBar = document.createElement('div');
+    topBar.classList.add('cllcssopTolls');
+    document.body.appendChild(topBar);
+
+    this.brushPreviewCanvas = document.createElement('canvas');
+    this.brushPreviewCanvas.className = 'preview-box';
+    this.brushPreviewCanvas.width = 44;
+    this.brushPreviewCanvas.height = 44;
+ 
+
+    const fileInp = document.createElement('input');
+    fileInp.type = 'file';
+    fileInp.accept = 'image/*';
+    fileInp.style.display = 'none';
+    fileInp.addEventListener('change', (e) => {
+        const f = e.target.files[0];
+        if (f) {
+            const img = new Image();
+            img.onload = () => {
+                this.brush.set('stampImage', img);
+                if (this.cad) this.cad.useBrushStamp = true;
+                if (this.toggleCadBrush) this.toggleCadBrush.setValue(true);
+                this.updateBrushPreview();
+                if (this.cad) this.cad.render();
+            };
+            img.src = URL.createObjectURL(f);
+        }
+    });
+
+    const btnFile = document.createElement('button');
+    btnFile.className = 'btn-sq-custom';
+    btnFile.title = 'Cargar Imagen / Textura';
+    btnFile.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+        <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+    </svg>`;
+    btnFile.addEventListener('click', () => fileInp.click());
+    topBar.appendChild(btnFile);
+
+    const btnGiro = document.createElement('button');
+    btnGiro.className = `btn-sq-custom ${this.brush.randomRotation ? 'active' : ''}`;
+    btnGiro.title = 'Giro Automático / Aleatorio';
+    btnGiro.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+    </svg>`;
+    btnGiro.addEventListener('click', () => {
+        const estado = !this.brush.randomRotation;
+        this.brush.set('randomRotation', estado);
+        btnGiro.classList.toggle('active', estado);
+    });
+    topBar.appendChild(btnGiro);
+
+    const crearSliderPuro = (label, min, max, step, valorInicial, onChange) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'custom-slider-box';
+
+        const head = document.createElement('div');
+        head.className = 'custom-slider-header';
+
+        const tit = document.createElement('span');
+        tit.textContent = label;
+
+        const val = document.createElement('span');
+        val.textContent = valorInicial;
+
+        head.appendChild(tit);
+        head.appendChild(val);
+
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.className = 'custom-slider-range';
+        input.min = min;
+        input.max = max;
+        input.step = step;
+        input.value = valorInicial;
+
+        input.addEventListener('input', (e) => {
+            const v = parseFloat(e.target.value);
+            val.textContent = v;
+            onChange(v);
+        });
+
+        wrap.appendChild(head);
+        wrap.appendChild(input);
+        topBar.appendChild(wrap);
+    };
+
+    crearSliderPuro('Tamaño', 1, 800, 1, this.brush.size, (v) => {
+        this.brush.set('size', v);
+    });
+
+    crearSliderPuro('Ángulo', 0, 360, 1, this.brush.angle, (v) => {
+        this.brush.set('angle', v);
+    });
+
+    crearSliderPuro('Opacidad', 0.01, 1, 0.01, this.brush.opacity, (v) => {
+        this.brush.set('opacity', v);
+    });
+}
+
+
+syncInteractiveCanvases(w, h) {
         this.previewCanvas.width = w; this.previewCanvas.height = h;
         this.previewCanvas.style.width = w + 'px'; this.previewCanvas.style.height = h + 'px';
 
@@ -1697,14 +2116,30 @@ class ApplicationAdapter {
         this.zoom.apply();
     }
 
-    ajustarCanvasACapaActiva() {
-        const act = this.layers.getActiveLayer();
-        if (!act) return;
-        this.syncInteractiveCanvases(act.width, act.height);
-        this.centerView(act.width, act.height);
-        const hud = document.getElementById('hud');
-        if (hud) hud.textContent = `✓ Canvas adaptado a: ${act.name} (${act.width}x${act.height})`;
-    }
+   ajustarCanvasACapaActiva() {
+    const act = this.layers.getActiveLayer();
+    if (!act) return;
+
+    // 1. Tamaño real de la capa activa
+    const targetW = act.width;
+    const targetH = act.height;
+
+    // 2. Actualiza la resolución global del motor
+    this.defaultWidth = targetW;
+    this.defaultHeight = targetH;
+    this.layers.defaultWidth = targetW;
+    this.layers.defaultHeight = targetH;
+
+    // 3. Redimensiona los lienzos interactivos (CAD, Selección, Previo)
+    this.syncInteractiveCanvases(targetW, targetH);
+
+    // 4. Centra la vista y calcula el zoom perfecto en pantalla
+    this.centerView(targetW, targetH);
+
+    // 5. Notificación HUD
+    const hud = document.getElementById('hud');
+    if (hud) hud.textContent = `✓ Canvas adaptado a: ${act.name} (${targetW}x${targetH} px)`;
+}
 
     adaptarCapaActivaAlCanvas() {
         const act = this.layers.getActiveLayer();
@@ -1729,24 +2164,33 @@ class ApplicationAdapter {
         this.centerView(targetW, targetH);
     }
 
-    pegarComoNuevaCapa(canvasRecorte, nombre = 'Capa Pegada') {
-        if (!canvasRecorte || canvasRecorte.width <= 0 || canvasRecorte.height <= 0) return;
-        const w = canvasRecorte.width;
-        const h = canvasRecorte.height;
-        const nuevaCapa = this.layers.createLayer(`${nombre} (${w}x${h})`, w, h);
-        nuevaCapa.ctx.drawImage(canvasRecorte, 0, 0);
+pegarComoNuevaCapa(canvasRecorte, nombre = 'Capa Pegada') {
+    if (!canvasRecorte || canvasRecorte.width <= 0 || canvasRecorte.height <= 0) return;
+    
+    const w = canvasRecorte.naturalWidth || canvasRecorte.width;
+    const h = canvasRecorte.naturalHeight || canvasRecorte.height;
 
-        const capaId = nuevaCapa.id;
-        this.history.push({
-            undo: () => this.layers.deleteLayer(capaId),
-            redo: () => {
-                this.layers.layers.push(nuevaCapa);
-                this.layers.setActiveLayer(nuevaCapa.id);
-                this.layers.syncDOM();
-            }
-        });
-        this.ajustarCanvasACapaActiva();
-    }
+    // 1. Crea la capa con las dimensiones nativas de la imagen pegada
+    const nuevaCapa = this.layers.createLayer(`${nombre} (${w}x${h})`, w, h);
+    nuevaCapa.ctx.drawImage(canvasRecorte, 0, 0, w, h);
+
+    // 2. Hace activa la nueva capa inmediatamente
+    this.layers.setActiveLayer(nuevaCapa.id);
+
+    // 3. Registro para Deshacer / Rehacer
+    const capaId = nuevaCapa.id;
+    this.history.push({
+        undo: () => this.layers.deleteLayer(capaId),
+        redo: () => {
+            this.layers.layers.push(nuevaCapa);
+            this.layers.setActiveLayer(nuevaCapa.id);
+            this.layers.syncDOM();
+        }
+    });
+
+    // 4. Adapta el proyecto al tamaño de la imagen que acabas de pegar
+    this.ajustarCanvasACapaActiva();
+}
 
     buildLeftVerticalToolbar() {
         const bar = document.getElementById('left-toolbar-strip');
@@ -1760,13 +2204,25 @@ class ApplicationAdapter {
             { id: 'rect', label: 'REC', title: 'Rectángulo', icon: '<path d="M3 3h18v18H3V3zm2 2v14h14V5H5z"/>' },
             { id: 'circle', label: 'CIR', title: 'Círculo', icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>' },
             { id: 'arrow', label: 'ARR', title: 'Flecha', icon: '<path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>' },
-            { id: 'eyedropper', label: 'EYE', title: 'Cuentagotas', icon: '<path d="M20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.13-3.13c.39-.39.39-1.02 0-1.41zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/>' },
+           
+            { 
+    id: 'eyedropper', 
+    label: 'EYE', 
+    title: 'Cuentagotas', 
+    icon: '<path d="M20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.42 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.13-3.13a1 1 0 0 0 0-1.41zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/>' 
+},
             { id: 'clone', label: 'CLN', title: 'Clonar (C)', icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
             { id: 'stamp', label: 'STM', title: 'Estampa (S)', icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h12l-4-5z"/>' },
             { id: 'move', label: 'MOV', title: 'Mover (M)', icon: '<path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/>' },
             { id: 'rectSelect', label: 'SEL', title: 'Selección Rectangular', icon: '<path d="M4 4h4v2H6v2H4V4zm16 0v4h-2V6h-2V4h4zM4 20v-4h2v2h2v2H4zm16 0h-4v-2h2v-2h2v4z"/>' },
             { id: 'lasso', label: 'LAS', title: 'Selección Lazo', icon: '<path d="M12.3 2a9.7 9.7 0 0 0-9.7 9.7c0 3.7 2 7 5.2 8.6L6 22l3.4-1.3c.9.2 1.9.3 2.9.3 5.4 0 9.7-4.3 9.7-9.7S17.7 2 12.3 2zm0 17.4c-.9 0-1.8-.1-2.6-.4l-.6-.2-1.9.7.7-1.9-.3-.5c-2.7-1.4-4.3-4.1-4.3-7.1 0-4.3 3.6-7.7 7.7-7.7s7.7 3.5 7.7 7.7-3.4 7.7-7.7 7.7z"/>' },
-            { id: 'poly', label: 'POL', title: 'Selección Poligonal', icon: '<path d="M2 12l5-9h10l5 9-5 9H7l-5-9zm6.1-7l-3.9 7 3.9 7h7.8l3.9-7-3.9-7H8.1z"/>' }
+            { id: 'poly', label: 'POL', title: 'Selección Poligonal', icon: '<path d="M2 12l5-9h10l5 9-5 9H7l-5-9zm6.1-7l-3.9 7 3.9 7h7.8l3.9-7-3.9-7H8.1z"/>' },         
+            { 
+                id: 'fill', 
+                label: 'FIL', 
+                title: 'Bote de Pintura (G)', 
+                icon: '<path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15a1.49 1.49 0 0 0 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z"/>' 
+            },
         ];
 
         toolsConfig.forEach(t => {
@@ -1812,41 +2268,41 @@ class ApplicationAdapter {
         const pickerWidth = 310;
         const pickerHeight = 265;
 
-        this.colorPicker = new UI.ColorPicker({
-            id: 'standalone_color_picker',
-            title: 'SELECTOR DE COLOR',
-            x: window.innerWidth - pickerWidth - 14,
-            y: 12,
-            width: pickerWidth,
-            floating: true,
-            initialColor: { r: 255, g: 255, b: 255, a: 1 },
-            onChange: (rgba, RGBA, hex) => {
-                if (this.isInternalColorSync) return;
-                this.isInternalColorSync = true;
-                this.brush.set('mainColor', hex, false);
-                if (this.cad) {
-                    this.cad.defaultStyle.stroke = hex;
-                    this.cad.render();
-                }
-                this.isInternalColorSync = false;
-            }
-        });
+     
 
+       this.colorPicker = new UIColorPicker({
+    id: 'brushCustomColorPicker',
+    title: 'Paleta & Color HSV/RGB',
+    floating: false,  
+    initialColor: { r: 255, g: 240, b: 170, a: 1.0 },
+    canvas: () => {
+        const active = this.layers.getActiveLayer();
+        return active ? active.canvas : null;
+    },
+    onChange: (rgba, RGBA, hex, info) => {
+        if (this.isInternalColorSync) return;
+        this.isInternalColorSync = true;
+        this.brush.set('mainColor', hex, false);
+        if (this.cad) {
+            this.cad.defaultStyle.stroke = hex;
+            this.cad.render();
+        }
+        this.isInternalColorSync = false;
+        this.updateBrushPreview();
+    }
+});
         this.rightContainer = new UI.Container({
             id: 'dock_right',
             direction: 'column',
             width: pickerWidth,
             floating: false
         }).mount(document.body);
+        
 
-        const containerEl = this.rightContainer.element;
-        containerEl.style.position = 'fixed';
-        containerEl.style.right = '14px';
-        containerEl.style.top = `${pickerHeight + 24}px`;
-        containerEl.style.bottom = '12px';
-        containerEl.style.maxHeight = `calc(100vh - ${pickerHeight + 36}px)`;
-        containerEl.style.overflowY = 'auto';
-        containerEl.style.zIndex = '900';
+       const containerEl = this.rightContainer.element;
+ this.rightContainer.addPanel(this.colorPicker.panel);
+
+ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
 
         window.addEventListener('resize', () => {
             if (this.colorPicker && this.colorPicker.element) {
@@ -1858,9 +2314,9 @@ class ApplicationAdapter {
 
         const panelRight = new UI.SmartPanel({
             id: 'panel_layers_tools',
-            title: 'CAPAS & HERRAMIENTAS',
+            title: 'LAYERS and TOOLS',
             width: pickerWidth - 4,
-            floating: false
+            floating: true
         });
 
         const accordion = new UI.Accordion({ exclusive: false });
@@ -1936,21 +2392,59 @@ class ApplicationAdapter {
             }
         }));
 
-        const itemLayers = accordion.addItem({ title: 'Pila de Capas (Layers)', open: false });
+        const itemLayers = accordion.addItem({ title: '  (Layers)', open: false });
         const rCanvasAdjust = itemLayers.addRow(4);
-        rCanvasAdjust.append(new UI.Button({ text: 'Ajustar a Capa (Q)', variant: 'primary', onClick: () => this.ajustarCanvasACapaActiva() }));
-        rCanvasAdjust.append(new UI.Button({ text: 'Ajustar a Canvas (W)', onClick: () => this.adaptarCapaActivaAlCanvas() }));
+        rCanvasAdjust.append(new UI.Button({ text: 'Fit to Layer (Q)', variant: 'primary', onClick: () => this.ajustarCanvasACapaActiva() }));
+        rCanvasAdjust.append(new UI.Button({ text: 'Fit to Canvas (W)', onClick: () => this.adaptarCapaActivaAlCanvas() }));
 
         const rTop = itemLayers.addRow(4);
-        rTop.append(new UI.Button({ text: '+ Capa', variant: 'primary', onClick: () => { this.layers.createLayer(); this.ajustarCanvasACapaActiva(); } }));
-        rTop.append(new UI.Button({ text: 'Duplicar', onClick: () => { this.layers.duplicateLayer(this.layers.activeLayerId); this.ajustarCanvasACapaActiva(); } }));
-        rTop.append(new UI.Button({ text: 'Borrar', variant: 'danger', onClick: () => { this.layers.deleteLayer(this.layers.activeLayerId); this.ajustarCanvasACapaActiva(); } }));
+        rTop.append(new UI.Button({ text: 'new Layer', variant: 'primary', onClick: () => { this.layers.createLayer(); this.ajustarCanvasACapaActiva(); } }));
+        rTop.append(new UI.Button({ text: 'Double', onClick: () => { this.layers.duplicateLayer(this.layers.activeLayerId); this.ajustarCanvasACapaActiva(); } }));
+         rTop.append(new UI.Button({
+    text: 'Borrar',
+    variant: 'danger',
+    onClick: () => {
+        // No permitir borrar si solo queda una capa
+        if (this.layers.layers.length <= 1) return;
 
+        const capaBorrar = this.layers.getActiveLayer();
+        if (!capaBorrar) return;
+
+        // 1. Guardamos la posición, ID y datos de la capa antes de borrarla
+        const indiceOriginal = this.layers.layers.findIndex(l => l.id === capaBorrar.id);
+        const copiaCanvas = document.createElement('canvas');
+        copiaCanvas.width = capaBorrar.width;
+        copiaCanvas.height = capaBorrar.height;
+        copiaCanvas.getContext('2d').drawImage(capaBorrar.canvas, 0, 0);
+
+        // 2. Registramos la acción en el historial
+        this.history.push({
+            undo: () => {
+                // Al pulsar Ctrl+Z: restaura la capa en su índice original
+                this.layers.layers.splice(indiceOriginal, 0, capaBorrar);
+                capaBorrar.ctx.clearRect(0, 0, capaBorrar.width, capaBorrar.height);
+                capaBorrar.ctx.drawImage(copiaCanvas, 0, 0);
+                this.layers.setActiveLayer(capaBorrar.id);
+                this.layers.syncDOM();
+                this.ajustarCanvasACapaActiva();
+            },
+            redo: () => {
+                // Al pulsar Ctrl+Y: vuelve a eliminarla
+                this.layers.deleteLayer(capaBorrar.id);
+                this.ajustarCanvasACapaActiva();
+            }
+        });
+
+        // 3. Eliminamos la capa
+        this.layers.deleteLayer(capaBorrar.id);
+        this.ajustarCanvasACapaActiva();
+    }
+}));
         const rMove = itemLayers.addRow(4);
-        rMove.append(new UI.Button({ text: '▲ Subir', onClick: () => this.layers.moveUp(this.layers.activeLayerId) }));
-        rMove.append(new UI.Button({ text: '▼ Bajar', onClick: () => this.layers.moveDown(this.layers.activeLayerId) }));
-        rMove.append(new UI.Button({ text: 'Voltear H', onClick: () => this.layers.flipHoriz(this.layers.activeLayerId) }));
-        rMove.append(new UI.Button({ text: 'Voltear V', onClick: () => this.layers.flipVert(this.layers.activeLayerId) }));
+        rMove.append(new UI.Button({ text: '▲', onClick: () => this.layers.moveUp(this.layers.activeLayerId) }));
+        rMove.append(new UI.Button({ text: '▼', onClick: () => this.layers.moveDown(this.layers.activeLayerId) }));
+        rMove.append(new UI.Button({ text: 'Flip H', onClick: () => this.layers.flipHoriz(this.layers.activeLayerId) }));
+        rMove.append(new UI.Button({ text: 'Flip V', onClick: () => this.layers.flipVert(this.layers.activeLayerId) }));
 
         this.reorderList = new UI.ReorderList({
             items: this.layers.getLayerList(),
@@ -1968,7 +2462,7 @@ class ApplicationAdapter {
             onChange: (v) => this.layers.setLayerOpacity(this.layers.activeLayerId, v)
         }));
 
-        const itemBrush = accordion.addItem({ title: 'Ajustes del Pincel & Trazo', open: false });
+        const itemBrush = accordion.addItem({ title: 'Brush & Stroke Settings', open: false });
 
         this.brushPreviewCanvas = document.createElement('canvas');
         this.brushPreviewCanvas.className = 'preview-box';
@@ -1995,7 +2489,7 @@ class ApplicationAdapter {
         });
 
         const rLoadStamp = itemBrush.addRow(4);
-        rLoadStamp.append(new UI.Button({ text: 'Cargar Textura/Estampa (Img)', variant: 'primary', onClick: () => fileInp.click() }));
+        rLoadStamp.append(new UI.Button({ text: 'Load Texture/Pattern (Img)', variant: 'primary', onClick: () => fileInp.click() }));
         rLoadStamp.append(this.brushPreviewCanvas);
 
         itemBrush.append(new UI.ConfigurableSlider({
@@ -2042,9 +2536,9 @@ class ApplicationAdapter {
             text: 'Pegar (Ctrl+V)', variant: 'primary', 
             onClick: () => { if (this.clipboard.buffer) this.pegarComoNuevaCapa(this.clipboard.buffer, 'Selección Pegada'); }
         }));
-        rClip.append(new UI.Button({ text: 'Limpiar Selección', onClick: () => this.selection.clear() }));
+        rClip.append(new UI.Button({ text: 'Clear Selection', onClick: () => this.selection.clear() }));
 
-        const itemProj = accordion.addItem({ title: 'Exportar Imagen', open: false });
+        const itemProj = accordion.addItem({ title: 'Export Image', open: false });
         const rExp = itemProj.addRow(4);
         rExp.append(new UI.Button({ text: 'PNG', variant: 'primary', onClick: () => ProjectExporter.exportImage(this.layers, 'png') }));
         rExp.append(new UI.Button({ text: 'JPG', onClick: () => ProjectExporter.exportImage(this.layers, 'jpg') }));
@@ -2071,7 +2565,7 @@ class ApplicationAdapter {
                             pastedImage = true;
                             e.preventDefault();
                             const img = new Image();
-                            img.onload = () => this.pegarComoNuevaCapa(img, 'Imagen Pegada');
+                            img.onload = () => this.pegarComoNuevaCapa(img, 'Pasted Image');
                             img.src = URL.createObjectURL(blob);
                             return;
                         }
@@ -2080,9 +2574,11 @@ class ApplicationAdapter {
             }
             if (!pastedImage && this.clipboard.buffer) {
                 e.preventDefault();
-                this.pegarComoNuevaCapa(this.clipboard.buffer, 'Selección Pegada');
+                this.pegarComoNuevaCapa(this.clipboard.buffer, 'Paste Selection');
             }
         });
+
+     
 
         window.addEventListener('keydown', async (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -2107,6 +2603,20 @@ class ApplicationAdapter {
                 this.history.redo();
                 e.preventDefault();
             }
+            if (e.key === 'Escape') {
+        e.preventDefault();
+        this.tools.cancelSelection();
+        if (this.cad) {
+            this.cad.finishCurrent();
+            this.cad.selected = null;
+            this.cad.selectedPointIndex = -1;
+            this.cad.render();
+        }
+        const selectionTools = ['rectSelect', 'lasso', 'poly'];
+        if (selectionTools.includes(this.tools.currentTool)) {
+            this.setActiveTool('brush');
+        }
+    }
 
             if (e.key === 'q' || e.key === 'Q') {
                 e.preventDefault();
@@ -2116,6 +2626,7 @@ class ApplicationAdapter {
                 e.preventDefault();
                 this.adaptarCapaActivaAlCanvas();
             }
+            if (e.key === 'g' || e.key === 'G') this.setActiveTool('fill');
 
             if (e.key === 'b' || e.key === 'B') this.setActiveTool('brush');
             if (e.key === 'e' || e.key === 'E') this.setActiveTool('eraser');
@@ -2165,20 +2676,7 @@ class ApplicationAdapter {
 
 window.addEventListener('DOMContentLoaded', () => {
     window.AppInstance = new ApplicationAdapter();
-    window.grabador = new ClickPointRecorder({
-        target: document.getElementById('canvas-stage'),
-        activo: true,
-        limitar: true,
-        transform: (cx, cy) => window.AppInstance.zoom.screenToWorld(cx, cy),
-        getDimensions: () => {
-            const act = window.AppInstance.layers.getActiveLayer();
-            return act ? { width: act.width, height: act.height } : null;
-        },
-        onPoint: (punto, total) => {
-            console.clear();
-            console.log(total, "-> ClickPointRecorder:", punto);
-        }
-    });
+  
 });
 </script>
 </body>
