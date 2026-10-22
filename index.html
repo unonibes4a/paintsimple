@@ -1,2517 +1,2185 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PaintJS Studio Pro AI</title>
-<script>window.programaId = "paintjs_studio_pro";</script>
-<script src="https://unonibes4a.github.io/pintaresta/a.js"></script>
-<script src="https://evanw.github.io/glfx.js/glfx.js"></script>
-<script type="module">
-import { removeBackground } from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.6.0/+esm';
-window.removeBackground = removeBackground;
-</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Substance Painter Web - CAD & Vector Engine</title>
+    <script>
+        window.programaId = "substance_engine_" + Date.now();
+        try {
+            localStorage.setItem(`ui_force_factory_${window.programaId}`, 'true');
+        } catch(e) {}
+    </script>
+    <script src="https://unonibes4a.github.io/pintaresta/a.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #0d0e12; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        #app-viewport-root { position: absolute; inset: 0; width: 100vw; height: 100vh; overflow: hidden; }
+        #canvas-stage { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; touch-action: none; background: radial-gradient(circle at 50% 50%, #22252c 0%, #0d0e12 100%); }
+        #viewport-transform { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; pointer-events: none; width: 0; height: 0; }
+        #layers-render-target { position: absolute; top: 0; left: 0; pointer-events: none; }
+        .engine-canvas-layer { position: absolute; top: 0; left: 0; image-rendering: pixelated; pointer-events: none; box-shadow: 0 10px 40px rgba(0,0,0,0.85); background: transparent; }
+        #preview-canvas { position: absolute; top: 0; left: 0; pointer-events: none; image-rendering: pixelated; z-index: 997; }
+        #cad-vector-canvas { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 998; }
+        #selection-canvas { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 999; }
+        .cad-hud {
+            position: absolute;
+            left: 76px;
+            bottom: 14px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #94a3b8;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 6px;
+            pointer-events: none;
+            z-index: 1050;
+            font-family: monospace;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        #left-toolbar-strip {
+            position: fixed;
+            top: 12px;
+            bottom: 12px;
+            left: 12px;
+            width: 52px;
+            background: rgba(22, 24, 30, 0.94);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 4px;
+            gap: 5px;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+        #left-toolbar-strip::-webkit-scrollbar { display: none; }
+        .tool-btn {
+            width: 40px;
+            height: 38px;
+            border-radius: 6px;
+            background: #1f232c;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #9aa4b2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 9px;
+            font-weight: 600;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .tool-btn:hover { background: #2a303d; color: #ffffff; border-color: rgba(255, 255, 255, 0.2); }
+        .tool-btn.active { background: #3b82f6; color: #ffffff; border-color: #60a5fa; box-shadow: 0 0 10px rgba(59, 130, 246, 0.45); }
+        .tool-btn svg { width: 17px; height: 17px; fill: currentColor; margin-bottom: 2px; }
+        .tool-sep { width: 30px; height: 1px; background: rgba(255, 255, 255, 0.08); margin: 4px 0; flex-shrink: 0; }
+        #dock_right { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
+        #dock_right::-webkit-scrollbar { width: 5px; }
+        #dock_right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        .preview-box {
+            width: 44px;
+            height: 44px;
+            background: #151821;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            image-rendering: pixelated;
+        }
+    </style>
 </head>
 <body>
 
-<div id="areaLienzoCentral" style="width:100vw;height:100vh;overflow:hidden;position:absolute;top:0;left:0;display:flex;align-items:center;justify-content:center;background:#08090b;">
-  <div id="contenedorCanvas" style="position:relative;background:#14171f;">
-    <canvas id="lienzoComposicion" style="display:block;cursor:crosshair;"></canvas>
-    <div id="previsualizacionPincel" style="position:absolute;pointer-events:none;border:1px solid #ffffff;border-radius:50%;transform:translate(-50%,-50%);mix-blend-mode:difference;display:none;z-index:10;"></div>
-  </div>
+<div id="app-viewport-root">
+    <div id="canvas-stage">
+        <div id="viewport-transform">
+            <div id="layers-render-target"></div>
+            <canvas id="preview-canvas"></canvas>
+            <canvas id="cad-vector-canvas"></canvas>
+            <canvas id="selection-canvas"></canvas>
+        </div>
+    </div>
 </div>
 
-<input type="file" id="archivoCapa" accept="image/*" style="display:none">
-<input type="file" id="archivoSello" accept="image/*" style="display:none">
-<input type="file" id="archivoJSON" accept=".json" style="display:none">
+<div class="cad-hud" id="hud">Zoom: 100% | CAD: Bézier | Q: Adaptar</div>
+<div id="left-toolbar-strip"></div>
 
 <script>
-const F2 = 0.5 * (Math.sqrt(3) - 1);
-const G2 = (3 - Math.sqrt(3)) / 6;
-const grad3 = new Float32Array([1,1,0,-1,1,0,1,-1,0,-1,-1,0,1,0,1,-1,0,1,1,0,-1,-1,0,-1,0,1,1,0,-1,1,0,1,-1,0,-1,-1]);
-
-class RuidoSimplex {
-  constructor(seed = Date.now()) {
-    let s0 = this._mash(' '), s1 = this._mash(' '), s2 = this._mash(' '), c = 1;
-    const cad = String(seed);
-    for (let i = 0; i < cad.length; i++) {
-      s0 -= this._mash(cad[i]); if (s0 < 0) s0 += 1;
-      s1 -= this._mash(cad[i]); if (s1 < 0) s1 += 1;
-      s2 -= this._mash(cad[i]); if (s2 < 0) s2 += 1;
-    }
-    const rand = () => {
-      const t = 2091639 * s0 + c * 2.3283064365386963e-10;
-      s0 = s1; s1 = s2;
-      return s2 = t - (c = t | 0);
-    };
-    const p = new Uint8Array(256);
-    for (let i = 0; i < 256; i++) p[i] = i;
-    for (let i = 255; i > 0; i--) {
-      const n = Math.floor(rand() * (i + 1)) % (i + 1);
-      const t = p[i]; p[i] = p[n]; p[n] = t;
-    }
-    this.perm = new Uint8Array(512);
-    this.permMod12 = new Uint8Array(512);
-    for (let i = 0; i < 512; i++) {
-      this.perm[i] = p[i & 255];
-      this.permMod12[i] = this.perm[i] % 12;
-    }
-  }
-  _mash(data) {
-    let n = 0xefc8249d;
-    for (let i = 0; i < data.length; i++) {
-      n += data.charCodeAt(i);
-      let h = 0.02519603282416938 * n;
-      n = h >>> 0; h -= n; h *= n; n = h >>> 0; h -= n; n += h * 0x100000000;
-    }
-    return (n >>> 0) * 2.3283064365386963e-10;
-  }
-  ruido2D(x, y) {
-    const s = (x + y) * F2;
-    const i = Math.floor(x + s), j = Math.floor(y + s);
-    const t = (i + j) * G2;
-    const X0 = i - t, Y0 = j - t;
-    const x0 = x - X0, y0 = y - Y0;
-    let i1 = x0 > y0 ? 1 : 0, j1 = x0 > y0 ? 0 : 1;
-    const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
-    const x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
-    const ii = i & 255, jj = j & 255;
-    const g0 = this.permMod12[ii + this.perm[jj]] * 3;
-    const g1 = this.permMod12[ii + i1 + this.perm[jj + j1]] * 3;
-    const g2 = this.permMod12[ii + 1 + this.perm[jj + 1]] * 3;
-    let n0 = 0, n1 = 0, n2 = 0;
-    let t0 = 0.5 - x0 * x0 - y0 * y0;
-    if (t0 >= 0) { t0 *= t0; n0 = t0 * t0 * (grad3[g0] * x0 + grad3[g0 + 1] * y0); }
-    let t1 = 0.5 - x1 * x1 - y1 * y1;
-    if (t1 >= 0) { t1 *= t1; n1 = t1 * t1 * (grad3[g1] * x1 + grad3[g1 + 1] * y1); }
-    let t2 = 0.5 - x2 * x2 - y2 * y2;
-    if (t2 >= 0) { t2 *= t2; n2 = t2 * t2 * (grad3[g2] * x2 + grad3[g2 + 1] * y2); }
-    return 70 * (n0 + n1 + n2);
-  }
-}
-
-class AlgoritmosColor {
-  limite(v, b = 0, c = 1) { if (v > c) v = c; if (v < b) v = b; return v; }
-  valor1o0(v) { return Math.max(0, Math.min(1, v)); }
-  operacionMatematica(rgba, val, operacion) {
-    if (operacion === '*') {
-      rgba.r = this.valor1o0(rgba.r * val); rgba.g = this.valor1o0(rgba.g * val); rgba.b = this.valor1o0(rgba.b * val);
-    } else if (operacion === '+') {
-      rgba.r = this.valor1o0(rgba.r + val); rgba.g = this.valor1o0(rgba.g + val); rgba.b = this.valor1o0(rgba.b + val);
-    } else if (operacion === 'pow') {
-      rgba.r = this.valor1o0(Math.pow(rgba.r, val)); rgba.g = this.valor1o0(Math.pow(rgba.g, val)); rgba.b = this.valor1o0(Math.pow(rgba.b, val));
-    }
-    return rgba;
-  }
-  saturationGio(tex, ec5) {
-    const maxx = Math.max(tex.r, tex.g, tex.b);
-    if (tex.r !== maxx) tex.r += (maxx - tex.r) * ec5;
-    if (tex.g !== maxx) tex.g += (maxx - tex.g) * ec5;
-    if (tex.b !== maxx) tex.b += (maxx - tex.b) * ec5;
-    tex.r = this.valor1o0(tex.r); tex.g = this.valor1o0(tex.g); tex.b = this.valor1o0(tex.b);
-    return tex;
-  }
-  colorDivide(color1) {
-    const maxx0 = Math.max(color1.r, color1.g, color1.b) + 0.00001;
-    const minx = Math.min(color1.r, color1.g, color1.b);
-    return minx / (maxx0 + 0.0000001);
-  }
-  simpleLinealFuncion(x1, y1, x2, y2, val) {
-    const dx = (x2 - x1) + 0.00001;
-    const dy = y2 - y1;
-    const m = dy / dx;
-    const b = y2 - m * x2;
-    return m * val + b;
-  }
-  mixerHtmlPasaColor(rgbax, rgba2, porcent, bool) {
-    const maxx0 = Math.max(rgbax.r, rgbax.g, rgbax.b);
-    const clmd = 1 - porcent;
-    rgbax.r = rgbax.r * clmd + rgba2.r * porcent;
-    rgbax.g = rgbax.g * clmd + rgba2.g * porcent;
-    rgbax.b = rgbax.b * clmd + rgba2.b * porcent;
-    if (bool) {
-      const max2 = Math.max(rgbax.r, rgbax.g, rgbax.b);
-      this.operacionMatematica(rgbax, maxx0 / (max2 + 0.00001), '*');
-    }
-    return rgbax;
-  }
-}
-
-class CanvasCurvesStandalone {
-  constructor(opciones = {}) {
-    this.onGetImageData = opciones.onGetImageData || (() => null);
-    this.onPutImageData = opciones.onPutImageData || (() => {});
-    this.onApplySnapshot = opciones.onApplySnapshot || (() => {});
-    this.onRender = opciones.onRender || (() => {});
-    this.colors = { rgb: '#e6e6e6', r: '#ff5555', g: '#55ff55', b: '#5599ff' };
-    this._initCurves();
-    this.active = 'rgb';
-    this.grayscale = false;
-    this.snapshot = null;
-    this._panel = null;
-    this._ec = null;
-    this._ecx = null;
-    this._dragIdx = -1;
-    this._hoverIdx = -1;
-    this._infoLabel = null;
-    this._cw = 260;
-    this._ch = 210;
-    this._padL = 22;
-    this._padT = 8;
-    this._padB = 18;
-    this._padR = 8;
-    this._pw = this._cw - this._padL - this._padR;
-    this._ph = this._ch - this._padT - this._padB;
-    this._boundMove = this._onMouseMove.bind(this);
-    this._boundUp = this._onMouseUp.bind(this);
-  }
-  _initCurves() {
-    this.curves = {
-      rgb: [{ x: 0, y: 0 }, { x: 255, y: 255 }],
-      r: [{ x: 0, y: 0 }, { x: 255, y: 255 }],
-      g: [{ x: 0, y: 0 }, { x: 255, y: 255 }],
-      b: [{ x: 0, y: 0 }, { x: 255, y: 255 }]
-    };
-  }
-  begin() { this.snapshot = this.onGetImageData(); }
-  reset() {
-    this._initCurves();
-    this.grayscale = false;
-    this._render();
-    this._drawEditor();
-    this._updateInfo(null, null);
-  }
-  setChannel(ch) {
-    if (!this.curves[ch]) return;
-    this.active = ch;
-    this._drawEditor();
-    this._updateInfo(null, null);
-  }
-  addPoint(x, y) {
-    const pts = this.curves[this.active];
-    x = Math.max(0, Math.min(255, Math.round(x)));
-    y = Math.max(0, Math.min(255, Math.round(y)));
-    for (const p of pts) if (Math.abs(p.x - x) < 4) return;
-    pts.push({ x, y });
-    pts.sort((a, b) => a.x - b.x);
-    this._render();
-    this._drawEditor();
-  }
-  movePoint(idx, x, y) {
-    const pts = this.curves[this.active];
-    if (idx < 0 || idx >= pts.length) return;
-    if (idx === 0) {
-      pts[0].x = 0; pts[0].y = Math.max(0, Math.min(255, Math.round(y)));
-    } else if (idx === pts.length - 1) {
-      pts[idx].x = 255; pts[idx].y = Math.max(0, Math.min(255, Math.round(y)));
-    } else {
-      const minX = pts[idx - 1].x + 2, maxX = pts[idx + 1].x - 2;
-      pts[idx].x = Math.max(minX, Math.min(maxX, Math.round(x)));
-      pts[idx].y = Math.max(0, Math.min(255, Math.round(y)));
-    }
-    this._render();
-    this._drawEditor();
-  }
-  removePoint(idx) {
-    const pts = this.curves[this.active];
-    if (pts.length <= 2 || idx <= 0 || idx >= pts.length - 1) return;
-    pts.splice(idx, 1);
-    this._render();
-    this._drawEditor();
-    this._updateInfo(null, null);
-  }
-  apply() {
-    this.onApplySnapshot();
-    this.begin();
-    this._initCurves();
-    this._drawEditor();
-    this._updateInfo(null, null);
-  }
-  _buildLUT(pts) {
-    const lut = new Uint8Array(256);
-    const n = pts.length;
-    if (n === 2 && pts[0].x === 0 && pts[0].y === 0 && pts[1].x === 255 && pts[1].y === 255) {
-      for (let i = 0; i < 256; i++) lut[i] = i;
-      return lut;
-    }
-    for (let x = 0; x < 256; x++) {
-      if (x <= pts[0].x) { lut[x] = pts[0].y; continue; }
-      if (x >= pts[n - 1].x) { lut[x] = pts[n - 1].y; continue; }
-      let i = 0;
-      while (i < n - 1 && pts[i + 1].x < x) i++;
-      const p1 = pts[i], p2 = pts[i + 1];
-      const t = (x - p1.x) / ((p2.x - p1.x) || 1);
-      lut[x] = Math.max(0, Math.min(255, Math.round(p1.y + (p2.y - p1.y) * t)));
-    }
-    return lut;
-  }
-  _render() {
-    if (!this.snapshot) this.begin();
-    if (!this.snapshot) return;
-    const src = this.snapshot.data;
-    const out = new Uint8ClampedArray(src.length);
-    const lutM = this._buildLUT(this.curves.rgb);
-    const lutR = this._buildLUT(this.curves.r);
-    const lutG = this._buildLUT(this.curves.g);
-    const lutB = this._buildLUT(this.curves.b);
-    for (let i = 0; i < src.length; i += 4) {
-      let r = src[i], g = src[i + 1], b = src[i + 2], a = src[i + 3];
-      if (this.grayscale) {
-        const y = (0.299 * r + 0.587 * g + 0.114 * b) | 0;
-        r = g = b = y;
-      }
-      out[i] = lutR[lutM[r]];
-      out[i + 1] = lutG[lutM[g]];
-      out[i + 2] = lutB[lutM[b]];
-      out[i + 3] = a;
-    }
-    this.onPutImageData(new ImageData(out, this.snapshot.width, this.snapshot.height));
-    this.onRender();
-  }
-  _updateInfo(x, y) {
-    if (!this._infoLabel) return;
-    if (x === null || y === null) {
-      this._infoLabel.setText('X: ---   Y: ---');
-      return;
-    }
-    const nx = (x / 255).toFixed(3);
-    const ny = (y / 255).toFixed(3);
-    this._infoLabel.setText(`X: ${nx}   Y: ${ny}`);
-  }
-  buildInsideAccordion(accordionItem) {
-    const infoLabel = new UILabel({ text: 'X: ---   Y: ---' });
-    this._infoLabel = infoLabel;
-    accordionItem.addRow(new UILabel({ text: 'Norm:' }), infoLabel);
-
-    const radChannels = new UIRadioGroup({
-      items: [
-        { label: 'RGB', value: 'rgb' },
-        { label: 'R', value: 'r' },
-        { label: 'G', value: 'g' },
-        { label: 'B', value: 'b' }
-      ],
-      activeIndex: 0,
-      onChange: (ch) => this.setChannel(ch)
-    });
-    accordionItem.append(radChannels);
-
-    const ec = document.createElement('canvas');
-    ec.width = this._cw;
-    ec.height = this._ch;
-    ec.style.cssText = 'display:block;width:100%;cursor:crosshair;margin:4px 0;';
-    accordionItem.append(ec);
-    this._ec = ec;
-    this._ecx = ec.getContext('2d');
-    ec.addEventListener('mousedown', this._onMouseDown.bind(this));
-    ec.addEventListener('mousemove', this._onEditorHover.bind(this));
-    ec.addEventListener('mouseleave', () => {
-      this._hoverIdx = -1;
-      this._drawEditor();
-      if (this._dragIdx < 0) this._updateInfo(null, null);
-    });
-    ec.addEventListener('contextmenu', e => e.preventDefault());
-
-    const tglGray = new UIToggle({
-      label: 'Grayscale',
-      value: false,
-      onChange: (v) => { this.grayscale = v; this._render(); }
-    });
-    accordionItem.append(tglGray);
-
-    const bReset = new UIButton({ text: 'Reset', variant: 'danger', onClick: () => this.reset() });
-    const bApply = new UIButton({ text: 'Apply', variant: 'primary', onClick: () => this.apply() });
-    accordionItem.addRow(bReset, bApply);
-
-    this._drawEditor();
-    this._updateInfo(null, null);
-  }
-  _drawEditor() {
-    if (!this._ec) return;
-    const cx = this._ecx;
-    const W = this._cw, H = this._ch;
-    const PL = this._padL, PT = this._padT, PW = this._pw, PH = this._ph;
-    cx.clearRect(0, 0, W, H);
-    cx.fillStyle = '#14161a'; cx.fillRect(0, 0, W, H);
-    cx.fillStyle = '#0d0e12'; cx.fillRect(PL, PT, PW, PH);
-
-    cx.strokeStyle = '#242730'; cx.lineWidth = 1;
-    for (let i = 1; i < 4; i++) {
-      const x = PL + (i / 4) * PW, y = PT + (i / 4) * PH;
-      cx.beginPath(); cx.moveTo(x + 0.5, PT); cx.lineTo(x + 0.5, PT + PH); cx.stroke();
-      cx.beginPath(); cx.moveTo(PL, y + 0.5); cx.lineTo(PL + PW, y + 0.5); cx.stroke();
-    }
-
-    cx.strokeStyle = '#3d4452'; cx.setLineDash([3, 3]);
-    cx.beginPath(); cx.moveTo(PL, PT + PH); cx.lineTo(PL + PW, PT);
-    cx.stroke();
-    cx.setLineDash([]);
-    cx.strokeRect(PL + 0.5, PT + 0.5, PW - 1, PH - 1);
-
-    const toX = x => PL + (x / 255) * PW;
-    const toY = y => PT + PH - (y / 255) * PH;
-
-    cx.font = '8px monospace';
-    cx.fillStyle = '#64748b';
-    cx.textAlign = 'center';
-    cx.textBaseline = 'top';
-    ['0', '0.25', '0.5', '0.75', '1'].forEach((txt, i) => {
-      cx.fillText(txt, PL + (i / 4) * PW, PT + PH + 3);
-    });
-    cx.textAlign = 'right';
-    cx.textBaseline = 'middle';
-    ['0', '0.25', '0.5', '0.75', '1'].forEach((txt, i) => {
-      cx.fillText(txt, PL - 3, PT + PH - (i / 4) * PH);
-    });
-
-    ['r', 'g', 'b'].forEach(ch => {
-      if (ch === this.active) return;
-      const lut = this._buildLUT(this.curves[ch]);
-      cx.strokeStyle = this.colors[ch] + '44'; cx.lineWidth = 1;
-      cx.beginPath();
-      for (let x = 0; x < 256; x++) {
-        const sx = toX(x), sy = toY(lut[x]);
-        if (x === 0) cx.moveTo(sx, sy); else cx.lineTo(sx, sy);
-      }
-      cx.stroke();
-    });
-
-    const pts = this.curves[this.active];
-    const lutAct = this._buildLUT(pts);
-    cx.strokeStyle = this.colors[this.active]; cx.lineWidth = 1.8;
-    cx.beginPath();
-    for (let x = 0; x < 256; x++) {
-      const sx = toX(x), sy = toY(lutAct[x]);
-      if (x === 0) cx.moveTo(sx, sy); else cx.lineTo(sx, sy);
-    }
-    cx.stroke();
-
-    if (this._dragIdx >= 0 && this._dragIdx < pts.length) {
-      const p = pts[this._dragIdx];
-      const sx = toX(p.x), sy = toY(p.y);
-      cx.strokeStyle = this.colors[this.active] + '88';
-      cx.setLineDash([2, 2]); cx.lineWidth = 1;
-      cx.beginPath();
-      cx.moveTo(sx, PT + PH); cx.lineTo(sx, sy);
-      cx.moveTo(PL, sy); cx.lineTo(sx, sy);
-      cx.stroke();
-      cx.setLineDash([]);
-    }
-
-    pts.forEach((p, idx) => {
-      const sx = toX(p.x), sy = toY(p.y);
-      const rad = idx === this._dragIdx ? 6 : idx === this._hoverIdx ? 5.5 : 4.5;
-      cx.beginPath();
-      cx.arc(sx, sy, rad, 0, Math.PI * 2);
-      cx.fillStyle = this.colors[this.active]; cx.fill();
-      cx.strokeStyle = '#000000'; cx.lineWidth = 1.8; cx.stroke();
-    });
-  }
-  _onEditorHover(e) {
-    const pos = this._eventPos(e);
-    const idx = this._hitTest(pos);
-    if (idx !== this._hoverIdx) {
-      this._hoverIdx = idx;
-      this._drawEditor();
-      if (idx >= 0) {
-        const p = this.curves[this.active][idx];
-        this._updateInfo(p.x, p.y);
-      } else if (this._dragIdx < 0) {
-        this._updateInfo(null, null);
-      }
-    }
-  }
-  _onMouseDown(e) {
-    const pos = this._eventPos(e);
-    const idx = this._hitTest(pos);
-    if (e.button === 2) {
-      if (idx > 0) this.removePoint(idx);
-      return;
-    }
-    if (idx >= 0) {
-      this._dragIdx = idx;
-      const p = this.curves[this.active][idx];
-      this._updateInfo(p.x, p.y);
-    } else {
-      const v = this._screenToVal(pos);
-      this.addPoint(v.x, v.y);
-      const after = this.curves[this.active];
-      for (let i = 0; i < after.length; i++) {
-        if (Math.abs(after[i].x - v.x) < 4) {
-          this._dragIdx = i;
-          this._updateInfo(after[i].x, after[i].y);
-          break;
+const MathCad = {
+    distanciaPuntoSegmento(p, a, b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len2 = dx * dx + dy * dy;
+        if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+        let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+    },
+    rdp(puntos, epsilon) {
+        if (puntos.length < 3) return puntos.slice();
+        let dMax = 0;
+        let index = 0;
+        const end = puntos.length - 1;
+        for (let i = 1; i < end; i++) {
+            const d = this.distanciaPuntoSegmento(puntos[i], puntos[0], puntos[end]);
+            if (d > dMax) {
+                index = i;
+                dMax = d;
+            }
         }
-      }
+        if (dMax > epsilon) {
+            const izq = this.rdp(puntos.slice(0, index + 1), epsilon);
+            const der = this.rdp(puntos.slice(index), epsilon);
+            return izq.slice(0, -1).concat(der);
+        } else {
+            return [puntos[0], puntos[end]];
+        }
+    },
+    simplificarTrazo(puntos, factor = 0.5) {
+        if (!puntos || puntos.length <= 2) return puntos ? puntos.slice() : [];
+        const objetivo = Math.max(2, Math.round(puntos.length * factor));
+        if (objetivo >= puntos.length) return puntos.slice();
+        let tolerancia = 0.5;
+        let resultado = this.rdp(puntos, tolerancia);
+        let iter = 0;
+        while (resultado.length > objetivo && iter < 30) {
+            tolerancia *= 1.35;
+            resultado = this.rdp(puntos, tolerancia);
+            iter++;
+        }
+        while (resultado.length < objetivo && iter < 60) {
+            tolerancia *= 0.7;
+            resultado = this.rdp(puntos, tolerancia);
+            iter++;
+        }
+        return resultado;
+    },
+    deCasteljau(puntos, t) {
+        let temp = puntos.map(p => ({ x: p.x, y: p.y }));
+        for (let r = 1; r < puntos.length; r++) {
+            for (let i = 0; i < puntos.length - r; i++) {
+                temp[i] = {
+                    x: (1 - t) * temp[i].x + t * temp[i + 1].x,
+                    y: (1 - t) * temp[i].y + t * temp[i + 1].y
+                };
+            }
+        }
+        return temp[0];
+    },
+    generarBezier(pts, samples = 100) {
+        if (pts.length < 2) return pts.slice();
+        const res = [];
+        for (let i = 0; i <= samples; i++) {
+            res.push(this.deCasteljau(pts, i / samples));
+        }
+        return res;
+    },
+    regresionPolinomica2D(points, degree = 3, samplesCount = 100) {
+        const n = points.length;
+        if (n < 2) return points.slice();
+        degree = Math.min(degree, n - 1);
+        const t = new Float64Array(n);
+        t[0] = 0;
+        for (let i = 1; i < n; i++) {
+            const d = Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+            t[i] = t[i - 1] + (d > 0 ? d : 0.0001);
+        }
+        const totalLength = t[n - 1];
+        for (let i = 0; i < n; i++) t[i] /= totalLength;
+
+        function fit1D(tVals, vals, deg) {
+            const m = deg + 1;
+            const A = Array.from({ length: m }, () => new Float64Array(m));
+            const B = new Float64Array(m);
+            const powers = new Float64Array(2 * deg + 1);
+            for (let i = 0; i < n; i++) {
+                let p = 1;
+                for (let j = 0; j <= 2 * deg; j++) {
+                    powers[j] += p;
+                    p *= tVals[i];
+                }
+            }
+            for (let r = 0; r < m; r++) {
+                for (let c = 0; c < m; c++) A[r][c] = powers[r + c];
+            }
+            for (let i = 0; i < n; i++) {
+                let p = 1;
+                for (let r = 0; r < m; r++) {
+                    B[r] += vals[i] * p;
+                    p *= tVals[i];
+                }
+            }
+            for (let i = 0; i < m; i++) {
+                let maxRow = i;
+                for (let k = i + 1; k < m; k++) {
+                    if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+                }
+                [A[i], A[maxRow]] = [A[maxRow], A[i]];
+                [B[i], B[maxRow]] = [B[maxRow], B[i]];
+                for (let k = i + 1; k < m; k++) {
+                    const factor = A[k][i] / (A[i][i] || 1e-12);
+                    for (let j = i; j < m; j++) A[k][j] -= factor * A[i][j];
+                    B[k] -= factor * B[i];
+                }
+            }
+            const coeffs = new Float64Array(m);
+            for (let i = m - 1; i >= 0; i--) {
+                let sum = B[i];
+                for (let j = i + 1; j < m; j++) sum -= A[i][j] * coeffs[j];
+                coeffs[i] = sum / (A[i][i] || 1e-12);
+            }
+            return coeffs;
+        }
+
+        function evalPoly(coeffs, valT) {
+            let res = 0;
+            let p = 1;
+            for (let i = 0; i < coeffs.length; i++) {
+                res += coeffs[i] * p;
+                p *= valT;
+            }
+            return res;
+        }
+
+        const coeffsX = fit1D(t, points.map(p => p.x), degree);
+        const coeffsY = fit1D(t, points.map(p => p.y), degree);
+        const resultado = [];
+        for (let i = 0; i <= samplesCount; i++) {
+            const curT = i / samplesCount;
+            resultado.push({ x: evalPoly(coeffsX, curT), y: evalPoly(coeffsY, curT) });
+        }
+        return resultado;
+    },
+    generarArco3Puntos(p1, p2, p3, samples = 100) {
+        const d = 2 * (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y));
+        if (Math.abs(d) < 1e-6) return null;
+        const cx = ((p1.x**2 + p1.y**2) * (p2.y - p3.y) + (p2.x**2 + p2.y**2) * (p3.y - p1.y) + (p3.x**2 + p3.y**2) * (p1.y - p2.y)) / d;
+        const cy = ((p1.x**2 + p1.y**2) * (p3.x - p2.x) + (p2.x**2 + p2.y**2) * (p1.x - p3.x) + (p3.x**2 + p3.y**2) * (p2.x - p1.x)) / d;
+        const r = Math.hypot(p1.x - cx, p1.y - cy);
+        let ang1 = Math.atan2(p1.y - cy, p1.x - cx);
+        let ang2 = Math.atan2(p2.y - cy, p2.x - cx);
+        let ang3 = Math.atan2(p3.y - cy, p3.x - cx);
+        const norm = a => (a < 0 ? a + Math.PI * 2 : a);
+        let a1 = norm(ang1), a2 = norm(ang2), a3 = norm(ang3);
+        let cw = a1 < a3 ? !(a1 < a2 && a2 < a3) : (a3 < a2 && a2 < a1);
+        let diff = ang3 - ang1;
+        if (cw && diff > 0) diff -= Math.PI * 2;
+        if (!cw && diff < 0) diff += Math.PI * 2;
+        const res = [];
+        for (let i = 0; i <= samples; i++) {
+            const theta = ang1 + diff * (i / samples);
+            res.push({ x: cx + r * Math.cos(theta), y: cy + r * Math.sin(theta) });
+        }
+        return res;
+    },
+    generarArco2Puntos(p1, p2, h, samples = 80) {
+        const d = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        if (d === 0) return [p1, p2];
+        const mx = (p1.x + p2.x) / 2;
+        const my = (p1.y + p2.y) / 2;
+        const nx = -(p2.y - p1.y) / d;
+        const ny = (p2.x - p1.x) / d;
+        const pc = { x: mx + nx * h, y: my + ny * h };
+        const res = [];
+        for (let i = 0; i <= samples; i++) {
+            const t = i / samples;
+            res.push({
+                x: (1 - t)**2 * p1.x + 2 * (1 - t) * t * pc.x + t**2 * p2.x,
+                y: (1 - t)**2 * p1.y + 2 * (1 - t) * t * pc.y + t**2 * p2.y
+            });
+        }
+        return res;
+    },
+    generarCirculo(c, p, samples = 120) {
+        const r = Math.hypot(p.x - c.x, p.y - c.y);
+        const res = [];
+        for (let i = 0; i <= samples; i++) {
+            const theta = (i / samples) * Math.PI * 2;
+            res.push({ x: c.x + r * Math.cos(theta), y: c.y + r * Math.sin(theta) });
+        }
+        return res;
+    },
+    generarElipse(p1, p2, samples = 120) {
+        const cx = (p1.x + p2.x) / 2;
+        const cy = (p1.y + p2.y) / 2;
+        const rx = Math.abs(p2.x - p1.x) / 2 || 1;
+        const ry = Math.abs(p2.y - p1.y) / 2 || 1;
+        const res = [];
+        for (let i = 0; i <= samples; i++) {
+            const theta = (i / samples) * Math.PI * 2;
+            res.push({ x: cx + rx * Math.cos(theta), y: cy + ry * Math.sin(theta) });
+        }
+        return res;
+    },
+    generarRectangulo(p1, p2) {
+        return [
+            { x: p1.x, y: p1.y },
+            { x: p2.x, y: p1.y },
+            { x: p2.x, y: p2.y },
+            { x: p1.x, y: p2.y },
+            { x: p1.x, y: p1.y }
+        ];
+    },
+    generarPoligonoRegular(c, p, nLados) {
+        const r = Math.hypot(p.x - c.x, p.y - c.y);
+        const a0 = Math.atan2(p.y - c.y, p.x - c.x);
+        const res = [];
+        for (let i = 0; i <= nLados; i++) {
+            const theta = a0 + (i * 2 * Math.PI / nLados);
+            res.push({ x: c.x + r * Math.cos(theta), y: c.y + r * Math.sin(theta) });
+        }
+        return res;
+    },
+    generarTrapezoide(p1, p2, p3, p4) {
+        return [
+            { x: p1.x, y: p1.y },
+            { x: p2.x, y: p2.y },
+            { x: p3.x, y: p3.y },
+            { x: p4.x, y: p4.y },
+            { x: p1.x, y: p1.y }
+        ];
     }
-    window.addEventListener('mousemove', this._boundMove);
-    window.addEventListener('mouseup', this._boundUp);
-    this._drawEditor();
-  }
-  _onMouseMove(e) {
-    if (this._dragIdx < 0) return;
-    const v = this._screenToVal(this._eventPos(e));
-    this.movePoint(this._dragIdx, v.x, v.y);
-    const p = this.curves[this.active][this._dragIdx];
-    if (p) this._updateInfo(p.x, p.y);
-  }
-  _onMouseUp() {
-    this._dragIdx = -1;
-    window.removeEventListener('mousemove', this._boundMove);
-    window.removeEventListener('mouseup', this._boundUp);
-    this._drawEditor();
-  }
-  _hitTest(pos) {
-    const pts = this.curves[this.active];
-    const toX = x => this._padL + (x / 255) * this._pw;
-    const toY = y => this._padT + this._ph - (y / 255) * this._ph;
-    for (let i = 0; i < pts.length; i++) {
-      const dx = pos.x - toX(pts[i].x), dy = pos.y - toY(pts[i].y);
-      if (dx * dx + dy * dy < 64) return i;
+};
+
+class PureCadCurve {
+    constructor({ type = 'bezier', degree = 3, style = {} } = {}) {
+        this.type = type;
+        this.degree = degree;
+        this.pts = [];
+        this.style = { stroke: '#38bdf8', lineWidth: 2, fill: null, ...style };
+        this.forcedReady = false;
     }
-    return -1;
-  }
-  _eventPos(e) {
-    const r = this._ec.getBoundingClientRect();
-    return { x: (e.clientX - r.left) * (this._cw / r.width), y: (e.clientY - r.top) * (this._ch / r.height) };
-  }
-  _screenToVal(p) {
-    return {
-      x: Math.max(0, Math.min(255, ((p.x - this._padL) / this._pw) * 255)),
-      y: Math.max(0, Math.min(255, (1 - (p.y - this._padT) / this._ph) * 255))
-    };
-  }
+    minPoints() {
+        switch (this.type) {
+            case 'bezier': return 2;
+            case 'poly': return 2;
+            case 'arc3': return 3;
+            case 'arc2': return 2;
+            case 'circle': return 2;
+            case 'ellipse': return 2;
+            case 'rect': return 2;
+            case 'polygon': return 2;
+            case 'trapezoid': return 4;
+            default: return 2;
+        }
+    }
+    isReady() {
+        return this.forcedReady || (this.pts.length >= this.minPoints());
+    }
+    computePoints(extraPoint = null) {
+        const pList = extraPoint ? [...this.pts, extraPoint] : [...this.pts];
+        if (pList.length < 2) return [];
+        switch (this.type) {
+            case 'bezier':
+                return MathCad.generarBezier(pList, 120);
+            case 'poly':
+                return MathCad.regresionPolinomica2D(pList, Math.min(this.degree, pList.length - 1), 120);
+            case 'arc3':
+                if (pList.length >= 3) {
+                    const arc = MathCad.generarArco3Puntos(pList[0], pList[1], pList[2], 100);
+                    return arc || [pList[0], pList[pList.length - 1]];
+                }
+                return [pList[0], pList[pList.length - 1]];
+            case 'arc2':
+                if (pList.length >= 2) {
+                    const d = Math.hypot(pList[1].x - pList[0].x, pList[1].y - pList[0].y);
+                    return MathCad.generarArco2Puntos(pList[0], pList[1], d * 0.25, 80);
+                }
+                return pList;
+            case 'circle':
+                return MathCad.generarCirculo(pList[0], pList[1], 120);
+            case 'ellipse':
+                return MathCad.generarElipse(pList[0], pList[1], 120);
+            case 'rect':
+                return MathCad.generarRectangulo(pList[0], pList[1]);
+            case 'polygon':
+                return MathCad.generarPoligonoRegular(pList[0], pList[1], 5);
+            case 'trapezoid':
+                if (pList.length >= 4) return MathCad.generarTrapezoide(pList[0], pList[1], pList[2], pList[3]);
+                return pList;
+            default:
+                return MathCad.generarBezier(pList, 120);
+        }
+    }
+    serialize() {
+        return {
+            type: this.type,
+            degree: this.degree,
+            pts: this.pts.map(p => ({ ...p })),
+            style: { ...this.style },
+            forcedReady: this.forcedReady
+        };
+    }
+    static deserialize(d) {
+        const c = new PureCadCurve({ type: d.type, degree: d.degree, style: d.style });
+        c.pts = d.pts.map(p => ({ ...p }));
+        c.forcedReady = !!d.forcedReady;
+        return c;
+    }
 }
 
-class GimpColorPicker {
-  constructor(opciones = {}) {
-    this.onColorChange = opciones.onColorChange || (() => {});
-    this.onAnalyzeLayer = opciones.onAnalyzeLayer || (() => null);
-    this.r = 255; this.g = 255; this.b = 255;
-    this.h = 0; this.s = 0; this.v = 1;
-    this.colorAnterior = '#ffffff';
-    this.tam2D = 130; this.altoHue = 130; this.anchoHue = 18;
-    this.arrastrando2D = false; this.arrastrandoHue = false;
-  }
-  buildInsideAccordion(accordionItem, colorInicial = '#ffffff') {
-    this.colorAnterior = colorInicial;
-    this.hexAColor(colorInicial);
-
-    const filaGraficos = document.createElement('div');
-    filaGraficos.style.cssText = 'display:flex;gap:6px;align-items:flex-start;width:100%;';
-
-    const c2D = document.createElement('canvas');
-    c2D.width = this.tam2D; c2D.height = this.tam2D;
-    c2D.style.cssText = 'border:1px solid var(--ui-border);border-radius:4px;cursor:crosshair;';
-    this.c2D = c2D; this.ctx2D = c2D.getContext('2d');
-
-    const cHue = document.createElement('canvas');
-    cHue.width = this.anchoHue; cHue.height = this.altoHue;
-    cHue.style.cssText = 'border:1px solid var(--ui-border);border-radius:4px;cursor:pointer;';
-    this.cHue = cHue; this.ctxHue = cHue.getContext('2d');
-
-    const colPrevia = document.createElement('div');
-    colPrevia.style.cssText = 'display:flex;flex-direction:column;gap:4px;flex:1;';
-    const boxActual = document.createElement('div');
-    boxActual.style.cssText = 'height:30px;border:1px solid var(--ui-border);border-radius:4px;background:' + colorInicial;
-    this.boxActual = boxActual;
-
-    const boxAnt = document.createElement('div');
-    boxAnt.style.cssText = 'height:30px;border:1px solid var(--ui-border);border-radius:4px;background:' + this.colorAnterior;
-    boxAnt.onclick = () => { this.hexAColor(this.colorAnterior); this.actualizarUI(); };
-
-    colPrevia.appendChild(new UILabel({ text: 'Current:' }).element);
-    colPrevia.appendChild(boxActual);
-    colPrevia.appendChild(new UILabel({ text: 'Previous:' }).element);
-    colPrevia.appendChild(boxAnt);
-
-    filaGraficos.appendChild(c2D);
-    filaGraficos.appendChild(cHue);
-    filaGraficos.appendChild(colPrevia);
-    accordionItem.append(filaGraficos);
-
-    this.inHex = new UIInputText({ placeholder: 'Hex (#ffffff)', value: colorInicial });
-    this.inHex.element.addEventListener('change', () => {
-      let val = this.inHex.getValue().trim();
-      if (!val.startsWith('#')) val = '#' + val;
-      if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-        this.hexAColor(val);
-        this.actualizarUI();
-      }
-    });
-    accordionItem.addRow(new UILabel({ text: 'Hex:' }), this.inHex);
-
-    const fila255 = new UIRow({ align: 0 });
-    this.inR255 = new UIInputNumberInt({ value: this.r, min: 0, max: 255 });
-    this.inG255 = new UIInputNumberInt({ value: this.g, min: 0, max: 255 });
-    this.inB255 = new UIInputNumberInt({ value: this.b, min: 0, max: 255 });
-    [this.inR255, this.inG255, this.inB255].forEach(inp => {
-      inp.element.addEventListener('change', () => {
-        this.r = this.inR255.getValue();
-        this.g = this.inG255.getValue();
-        this.b = this.inB255.getValue();
-        this.rgbAHsv();
-        this.actualizarUI();
-      });
-    });
-    fila255.append(new UILabel({ text: 'RGB:' }));
-    fila255.append(this.inR255); fila255.append(this.inG255); fila255.append(this.inB255);
-    accordionItem.append(fila255);
-
-    this.lblInfoStats = document.createElement('div');
-    this.lblInfoStats.className = 'ui-label';
-    this.lblInfoStats.textContent = 'Analysis: Not calculated';
-    const btnAnalizar = new UIButton({ text: 'Analyze Layer', onClick: () => this.analizarCapa() });
-    accordionItem.addRow(this.lblInfoStats, btnAnalizar);
-
-    this.enlazarCanvases();
-    this.dibujarHue();
-    this.actualizarUI();
-  }
-  enlazarCanvases() {
-    const ev2D = e => {
-      const r = this.c2D.getBoundingClientRect();
-      const x = Math.max(0, Math.min(this.tam2D, e.clientX - r.left));
-      const y = Math.max(0, Math.min(this.tam2D, e.clientY - r.top));
-      this.s = x / this.tam2D;
-      this.v = 1 - (y / this.tam2D);
-      this.hsvARgb();
-      this.actualizarUI();
-    };
-    this.c2D.addEventListener('mousedown', e => { this.arrastrando2D = true; ev2D(e); });
-    const evHue = e => {
-      const r = this.cHue.getBoundingClientRect();
-      const y = Math.max(0, Math.min(this.altoHue, e.clientY - r.top));
-      this.h = (y / this.altoHue) * 360;
-      this.hsvARgb();
-      this.actualizarUI();
-    };
-    this.cHue.addEventListener('mousedown', e => { this.arrastrandoHue = true; evHue(e); });
-    window.addEventListener('mousemove', e => {
-      if (this.arrastrando2D) ev2D(e);
-      if (this.arrastrandoHue) evHue(e);
-    });
-    window.addEventListener('mouseup', () => { this.arrastrando2D = false; this.arrastrandoHue = false; });
-  }
-  dibujarHue() {
-    const grad = this.ctxHue.createLinearGradient(0, 0, 0, this.altoHue);
-    grad.addColorStop(0, '#ff0000');
-    grad.addColorStop(0.17, '#ff00ff');
-    grad.addColorStop(0.33, '#0000ff');
-    grad.addColorStop(0.5, '#00ffff');
-    grad.addColorStop(0.67, '#00ff00');
-    grad.addColorStop(0.83, '#ffff00');
-    grad.addColorStop(1, '#ff0000');
-    this.ctxHue.fillStyle = grad;
-    this.ctxHue.fillRect(0, 0, this.anchoHue, this.altoHue);
-  }
-  dibujar2D() {
-    const rgbHue = this.hsvParaRgb(this.h, 1, 1);
-    this.ctx2D.fillStyle = `rgb(${rgbHue.r},${rgbHue.g},${rgbHue.b})`;
-    this.ctx2D.fillRect(0, 0, this.tam2D, this.tam2D);
-    const gradW = this.ctx2D.createLinearGradient(0, 0, this.tam2D, 0);
-    gradW.addColorStop(0, '#ffffff'); gradW.addColorStop(1, 'rgba(255,255,255,0)');
-    this.ctx2D.fillStyle = gradW; this.ctx2D.fillRect(0, 0, this.tam2D, this.tam2D);
-    const gradB = this.ctx2D.createLinearGradient(0, 0, 0, this.tam2D);
-    gradB.addColorStop(0, 'rgba(0,0,0,0)'); gradB.addColorStop(1, '#000000');
-    this.ctx2D.fillStyle = gradB; this.ctx2D.fillRect(0, 0, this.tam2D, this.tam2D);
-
-    const px = this.s * this.tam2D;
-    const py = (1 - this.v) * this.tam2D;
-    this.ctx2D.strokeStyle = this.v > 0.5 ? '#000000' : '#ffffff';
-    this.ctx2D.lineWidth = 1.5;
-    this.ctx2D.beginPath();
-    this.ctx2D.arc(px, py, 4, 0, Math.PI * 2);
-    this.ctx2D.stroke();
-  }
-  actualizarUI() {
-    this.dibujar2D();
-    const hex = this.rgbAHex(this.r, this.g, this.b);
-    this.onColorChange(hex);
-    if (this.boxActual) this.boxActual.style.background = hex;
-    if (this.inHex) this.inHex.setValue(hex);
-    if (this.inR255) {
-      this.inR255.setValue(this.r);
-      this.inG255.setValue(this.g);
-      this.inB255.setValue(this.b);
+class CadVectorEngine {
+    constructor({ canvas, brushEngine = null, getCoords = (e)=>({x:e.clientX,y:e.clientY}), onStateChange = ()=>{} } = {}) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.brushEngine = brushEngine;
+        this.getCoords = getCoords;
+        this.onStateChange = onStateChange;
+        this.shapes = [];
+        this.current = null;
+        this.currentType = 'bezier';
+        this.currentDegree = 3;
+        this.defaultStyle = { stroke: '#38bdf8', lineWidth: 2, fill: null };
+        this.selected = null;
+        this.selectedPointIndex = -1;
+        this.dragging = null;
+        this.hoverPoint = null;
+        this.history = [];
+        this.historyIndex = -1;
+        this.active = false;
+        this.useBrushStamp = false;
+        this._bind();
+        this._snapshot();
     }
-  }
-  analizarCapa() {
-    const imgData = this.onAnalyzeLayer();
-    if (!imgData) {
-      this.lblInfoStats.textContent = 'No active layer';
-      return;
+    _bind() {
+        window.addEventListener('pointermove', (e) => this._onMove(e));
+        window.addEventListener('pointerup', () => this._onUp());
+        window.addEventListener('keydown', (e) => this._onKey(e));
     }
-    const d = imgData.data;
-    let maxVal = 0, minVal = 255, sumaSat = 0, totalVisibles = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      if (d[i + 3] === 0) continue;
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-      if (mx > maxVal) maxVal = mx;
-      if (mn < minVal) minVal = mn;
-      sumaSat += mn / (mx + 0.00001);
-      totalVisibles++;
+    setSize(w, h) {
+        this.canvas.width = w;
+        this.canvas.height = h;
+        this.canvas.style.width = w + 'px';
+        this.canvas.style.height = h + 'px';
+        this.render();
     }
-    if (totalVisibles === 0) minVal = 0;
-    const satProm = totalVisibles ? (sumaSat / totalVisibles).toFixed(3) : '0';
-    this.lblInfoStats.textContent = `Max: ${maxVal} | Min: ${minVal} | Sat: ${satProm}`;
-  }
-  hexAColor(h) {
-    const n = parseInt(h.replace('#', ''), 16);
-    this.r = (n >> 16) & 255;
-    this.g = (n >> 8) & 255;
-    this.b = n & 255;
-    this.rgbAHsv();
-  }
-  rgbAHex(r, g, b) {
-    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-  }
-  rgbAHsv() {
-    const r = this.r / 255, g = this.g / 255, b = this.b / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    const d = max - min;
-    this.v = max;
-    this.s = max === 0 ? 0 : d / max;
-    if (max === min) {
-      this.h = 0;
-    } else {
-      switch (max) {
-        case r: this.h = (g - b) / d + (g < b ? 6 : 0); break;
-        case g: this.h = (b - r) / d + 2; break;
-        case b: this.h = (r - g) / d + 4; break;
-      }
-      this.h *= 60;
+    handlePointerDown(x, y, e) {
+        if (!this.active) return;
+        const p = { x, y };
+
+        if (this.selected) {
+            for (let i = 0; i < this.selected.pts.length; i++) {
+                if (Math.hypot(p.x - this.selected.pts[i].x, p.y - this.selected.pts[i].y) <= 8) {
+                    this.dragging = { shape: this.selected, index: i };
+                    this.selectedPointIndex = i;
+                    this.render();
+                    return;
+                }
+            }
+        }
+
+        for (let s = this.shapes.length - 1; s >= 0; s--) {
+            const sh = this.shapes[s];
+            const poly = sh.computePoints();
+            for (let i = 1; i < poly.length; i++) {
+                if (MathCad.distanciaPuntoSegmento(p, poly[i - 1], poly[i]) <= 8) {
+                    this.selected = sh;
+                    this.selectedPointIndex = -1;
+                    this.render();
+                    return;
+                }
+            }
+        }
+
+        this.selected = null;
+        this.selectedPointIndex = -1;
+
+        if (!this.current) {
+            this.current = new PureCadCurve({
+                type: this.currentType,
+                degree: this.currentDegree,
+                style: { ...this.defaultStyle }
+            });
+        }
+        this.current.pts.push(p);
+
+        if (this.current.pts.length === this.current.minPoints() && this.current.type !== 'bezier' && this.current.type !== 'poly') {
+            this.current.forcedReady = true;
+            this.shapes.push(this.current);
+            this.current = null;
+            this.hoverPoint = null;
+            this._snapshot();
+        }
+
+        this.render();
     }
-  }
-  hsvARgb() {
-    const rgb = this.hsvParaRgb(this.h, this.s, this.v);
-    this.r = rgb.r; this.g = rgb.g; this.b = rgb.b;
-  }
-  hsvParaRgb(h, s, v) {
-    let r, g, b;
-    const i = Math.floor((h / 60) % 6);
-    const f = (h / 60) - i;
-    const p = v * (1 - s);
-    const q = v * (1 - f * s);
-    const t = v * (1 - (1 - f) * s);
-    switch (i) {
-      case 0: r = v; g = t; b = p; break;
-      case 1: r = q; g = v; b = p; break;
-      case 2: r = p; g = v; b = t; break;
-      case 3: r = p; g = q; b = v; break;
-      case 4: r = t; g = p; b = v; break;
-      case 5: r = v; g = p; b = q; break;
+    _onMove(e) {
+        if (!this.active) return;
+        const p = this.getCoords(e);
+        if (this.dragging) {
+            this.dragging.shape.pts[this.dragging.index] = p;
+            this.render();
+            return;
+        }
+        if (this.current) {
+            this.hoverPoint = p;
+            this.render();
+        }
     }
-    return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
-  }
+    _onUp() {
+        if (this.dragging) {
+            this.dragging = null;
+            this._snapshot();
+            this.render();
+        }
+    }
+    _onKey(e) {
+        if (!this.active) return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            this.finishCurrent();
+            this.selected = null;
+            this.selectedPointIndex = -1;
+            this.render();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            this.finishCurrent();
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+            if (this.selected) {
+                this.deleteSelected();
+                e.preventDefault();
+            }
+        }
+    }
+    finishCurrent() {
+        if (this.current) {
+            if (this.current.pts.length >= 2) {
+                this.current.forcedReady = true;
+                this.shapes.push(this.current);
+                this._snapshot();
+            }
+            this.current = null;
+        }
+        this.hoverPoint = null;
+        this.selected = null;
+        this.selectedPointIndex = -1;
+        this.render();
+    }
+    _snapshot() {
+        const state = JSON.stringify(this.shapes.map(s => s.serialize()));
+        this.history = this.history.slice(0, this.historyIndex + 1);
+        this.history.push(state);
+        this.historyIndex = this.history.length - 1;
+        if (typeof this.onStateChange === 'function') this.onStateChange(this);
+    }
+    undo() {
+        if (this.historyIndex > 0) {
+            this.historyIndex--;
+            this._restore(this.history[this.historyIndex]);
+        }
+    }
+    redo() {
+        if (this.historyIndex < this.history.length - 1) {
+            this.historyIndex++;
+            this._restore(this.history[this.historyIndex]);
+        }
+    }
+    _restore(json) {
+        const arr = JSON.parse(json);
+        this.shapes = arr.map(d => PureCadCurve.deserialize(d));
+        this.current = null;
+        this.selected = null;
+        this.selectedPointIndex = -1;
+        this.render();
+        if (typeof this.onStateChange === 'function') this.onStateChange(this);
+    }
+    deleteSelected() {
+        if (!this.selected) return;
+        const i = this.shapes.indexOf(this.selected);
+        if (i >= 0) this.shapes.splice(i, 1);
+        this.selected = null;
+        this.selectedPointIndex = -1;
+        this._snapshot();
+        this.render();
+    }
+    clearAll() {
+        this.shapes = [];
+        this.current = null;
+        this.selected = null;
+        this.selectedPointIndex = -1;
+        this._snapshot();
+        this.render();
+    }
+    render() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        for (const sh of this.shapes) {
+            this.drawShapeDirect(this.ctx, sh, {
+                selected: sh === this.selected,
+                selectedPointIndex: sh === this.selected ? this.selectedPointIndex : -1
+            });
+        }
+        if (this.current) {
+            this.drawShapeDirect(this.ctx, this.current, {
+                preview: true,
+                extraPoint: this.hoverPoint
+            });
+        }
+    }
+    drawShapeDirect(ctx, shape, opts = {}) {
+        const rawPts = shape.computePoints(opts.extraPoint || null);
+        if (rawPts.length < 2) return;
+
+        if (this.useBrushStamp && this.brushEngine) {
+            this.drawStampsAlongPolyline(ctx, rawPts);
+        } else {
+            ctx.save();
+            ctx.lineWidth = shape.style.lineWidth;
+            ctx.strokeStyle = opts.preview ? '#2563eb' : shape.style.stroke;
+            ctx.fillStyle = shape.style.fill || 'transparent';
+            ctx.setLineDash(opts.preview ? [4, 4] : []);
+            if (opts.selected) { ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 8; }
+
+            ctx.beginPath();
+            ctx.moveTo(rawPts[0].x, rawPts[0].y);
+            for (let i = 1; i < rawPts.length; i++) ctx.lineTo(rawPts[i].x, rawPts[i].y);
+            if (shape.style.fill) ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        if (opts.selected || opts.preview) {
+            ctx.save();
+            ctx.setLineDash([2, 3]);
+            ctx.strokeStyle = 'rgba(120, 120, 120, 0.6)';
+            ctx.beginPath();
+            for (let i = 0; i < shape.pts.length; i++) {
+                if (i === 0) ctx.moveTo(shape.pts[i].x, shape.pts[i].y);
+                else ctx.lineTo(shape.pts[i].x, shape.pts[i].y);
+            }
+            if (opts.extraPoint) ctx.lineTo(opts.extraPoint.x, opts.extraPoint.y);
+            ctx.stroke();
+
+            const ptsToDraw = opts.extraPoint ? [...shape.pts, opts.extraPoint] : shape.pts;
+            for (let i = 0; i < ptsToDraw.length; i++) {
+                const p = ptsToDraw[i];
+                const isSel = opts.selectedPointIndex === i;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, isSel ? 6 : 4, 0, Math.PI * 2);
+                ctx.fillStyle = isSel ? '#38bdf8' : '#e11d48';
+                ctx.fill();
+                if (isSel) { ctx.strokeStyle = '#0ea5e9'; ctx.lineWidth = 2; ctx.stroke(); }
+            }
+            ctx.restore();
+        }
+    }
+    drawStampsAlongPolyline(ctx, polyline) {
+        if (!this.brushEngine || polyline.length < 2) return;
+        const be = this.brushEngine;
+        const step = Math.max(1, be.size * (Math.max(1, be.spacing) / 100));
+        const dims = be.getStampDimensions();
+        const tip = be.getTipCanvas();
+
+        ctx.save();
+        ctx.globalAlpha = be.opacity * (be.force / 100);
+
+        const drawAt = (x, y) => {
+            const ang = be.randomRotation ? (Math.random() * 180 - 90) : be.angle;
+            ctx.save();
+            ctx.translate(x, y);
+            if (ang !== 0) ctx.rotate((ang * Math.PI) / 180);
+            ctx.drawImage(tip, -dims.w / 2, -dims.h / 2, dims.w, dims.h);
+            ctx.restore();
+        };
+
+        drawAt(polyline[0].x, polyline[0].y);
+        let distAccum = 0;
+        for (let i = 1; i < polyline.length; i++) {
+            const p1 = polyline[i - 1], p2 = polyline[i];
+            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            if (dist === 0) continue;
+            distAccum += dist;
+            if (distAccum >= step) {
+                const n = Math.floor(distAccum / step);
+                for (let s = 1; s <= n; s++) {
+                    const t = (step * s) / dist;
+                    drawAt(p1.x + (p2.x - p1.x) * t, p1.y + (p2.y - p1.y) * t);
+                }
+                distAccum %= step;
+            }
+        }
+        ctx.restore();
+    }
+    bakeToLayer(layer, brushEngine = null) {
+        if (!layer) return;
+        const be = brushEngine || this.brushEngine;
+        for (const sh of this.shapes) {
+            const poly = sh.computePoints();
+            if (this.useBrushStamp && be) {
+                const step = Math.max(1, be.size * (Math.max(1, be.spacing) / 100));
+                const dims = be.getStampDimensions();
+                const tip = be.getTipCanvas();
+                layer.ctx.save();
+                layer.ctx.globalAlpha = be.opacity * (be.force / 100);
+                const drawAt = (x, y) => {
+                    const ang = be.randomRotation ? (Math.random() * 180 - 90) : be.angle;
+                    layer.ctx.save();
+                    layer.ctx.translate(x, y);
+                    if (ang !== 0) layer.ctx.rotate((ang * Math.PI) / 180);
+                    layer.ctx.drawImage(tip, -dims.w / 2, -dims.h / 2, dims.w, dims.h);
+                    layer.ctx.restore();
+                };
+                drawAt(poly[0].x, poly[0].y);
+                let distAccum = 0;
+                for (let i = 1; i < poly.length; i++) {
+                    const p1 = poly[i - 1], p2 = poly[i];
+                    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                    if (dist === 0) continue;
+                    distAccum += dist;
+                    if (distAccum >= step) {
+                        const n = Math.floor(distAccum / step);
+                        for (let s = 1; s <= n; s++) {
+                            const t = (step * s) / dist;
+                            drawAt(p1.x + (p2.x - p1.x) * t, p1.y + (p2.y - p1.y) * t);
+                        }
+                        distAccum %= step;
+                    }
+                }
+                layer.ctx.restore();
+            } else {
+                layer.ctx.save();
+                layer.ctx.lineWidth = sh.style.lineWidth;
+                layer.ctx.strokeStyle = sh.style.stroke;
+                layer.ctx.fillStyle = sh.style.fill || 'transparent';
+                layer.ctx.beginPath();
+                layer.ctx.moveTo(poly[0].x, poly[0].y);
+                for (let i = 1; i < poly.length; i++) layer.ctx.lineTo(poly[i].x, poly[i].y);
+                if (sh.style.fill) layer.ctx.fill();
+                layer.ctx.stroke();
+                layer.ctx.restore();
+            }
+        }
+    }
 }
 
-class ModosMezcla {
-  mezclar(capaSup, capaInf, modo = 'normal', op = 1) {
-    if (!capaSup || !capaInf) return null;
-    const w = capaInf.ancho, h = capaInf.alto;
-    const xBase = capaInf.x, yBase = capaInf.y;
-    const tSup = document.createElement('canvas');
-    tSup.width = w; tSup.height = h;
-    const cSup = tSup.getContext('2d');
-    cSup.drawImage(capaSup.canvas, capaSup.x - xBase, capaSup.y - yBase);
-    const tInf = document.createElement('canvas');
-    tInf.width = w; tInf.height = h;
-    const cInf = tInf.getContext('2d');
-    cInf.drawImage(capaInf.canvas, 0, 0);
-    const dS = cSup.getImageData(0, 0, w, h).data;
-    const dI = cInf.getImageData(0, 0, w, h).data;
-    const res = new Uint8ClampedArray(dS.length);
-    for (let i = 0; i < dS.length; i += 4) {
-      const r1 = dS[i] / 255, g1 = dS[i+1] / 255, b1 = dS[i+2] / 255, a1 = dS[i+3] / 255;
-      const r2 = dI[i] / 255, g2 = dI[i+1] / 255, b2 = dI[i+2] / 255, a2 = dI[i+3] / 255;
-      const aF = a1 * op + a2 * (1 - a1 * op);
-      let r, g, b;
-      switch (modo) {
-        case 'multiply': r = r1 * r2; g = g1 * g2; b = b1 * b2; break;
-        case 'screen': r = 1 - (1 - r1) * (1 - r2); g = 1 - (1 - g1) * (1 - g2); b = 1 - (1 - b1) * (1 - b2); break;
-        case 'overlay':
-          r = r2 < 0.5 ? 2 * r1 * r2 : 1 - 2 * (1 - r1) * (1 - r2);
-          g = g2 < 0.5 ? 2 * g1 * g2 : 1 - 2 * (1 - g1) * (1 - g2);
-          b = b2 < 0.5 ? 2 * b1 * b2 : 1 - 2 * (1 - b1) * (1 - b2);
-          break;
-        case 'difference': r = Math.abs(r1 - r2); g = Math.abs(g1 - g2); b = Math.abs(g1 - g2); break;
-        default:
-          r = r1 * a1 * op + r2 * a2 * (1 - a1 * op);
-          g = g1 * a1 * op + g2 * a2 * (1 - a1 * op);
-          b = b1 * a1 * op + b2 * a2 * (1 - a1 * op);
-      }
-      res[i] = Math.round(Math.max(0, Math.min(255, r * 255)));
-      res[i+1] = Math.round(Math.max(0, Math.min(255, g * 255)));
-      res[i+2] = Math.round(Math.max(0, Math.min(255, b * 255)));
-      res[i+3] = Math.round(Math.max(0, Math.min(255, aF * 255)));
+class BrushTipRenderer {
+    constructor() {
+        this.cacheCanvas = document.createElement('canvas');
+        this.cacheCtx = this.cacheCanvas.getContext('2d', { willReadFrequently: true });
+        this.lastConfigKey = "";
     }
-    return { imageData: new ImageData(res, w, h), ancho: w, alto: h, x: xBase, y: yBase };
-  }
+    _hexToRgb(hex) {
+        let c = String(hex).replace('#', '');
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        const num = parseInt(c, 16);
+        return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+    }
+    renderTip({ size = 50, hardness = 0.5, color = '#ffffff', texture = null } = {}) {
+        const res = 512;
+        const configKey = `${size}_${hardness}_${color}_${texture ? (texture.src || texture.width) : 'none'}`;
+        if (this.lastConfigKey === configKey && this.cacheCanvas.width === res) return this.cacheCanvas;
+        this.lastConfigKey = configKey;
+
+        this.cacheCanvas.width = res;
+        this.cacheCanvas.height = res;
+        const ctx = this.cacheCtx;
+        ctx.clearRect(0, 0, res, res);
+
+        if (texture) {
+            ctx.drawImage(texture, 0, 0, res, res);
+        } else {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, res, res);
+        }
+
+        const imgData = ctx.getImageData(0, 0, res, res);
+        const d = imgData.data;
+        const cx = res / 2;
+        const cy = res / 2;
+        const maxR = res / 2;
+        const rgb = this._hexToRgb(color);
+        const tintR = rgb.r / 255, tintG = rgb.g / 255, tintB = rgb.b / 255;
+        const hard = Math.max(0, Math.min(0.999, hardness));
+
+        for (let y = 0; y < res; y++) {
+            for (let x = 0; x < res; x++) {
+                const idx = (y * res + x) * 4;
+                const dist = Math.hypot(x - cx, y - cy) / maxR;
+                let grad = 0;
+                if (dist <= hard) {
+                    grad = 1;
+                } else if (dist < 1) {
+                    grad = 1 - (dist - hard) / (1 - hard);
+                }
+                d[idx]     = d[idx] * tintR;
+                d[idx + 1] = d[idx + 1] * tintG;
+                d[idx + 2] = d[idx + 2] * tintB;
+                d[idx + 3] = d[idx + 3] * grad;
+            }
+        }
+        ctx.putImageData(imgData, 0, 0);
+        return this.cacheCanvas;
+    }
 }
 
-class GestorStorageIDB {
-  constructor(dbName = 'PaintJS_Pro_BD', storeName = 'sesiones') {
-    this.dbName = dbName;
-    this.storeName = storeName;
-    this.db = null;
-  }
-  async abrir() {
-    if (this.db) return this.db;
-    return new Promise((res, rej) => {
-      const pet = indexedDB.open(this.dbName, 1);
-      pet.onupgradeneeded = e => {
-        const d = e.target.result;
-        if (!d.objectStoreNames.contains(this.storeName)) d.createObjectStore(this.storeName, { keyPath: 'id' });
-      };
-      pet.onsuccess = e => { this.db = e.target.result; res(this.db); };
-      pet.onerror = e => rej(e.target.error);
-    });
-  }
-  async guardar(item) {
-    const db = await this.abrir();
-    return new Promise((res, rej) => {
-      const tx = db.transaction(this.storeName, 'readwrite');
-      const st = tx.objectStore(this.storeName);
-      const pet = st.put(item);
-      pet.onsuccess = () => res(true);
-      pet.onerror = e => rej(e.target.error);
-    });
-  }
-  async obtenerTodas() {
-    const db = await this.abrir();
-    return new Promise((res, rej) => {
-      const tx = db.transaction(this.storeName, 'readonly');
-      const st = tx.objectStore(this.storeName);
-      const pet = st.getAll();
-      pet.onsuccess = () => {
-        const out = {};
-        (pet.result || []).forEach(s => out[s.id] = s);
-        res(out);
-      };
-      pet.onerror = e => rej(e.target.error);
-    });
-  }
-  async eliminar(id) {
-    const db = await this.abrir();
-    return new Promise((res, rej) => {
-      const tx = db.transaction(this.storeName, 'readwrite');
-      const st = tx.objectStore(this.storeName);
-      const pet = st.delete(id);
-      pet.onsuccess = () => res(true);
-      pet.onerror = e => rej(e.target.error);
-    });
-  }
-}
-
-class Capa {
-  constructor(ancho, alto, nombre) {
-    this.id = 'capa_' + Math.random().toString(36).slice(2);
-    this.nombre = nombre;
-    this.ancho = ancho;
-    this.alto = alto;
-    this.x = 0;
-    this.y = 0;
-    this.opacidad = 1;
-    this.visible = true;
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = ancho;
-    this.canvas.height = alto;
-    this.ctx = this.canvas.getContext('2d');
-  }
-  redimensionar(nw, nh) {
-    const t = document.createElement('canvas');
-    t.width = nw; t.height = nh;
-    const tc = t.getContext('2d');
-    tc.drawImage(this.canvas, 0, 0, this.ancho, this.alto, 0, 0, nw, nh);
-    this.canvas = t; this.ctx = tc;
-    this.ancho = nw; this.alto = nh;
-  }
-  clonar() {
-    const c = new Capa(this.ancho, this.alto, this.nombre + ' copy');
-    c.x = this.x; c.y = this.y; c.opacidad = this.opacidad;
-    c.ctx.drawImage(this.canvas, 0, 0);
-    return c;
-  }
-  voltear(h = true) {
-    const t = document.createElement('canvas');
-    t.width = this.ancho; t.height = this.alto;
-    const tc = t.getContext('2d');
-    tc.save();
-    tc.translate(h ? this.ancho : 0, h ? 0 : this.alto);
-    tc.scale(h ? -1 : 1, h ? 1 : -1);
-    tc.drawImage(this.canvas, 0, 0);
-    tc.restore();
-    this.ctx.clearRect(0, 0, this.ancho, this.alto);
-    this.ctx.drawImage(t, 0, 0);
-  }
-  limpiar() { this.ctx.clearRect(0, 0, this.ancho, this.alto); }
-  instantanea() { return this.ctx.getImageData(0, 0, this.ancho, this.alto); }
-  restaurar(d) { this.ctx.putImageData(d, 0, 0); }
-}
-
-class HistorialAcciones {
-  constructor(limite = 50) {
-    this.limite = limite;
-    this.deshacerPila = [];
-    this.rehacerPila = [];
-  }
-  registrarEstado(capa) {
-    if (!capa) return;
-    this.deshacerPila.push({
-      id: capa.id, x: capa.x, y: capa.y,
-      ancho: capa.ancho, alto: capa.alto,
-      opacidad: capa.opacidad, visible: capa.visible,
-      datos: capa.instantanea()
-    });
-    if (this.deshacerPila.length > this.limite) this.deshacerPila.shift();
-    this.rehacerPila = [];
-  }
-  deshacer(capas) {
-    const e = this.deshacerPila.pop();
-    if (!e) return false;
-    const c = capas.find(x => x.id === e.id);
-    if (!c) return false;
-    this.rehacerPila.push({
-      id: c.id, x: c.x, y: c.y,
-      ancho: c.ancho, alto: c.alto,
-      opacidad: c.opacidad, visible: c.visible,
-      datos: c.instantanea()
-    });
-    c.x = e.x; c.y = e.y; c.opacidad = e.opacidad; c.visible = e.visible;
-    if (e.ancho !== c.ancho || e.alto !== c.alto) {
-      c.canvas.width = e.ancho; c.canvas.height = e.alto;
-      c.ancho = e.ancho; c.alto = e.alto;
+class CanvasZoomManager {
+    constructor({ container, target, onTransformChange = () => {} } = {}) {
+        this.container = container;
+        this.target = target;
+        this.onTransformChange = onTransformChange;
+        this.scale = 1.0;
+        this.panX = 0;
+        this.panY = 0;
+        this.isPanning = false;
+        this.lastX = 0;
+        this.lastY = 0;
+        this.init();
     }
-    c.restaurar(e.datos);
-    return true;
-  }
-  rehacer(capas) {
-    const e = this.rehacerPila.pop();
-    if (!e) return false;
-    const c = capas.find(x => x.id === e.id);
-    if (!c) return false;
-    this.deshacerPila.push({
-      id: c.id, x: c.x, y: c.y,
-      ancho: c.ancho, alto: c.alto,
-      opacidad: c.opacidad, visible: c.visible,
-      datos: c.instantanea()
-    });
-    c.x = e.x; c.y = e.y; c.opacidad = e.opacidad; c.visible = e.visible;
-    if (e.ancho !== c.ancho || e.alto !== c.alto) {
-      c.canvas.width = e.ancho; c.canvas.height = e.alto;
-      c.ancho = e.ancho; c.alto = e.alto;
+    init() {
+        this.container.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
     }
-    c.restaurar(e.datos);
-    return true;
-  }
-}
-
-class GestorSeleccion {
-  constructor(opciones = {}) {
-    this.onGetCapaActiva = opciones.onGetCapaActiva || (() => null);
-    this.onAgregarCapa = opciones.onAgregarCapa || (() => {});
-    this.onRenderizar = opciones.onRenderizar || (() => {});
-    this.onGuardarHistorial = opciones.onGuardarHistorial || (() => {});
-    this.onSetCursor = opciones.onSetCursor || (() => {});
-    this.modo = 'ninguno';
-    this.puntos = [];
-    this.cerrada = false;
-    this.dibujando = false;
-    this.portapapeles = null;
-    this.enlazarTeclas();
-  }
-  activarModo(m) {
-    this.limpiar();
-    this.modo = m;
-    this.onSetCursor(m !== 'ninguno' ? 'crosshair' : 'none');
-  }
-  limpiar() {
-    this.puntos = [];
-    this.cerrada = false;
-    this.dibujando = false;
-    this.onSetCursor('none');
-    this.onRenderizar();
-  }
-  onPuntero(tipo, p) {
-    if (this.modo === 'ninguno') return;
-    if (tipo === 'down') {
-      this.puntos = [p];
-      this.dibujando = true;
-      this.cerrada = false;
-    } else if (tipo === 'move' && this.dibujando) {
-      if (this.modo === 'rect') this.puntos[1] = p;
-      else if (this.modo === 'lasso') this.puntos.push(p);
-      this.onRenderizar();
-    } else if (tipo === 'up' && this.dibujando) {
-      this.dibujando = false;
-      if (this.modo === 'rect') { this.puntos[1] = p; this.cerrada = true; }
-      this.onRenderizar();
-    }
-  }
-  crearRuta(ctx, offX = 0, offY = 0) {
-    if (this.puntos.length < 2) return false;
-    ctx.beginPath();
-    if (this.modo === 'rect') {
-      const p1 = this.puntos[0], p2 = this.puntos[this.puntos.length - 1];
-      const x = Math.min(p1.x, p2.x), y = Math.min(p1.y, p2.y);
-      const w = Math.abs(p2.x - p1.x), h = Math.abs(p2.y - p1.y);
-      ctx.rect(x - offX, y - offY, w, h);
-    } else {
-      ctx.moveTo(this.puntos[0].x - offX, this.puntos[0].y - offY);
-      for (let i = 1; i < this.puntos.length; i++) ctx.lineTo(this.puntos[i].x - offX, this.puntos[i].y - offY);
-      if (this.cerrada) ctx.closePath();
-    }
-    return true;
-  }
-  dibujarBorde(ctx) {
-    if (this.modo === 'ninguno' || this.puntos.length < 2) return;
-    ctx.save();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    this.crearRuta(ctx, 0, 0);
-    ctx.stroke();
-    ctx.strokeStyle = '#000000';
-    ctx.lineDashOffset = 4;
-    ctx.stroke();
-    ctx.restore();
-  }
-  copiar() {
-    const capa = this.onGetCapaActiva();
-    if (!this.cerrada || !capa) return false;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    if (this.modo === 'rect') {
-      const p1 = this.puntos[0], p2 = this.puntos[this.puntos.length - 1];
-      minX = Math.min(p1.x, p2.x); maxX = Math.max(p1.x, p2.x);
-      minY = Math.min(p1.y, p2.y); maxY = Math.max(p1.y, p2.y);
-    } else {
-      for (const p of this.puntos) {
-        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-      }
-    }
-    const w = Math.round(maxX - minX), h = Math.round(maxY - minY);
-    if (w <= 0 || h <= 0) return false;
-    const temp = document.createElement('canvas');
-    temp.width = w; temp.height = h;
-    const tctx = temp.getContext('2d');
-    tctx.save();
-    this.crearRuta(tctx, minX, minY);
-    tctx.clip();
-    tctx.drawImage(capa.canvas, capa.x - minX, capa.y - minY);
-    tctx.restore();
-    this.portapapeles = { canvas: temp, x: Math.round(minX), y: Math.round(minY), ancho: w, alto: h };
-    return true;
-  }
-  eliminar() {
-    const capa = this.onGetCapaActiva();
-    if (!this.cerrada || !capa) return;
-    this.onGuardarHistorial();
-    capa.ctx.save();
-    capa.ctx.globalCompositeOperation = 'destination-out';
-    this.crearRuta(capa.ctx, capa.x, capa.y);
-    capa.ctx.fill();
-    capa.ctx.restore();
-    this.onRenderizar();
-  }
-  cortar() { if (this.copiar()) this.eliminar(); }
-  pegarComoCapa() {
-    if (!this.portapapeles) return false;
-    const nueva = new Capa(this.portapapeles.ancho, this.portapapeles.alto, 'Cut Crop');
-    nueva.x = this.portapapeles.x;
-    nueva.y = this.portapapeles.y;
-    nueva.ctx.drawImage(this.portapapeles.canvas, 0, 0);
-    this.onAgregarCapa(nueva);
-    return true;
-  }
-  enlazarTeclas() {
-    window.addEventListener('keydown', e => {
-      if (e.target.tagName === 'INPUT') return;
-      if (e.key === 'Enter' && this.modo === 'lasso' && this.puntos.length > 2) {
+    handleWheel(e) {
         e.preventDefault();
-        this.cerrada = true;
-        this.onRenderizar();
-      }
-      if (e.key === 'Escape') this.limpiar();
-      if ((e.key === 'Delete' || e.key === 'Backspace') && this.cerrada) { e.preventDefault(); this.eliminar(); }
-      if (e.ctrlKey && e.key.toLowerCase() === 'c' && this.cerrada) { e.preventDefault(); this.copiar(); }
-      if (e.ctrlKey && e.key.toLowerCase() === 'x' && this.cerrada) { e.preventDefault(); this.cortar(); }
-      if (e.ctrlKey && e.key.toLowerCase() === 'v') { e.preventDefault(); this.pegarComoCapa(); }
-    }, true);
-  }
+        const rect = this.container.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const prevScale = this.scale;
+        const factor = e.deltaY < 0 ? 1.15 : 0.85;
+        this.scale = Math.min(Math.max(0.05, this.scale * factor), 15.0);
+        this.panX = mouseX - (mouseX - this.panX) * (this.scale / prevScale);
+        this.panY = mouseY - (mouseY - this.panY) * (this.scale / prevScale);
+        this.apply();
+    }
+    startPan(clientX, clientY) {
+        this.isPanning = true;
+        this.lastX = clientX;
+        this.lastY = clientY;
+    }
+    pan(clientX, clientY) {
+        if (!this.isPanning) return;
+        this.panX += clientX - this.lastX;
+        this.panY += clientY - this.lastY;
+        this.lastX = clientX;
+        this.lastY = clientY;
+        this.apply();
+    }
+    endPan() { this.isPanning = false; }
+    zoomDelta(delta) {
+        const factor = delta > 0 ? 1.2 : 0.8;
+        const cx = this.container.clientWidth / 2;
+        const cy = this.container.clientHeight / 2;
+        const prevScale = this.scale;
+        this.scale = Math.min(Math.max(0.05, this.scale * factor), 15.0);
+        this.panX = cx - (cx - this.panX) * (this.scale / prevScale);
+        this.panY = cy - (cy - this.panY) * (this.scale / prevScale);
+        this.apply();
+    }
+    screenToWorld(clientX, clientY) {
+        const rect = this.container.getBoundingClientRect();
+        return {
+            x: (clientX - rect.left - this.panX) / this.scale,
+            y: (clientY - rect.top - this.panY) / this.scale
+        };
+    }
+    apply() {
+        this.target.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+        this.onTransformChange(this.scale, this.panX, this.panY);
+    }
 }
 
-class AplicacionPaint {
-  constructor(canvasElement, previewElement, contenedorWorkspace) {
-    this.lienzo = canvasElement;
-    this.ctx = canvasElement.getContext('2d');
-    this.previsualizacion = previewElement;
-    this.contenedor = contenedorWorkspace;
-    this.documento = { ancho: 1024, alto: 1024 };
-    this.capas = [];
-    this.indiceActiva = -1;
-    this.herramienta = 'pincel';
-    this.color = '#ffffff';
-    this.tamano = 30;
-    this.dureza = 0.7;
-    this.fuerza = 1;
-    this.desgasteBorde = 0.5;
-    this.espaciado = 0.25;
-    this.zoom = 1;
-    this.rellenarForma = false;
-    this.pintando = false;
-    this.ultimoPunto = null;
-    this.formaInicio = null;
-    this.distanciaAcumulada = 0;
-    this.puntoOrigenClonado = null;
-    this.offsetClonado = null;
-    this.canvasClonadoSnapshot = null;
-    this.imagenSello = null;
-    this.rotacion = 0;
-    this.mascaraCache = null;
-    this.mascaraClave = '';
-
-    this.algoritmos = new AlgoritmosColor();
-    this.ruido = new RuidoSimplex();
-    this.historial = new HistorialAcciones();
-    this.storage = new GestorStorageIDB();
-    this.mezclador = new ModosMezcla();
-
-    this.curvas = new CanvasCurvesStandalone({
-      onGetImageData: () => this.capaActiva ? this.capaActiva.instantanea() : null,
-      onPutImageData: idata => { if (this.capaActiva) this.capaActiva.restaurar(idata); },
-      onApplySnapshot: () => this.guardarHistorial(),
-      onRender: () => this.renderizar()
-    });
-
-    this.gimpPicker = new GimpColorPicker({
-      onColorChange: col => {
-        this.color = col;
-        this.notificarColor();
-      },
-      onAnalyzeLayer: () => this.capaActiva ? this.capaActiva.instantanea() : null
-    });
-
-    this.fxCanvas = null;
-    try { this.fxCanvas = fx.canvas(); } catch (e) { this.fxCanvas = null; }
-
-    this.gestorSeleccion = new GestorSeleccion({
-      onGetCapaActiva: () => this.capaActiva,
-      onAgregarCapa: c => {
-        this.capas.push(c);
-        this.indiceActiva = this.capas.length - 1;
-        this.notificarCapas();
-        this.renderizar();
-      },
-      onRenderizar: () => this.renderizar(),
-      onGuardarHistorial: () => this.guardarHistorial(),
-      onSetCursor: cur => { this.lienzo.style.cursor = cur; }
-    });
-
-    this.nuevaCapa('Background');
-    this.renderizar();
-    this.enlazarPasteGlobal();
-  }
-
-  get capaActiva() { return this.capas[this.indiceActiva]; }
-  notificarCapas() { if (this.onCapasActualizadas) this.onCapasActualizadas(); }
-  notificarColor() { if (this.onColorActualizado) this.onColorActualizado(this.color); }
-
-  nuevaCapa(nom) {
-    const c = new Capa(this.documento.ancho, this.documento.alto, nom || ('Layer ' + (this.capas.length + 1)));
-    this.capas.push(c);
-    this.indiceActiva = this.capas.length - 1;
-    this.notificarCapas();
-    this.renderizar();
-  }
-  duplicarCapa() {
-    if (!this.capaActiva) return;
-    const c = this.capaActiva.clonar();
-    this.capas.splice(this.indiceActiva + 1, 0, c);
-    this.indiceActiva += 1;
-    this.notificarCapas();
-    this.renderizar();
-  }
-  eliminarCapa() {
-    if (this.capas.length <= 1) return;
-    this.capas.splice(this.indiceActiva, 1);
-    this.indiceActiva = Math.max(0, this.indiceActiva - 1);
-    this.notificarCapas();
-    this.renderizar();
-  }
-  subirCapa() {
-    if (this.indiceActiva >= this.capas.length - 1) return;
-    const t = this.capas[this.indiceActiva];
-    this.capas[this.indiceActiva] = this.capas[this.indiceActiva + 1];
-    this.capas[this.indiceActiva + 1] = t;
-    this.indiceActiva += 1;
-    this.notificarCapas();
-    this.renderizar();
-  }
-  bajarCapa() {
-    if (this.indiceActiva <= 0) return;
-    const t = this.capas[this.indiceActiva];
-    this.capas[this.indiceActiva] = this.capas[this.indiceActiva - 1];
-    this.capas[this.indiceActiva - 1] = t;
-    this.indiceActiva -= 1;
-    this.notificarCapas();
-    this.renderizar();
-  }
-  ajustarCanvasACapa() {
-    const c = this.capaActiva;
-    if (!c) return;
-    const ox = c.x, oy = c.y;
-    this.capas.forEach(l => { l.x -= ox; l.y -= oy; });
-    this.documento.ancho = c.ancho;
-    this.documento.alto = c.alto;
-    this.renderizar();
-  }
-  guardarHistorial() { this.historial.registrarEstado(this.capaActiva); }
-  deshacer() { if (this.historial.deshacer(this.capas)) { this.renderizar(); this.notificarCapas(); } }
-  rehacer() { if (this.historial.rehacer(this.capas)) { this.renderizar(); this.notificarCapas(); } }
-
-  async setImagenComoCapa(fuenteImagen, nombre = 'Layer Image') {
-    if (!fuenteImagen) return null;
-    let imgElement = null;
-    if (fuenteImagen instanceof HTMLImageElement) {
-      imgElement = fuenteImagen;
-    } else if (fuenteImagen instanceof HTMLCanvasElement) {
-      const c = new Capa(fuenteImagen.width, fuenteImagen.height, nombre);
-      c.ctx.drawImage(fuenteImagen, 0, 0);
-      this._integrarNuevaCapa(c);
-      return c;
-    } else if (fuenteImagen instanceof Blob || fuenteImagen instanceof File) {
-      imgElement = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = ev => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = ev.target.result;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(fuenteImagen);
-      });
-    } else if (typeof fuenteImagen === 'string') {
-      imgElement = await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = fuenteImagen;
-      });
+class HistoryManager {
+    constructor({ onStateChange = () => {} } = {}) {
+        this.undoStack = [];
+        this.redoStack = [];
+        this.maxStates = 30;
+        this.onStateChange = onStateChange;
     }
-    if (!imgElement) return null;
-    const w = imgElement.naturalWidth || imgElement.width;
-    const h = imgElement.naturalHeight || imgElement.height;
-    const nuevaCapa = new Capa(w, h, nombre);
-    nuevaCapa.ctx.drawImage(imgElement, 0, 0);
-    this._integrarNuevaCapa(nuevaCapa);
-    return nuevaCapa;
-  }
-  setTagImgComoCapa(imgElement, nombre = 'Layer Image') {
-    if (!imgElement) return null;
-    const w = imgElement.naturalWidth || imgElement.width;
-    const h = imgElement.naturalHeight || imgElement.height;
-    if (!w || !h) return null;
-    const nuevaCapa = new Capa(w, h, nombre);
-    nuevaCapa.ctx.drawImage(imgElement, 0, 0);
-    this._integrarNuevaCapa(nuevaCapa);
-    return nuevaCapa;
-  }
-  async setUrlComoCapa(url, nombre = 'Layer URL') {
-    if (!url || typeof url !== 'string') return null;
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(this.setTagImgComoCapa(img, nombre));
-      img.onerror = () => resolve(null);
-      img.src = url;
-    });
-  }
-  setResultFileInputReadComoCapa(resultReader, nombre = 'Layer File') {
-    if (!resultReader) return null;
-    if (typeof resultReader === 'string') return this.setUrlComoCapa(resultReader, nombre);
-    if (resultReader instanceof ArrayBuffer) {
-      const blob = new Blob([resultReader]);
-      const url = URL.createObjectURL(blob);
-      return this.setUrlComoCapa(url, nombre).finally(() => URL.revokeObjectURL(url));
+    push(action) {
+        this.undoStack.push(action);
+        if (this.undoStack.length > this.maxStates) this.undoStack.shift();
+        this.redoStack = [];
+        this.notify();
     }
-    return null;
-  }
-  _integrarNuevaCapa(capa) {
-    this.guardarHistorial();
-    this.capas.push(capa);
-    this.indiceActiva = this.capas.length - 1; 
-    if (capa.ancho > this.documento.ancho || capa.alto > this.documento.alto) {
-      this.documento.ancho = Math.max(this.documento.ancho, capa.ancho);
-      this.documento.alto = Math.max(this.documento.alto, capa.alto);
+    undo() {
+        if (!this.canUndo()) return;
+        const action = this.undoStack.pop();
+        action.undo();
+        this.redoStack.push(action);
+        this.notify();
     }
-    this.notificarCapas();
-    this.renderizar();
-  }
-
-  enlazarPasteGlobal() {
-    this._pasteHandler = async (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-      const cd = e.clipboardData || window.clipboardData;
-      if (!cd) return;
-
-      const items = cd.items;
-      if (!items || items.length === 0) return;
-
-      for (const item of items) {
-        if (item.kind === 'file' && item.type.startsWith('image/')) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = ev => this.setResultFileInputReadComoCapa(ev.target.result, 'Pasted Image');
-            reader.readAsDataURL(file);
-            return;
-          }
-        }
-      }
-
-      for (const item of items) {
-        if (item.kind === 'string') {
-          if (item.type === 'text/html') {
-            item.getAsString(html => {
-              const parser = new DOMParser();
-              const doc = parser.parseFromString(html, 'text/html');
-              const img = doc.querySelector('img');
-              if (img && img.src) {
-                e.preventDefault();
-                this.setUrlComoCapa(img.src, 'Web Image');
-              }
-            });
-            return;
-          } else if (item.type === 'text/plain') {
-            item.getAsString(txt => {
-              const url = txt.trim();
-              if (url.startsWith('data:image/') || url.match(/^https?:\/\/.*\.(png|jpg|jpeg|webp|gif|svg)(\?.*)?$/i)) {
-                e.preventDefault();
-                this.setUrlComoCapa(url, 'URL Image');
-              }
-            });
-            return;
-          }
-        }
-      }
-    };
-
-    window.addEventListener('paste', this._pasteHandler);
-  }
-
-  obtenerMascara() {
-    const k = this.tamano + '_' + this.dureza + '_' + this.desgasteBorde;
-    if (this.mascaraClave === k && this.mascaraCache) return this.mascaraCache;
-    const c = document.createElement('canvas');
-    c.width = c.height = this.tamano;
-    const ctx = c.getContext('2d');
-    const r = this.tamano / 2;
-    const radioInterior = Math.max(0, r * (1 - this.desgasteBorde) * this.dureza);
-    const grad = ctx.createRadialGradient(r, r, radioInterior, r, r, r);
-    grad.addColorStop(0, 'rgba(255,255,255,1)');
-    grad.addColorStop(1, 'rgba(255,255,255,0)');
-    
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(r, r, r, 0, Math.PI * 2);
-    ctx.fill();
-    this.mascaraCache = c;
-    this.mascaraClave = k;
-    return c;
-  }
-
-  colocarDab(xDoc, yDoc) {
-    const c = this.capaActiva;
-    if (!c) return;
-    const x = xDoc - c.x, y = yDoc - c.y;
-    const m = this.obtenerMascara();
-
-    if (this.herramienta === 'borrador') {
-      c.ctx.save();
-      c.ctx.globalAlpha = this.fuerza;
-      c.ctx.globalCompositeOperation = 'destination-out';
-      c.ctx.drawImage(m, x - this.tamano / 2, y - this.tamano / 2);
-      c.ctx.restore();
-    } else if (this.herramienta === 'sello' && this.imagenSello) {
-      const rad = (this.rotacion * Math.PI) / 180;
-      const tmp = document.createElement('canvas');
-      tmp.width = tmp.height = this.tamano;
-      const tc = tmp.getContext('2d');
-
-      tc.save();
-      tc.translate(this.tamano / 2, this.tamano / 2);
-      tc.rotate(rad);
-      tc.drawImage(this.imagenSello, -this.tamano / 2, -this.tamano / 2, this.tamano, this.tamano);
-      tc.restore();
-
-      if (this.color.toLowerCase() !== '#ffffff') {
-        tc.save();
-        tc.globalCompositeOperation = 'multiply';
-        tc.fillStyle = this.color;
-        tc.fillRect(0, 0, this.tamano, this.tamano);
-        tc.restore();
-
-        tc.save();
-        tc.globalCompositeOperation = 'destination-in';
-        tc.translate(this.tamano / 2, this.tamano / 2);
-        tc.rotate(rad);
-        tc.drawImage(this.imagenSello, -this.tamano / 2, -this.tamano / 2, this.tamano, this.tamano);
-        tc.restore();
-      }
-
-      tc.globalCompositeOperation = 'destination-in';
-      tc.drawImage(m, 0, 0);
-
-      c.ctx.save();
-      c.ctx.globalAlpha = this.fuerza;
-      c.ctx.drawImage(tmp, x - this.tamano / 2, y - this.tamano / 2);
-      c.ctx.restore();
-    } else if (this.herramienta === 'clonar' && this.canvasClonadoSnapshot && this.offsetClonado) {
-      const xF = x + this.offsetClonado.x, yF = y + this.offsetClonado.y;
-      const tmp = document.createElement('canvas');
-      tmp.width = tmp.height = this.tamano;
-      const tc = tmp.getContext('2d');
-
-      tc.drawImage(this.canvasClonadoSnapshot, xF - this.tamano / 2, yF - this.tamano / 2, this.tamano, this.tamano, 0, 0, this.tamano, this.tamano);
-
-      if (this.color.toLowerCase() !== '#ffffff') {
-        tc.save();
-        tc.globalCompositeOperation = 'multiply';
-        tc.fillStyle = this.color;
-        tc.fillRect(0, 0, this.tamano, this.tamano);
-        tc.restore();
-
-        tc.save();
-        tc.globalCompositeOperation = 'destination-in';
-        tc.drawImage(this.canvasClonadoSnapshot, xF - this.tamano / 2, yF - this.tamano / 2, this.tamano, this.tamano, 0, 0, this.tamano, this.tamano);
-        tc.restore();
-      }
-
-      tc.globalCompositeOperation = 'destination-in';
-      tc.drawImage(m, 0, 0);
-
-      c.ctx.save();
-      c.ctx.globalAlpha = this.fuerza;
-      c.ctx.drawImage(tmp, x - this.tamano / 2, y - this.tamano / 2);
-      c.ctx.restore();
-    } else if (this.herramienta === 'pincel') {
-      const tmp = document.createElement('canvas');
-      tmp.width = tmp.height = this.tamano;
-      const tc = tmp.getContext('2d');
-      tc.fillStyle = this.color;
-      tc.fillRect(0, 0, this.tamano, this.tamano);
-      tc.globalCompositeOperation = 'destination-in';
-      tc.drawImage(m, 0, 0);
-      c.ctx.save();
-      c.ctx.globalAlpha = this.fuerza;
-      c.ctx.drawImage(tmp, x - this.tamano / 2, y - this.tamano / 2);
-      c.ctx.restore();
+    redo() {
+        if (!this.canRedo()) return;
+        const action = this.redoStack.pop();
+        action.redo();
+        this.undoStack.push(action);
+        this.notify();
     }
-    this.renderizar();
-  }
-
-  procesarPunto(xDoc, yDoc) {
-    if (!this.ultimoPunto) {
-      this.colocarDab(xDoc, yDoc);
-      this.ultimoPunto = { x: xDoc, y: yDoc };
-      this.distanciaAcumulada = 0;
-      return;
-    }
-    let dx = xDoc - this.ultimoPunto.x, dy = yDoc - this.ultimoPunto.y;
-    let dist = Math.hypot(dx, dy);
-    const paso = Math.max(1, this.tamano * this.espaciado);
-    while (this.distanciaAcumulada + dist >= paso) {
-      const falta = paso - this.distanciaAcumulada;
-      const r = dist === 0 ? 0 : falta / dist;
-      const nx = this.ultimoPunto.x + dx * r, ny = this.ultimoPunto.y + dy * r;
-      this.colocarDab(nx, ny);
-      this.ultimoPunto = { x: nx, y: ny };
-      dx = xDoc - nx; dy = yDoc - ny;
-      dist = Math.hypot(dx, dy);
-      this.distanciaAcumulada = 0;
-    }
-    this.distanciaAcumulada += dist;
-    this.ultimoPunto = { x: xDoc, y: yDoc };
-  }
-
-  dibujarForma(ctx, p1, p2, rellenar) {
-    ctx.save();
-    ctx.strokeStyle = this.color;
-    ctx.fillStyle = this.color;
-    ctx.lineWidth = Math.max(1, this.tamano);
-    ctx.globalAlpha = this.fuerza;
-    ctx.beginPath();
-    if (this.herramienta === 'linea') {
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
-    } else if (this.herramienta === 'rectangulo') {
-      const x = Math.min(p1.x, p2.x), y = Math.min(p1.y, p2.y);
-      const w = Math.abs(p2.x - p1.x), h = Math.abs(p2.y - p1.y);
-      if (rellenar) ctx.fillRect(x, y, w, h); else ctx.strokeRect(x, y, w, h);
-    } else if (this.herramienta === 'circulo') {
-      const rx = Math.abs(p2.x - p1.x) / 2, ry = Math.abs(p2.y - p1.y) / 2;
-      const cx = Math.min(p1.x, p2.x) + rx, cy = Math.min(p1.y, p2.y) + ry;
-      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-      if (rellenar) ctx.fill(); else ctx.stroke();
-    } else if (this.herramienta === 'flecha') {
-      const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-      const head = Math.min(dist * 0.4, 25);
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.lineTo(p2.x - head * Math.cos(ang - Math.PI / 6), p2.y - head * Math.sin(ang - Math.PI / 6));
-      ctx.moveTo(p2.x, p2.y);
-      ctx.lineTo(p2.x - head * Math.cos(ang + Math.PI / 6), p2.y - head * Math.sin(ang + Math.PI / 6));
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  cuentagotas(px, py) {
-    const rx = Math.round(px), ry = Math.round(py);
-    if (rx < 0 || rx >= this.documento.ancho || ry < 0 || ry >= this.documento.alto) return;
-    const p = this.ctx.getImageData(rx, ry, 1, 1).data;
-    if (p[3] === 0) return;
-    const hex = '#' + ((1 << 24) + (p[0] << 16) + (p[1] << 8) + p[2]).toString(16).slice(1);
-    this.color = hex;
-    if (this.gimpPicker) {
-      this.gimpPicker.hexAColor(hex);
-      this.gimpPicker.actualizarUI();
-    }
-    this.notificarColor();
-  }
-
-  onPuntero(tipo, ev) {
-    const r = this.lienzo.getBoundingClientRect();
-    const p = { x: (ev.clientX - r.left) / this.zoom, y: (ev.clientY - r.top) / this.zoom };
-    if (this.herramienta === 'sel_rect' || this.herramienta === 'sel_lasso') {
-      this.gestorSeleccion.onPuntero(tipo, p);
-      return;
-    }
-    if (tipo === 'move') {
-      const d = this.tamano * this.zoom;
-      this.previsualizacion.style.width = d + 'px';
-      this.previsualizacion.style.height = d + 'px';
-      this.previsualizacion.style.left = (p.x * this.zoom) + 'px';
-      this.previsualizacion.style.top = (p.y * this.zoom) + 'px';
-      this.previsualizacion.style.display = (this.herramienta === 'mover' || this.herramienta === 'cuentagotas') ? 'none' : 'block';
-    }
-    if (this.herramienta === 'cuentagotas') {
-      if (tipo === 'down') this.cuentagotas(p.x, p.y);
-      return;
-    }
-    if (['linea', 'rectangulo', 'circulo', 'flecha'].includes(this.herramienta)) {
-      if (tipo === 'down') {
-        this.guardarHistorial();
-        this.pintando = true;
-        this.formaInicio = p;
-      } else if (tipo === 'move' && this.pintando) {
-        this.renderizar();
-        this.dibujarForma(this.ctx, this.formaInicio, p, this.rellenarForma);
-      } else if (tipo === 'up' && this.pintando) {
-        this.pintando = false;
-        const c = this.capaActiva;
-        if (c) {
-          const p1 = { x: this.formaInicio.x - c.x, y: this.formaInicio.y - c.y };
-          const p2 = { x: p.x - c.x, y: p.y - c.y };
-          this.dibujarForma(c.ctx, p1, p2, this.rellenarForma);
-        }
-        this.renderizar();
-      }
-      return;
-    }
-    if (this.herramienta === 'mover') {
-      if (tipo === 'down') {
-        this.moviendo = true;
-        this.moverInicio = { x: p.x, y: p.y, cX: this.capaActiva.x, cY: this.capaActiva.y };
-        this.guardarHistorial();
-      } else if (tipo === 'move' && this.moviendo) {
-        this.capaActiva.x = this.moverInicio.cX + (p.x - this.moverInicio.x);
-        this.capaActiva.y = this.moverInicio.cY + (p.y - this.moverInicio.y);
-        this.renderizar();
-      } else if (tipo === 'up') {
-        this.moviendo = false;
-      }
-      return;
-    }
-    if (this.herramienta === 'clonar' && ev.altKey && tipo === 'down') {
-      const c = this.capaActiva;
-      if (!c) return;
-      this.puntoOrigenClonado = { x: p.x - c.x, y: p.y - c.y };
-      const snap = document.createElement('canvas');
-      snap.width = c.ancho; snap.height = c.alto;
-      snap.getContext('2d').drawImage(c.canvas, 0, 0);
-      this.canvasClonadoSnapshot = snap;
-      this.offsetClonado = null;
-      return;
-    }
-    if (tipo === 'down') {
-      if (ev.button !== 0) return;
-      this.guardarHistorial();
-      this.pintando = true;
-      this.ultimoPunto = null;
-      this.distanciaAcumulada = 0;
-      if (this.herramienta === 'clonar' && this.puntoOrigenClonado) {
-        const inL = { x: p.x - this.capaActiva.x, y: p.y - this.capaActiva.y };
-        this.offsetClonado = { x: this.puntoOrigenClonado.x - inL.x, y: this.puntoOrigenClonado.y - inL.y };
-      }
-      this.procesarPunto(p.x, p.y);
-    } else if (tipo === 'move' && this.pintando) {
-      this.procesarPunto(p.x, p.y);
-    } else if (tipo === 'up') {
-      this.pintando = false;
-      this.ultimoPunto = null;
-    }
-  }
-
-  renderizar() {
-    this.lienzo.width = this.documento.ancho;
-    this.lienzo.height = this.documento.alto;
-    this.ctx.clearRect(0, 0, this.documento.ancho, this.documento.alto);
-    for (const c of this.capas) {
-      if (!c.visible) continue;
-      this.ctx.save();
-      this.ctx.globalAlpha = c.opacidad;
-      this.ctx.drawImage(c.canvas, c.x, c.y);
-      this.ctx.restore();
-    }
-    this.gestorSeleccion.dibujarBorde(this.ctx);
-    this.lienzo.style.width = (this.documento.ancho * this.zoom) + 'px';
-    this.lienzo.style.height = (this.documento.alto * this.zoom) + 'px';
-  }
-
-  cambiarZoom(z) {
-    this.zoom = Math.min(10, Math.max(0.05, z));
-    this.renderizar();
-    if (this.onZoomActualizado) this.onZoomActualizado(this.zoom);
-  }
-
-  aplicarMirror(horizontal = true) {
-    const c = this.capaActiva;
-    if (!c) return;
-    this.guardarHistorial();
-    const origW = c.ancho, origH = c.alto;
-    let targetW = horizontal ? origW * 2 : origW;
-    let targetH = horizontal ? origH : origH * 2;
-
-    const MAX_DIM = 4096;
-    if (targetW > MAX_DIM || targetH > MAX_DIM) {
-      const escala = Math.min(MAX_DIM / targetW, MAX_DIM / targetH);
-      targetW = Math.round(targetW * escala);
-      targetH = Math.round(targetH * escala);
-    }
-
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = targetW; tempCanvas.height = targetH;
-    const tctx = tempCanvas.getContext('2d');
-    tctx.imageSmoothingEnabled = true;
-    tctx.imageSmoothingQuality = 'high';
-
-    if (horizontal) {
-      const halfW = Math.round(targetW / 2);
-      tctx.drawImage(c.canvas, 0, 0, origW, origH, 0, 0, halfW, targetH);
-      tctx.save();
-      tctx.translate(targetW, 0);
-      tctx.scale(-1, 1);
-      tctx.drawImage(c.canvas, 0, 0, origW, origH, 0, 0, halfW, targetH);
-      tctx.restore();
-    } else {
-      const halfH = Math.round(targetH / 2);
-      tctx.drawImage(c.canvas, 0, 0, origW, origH, 0, 0, targetW, halfH);
-      tctx.save();
-      tctx.translate(0, targetH);
-      tctx.scale(1, -1);
-      tctx.drawImage(c.canvas, 0, 0, origW, origH, 0, 0, targetW, halfH);
-      tctx.restore();
-    }
-
-    c.redimensionar(targetW, targetH);
-    c.ctx.clearRect(0, 0, targetW, targetH);
-    c.ctx.drawImage(tempCanvas, 0, 0);
-
-    if (targetW > this.documento.ancho || targetH > this.documento.alto) {
-      this.documento.ancho = Math.max(this.documento.ancho, targetW);
-      this.documento.alto = Math.max(this.documento.alto, targetH);
-    }
-    this.renderizar();
-  }
-
-  aplicarFiltroPixel(cb) {
-    const c = this.capaActiva;
-    if (!c) return;
-    this.guardarHistorial();
-    const imgData = c.ctx.getImageData(0, 0, c.ancho, c.alto);
-    const d = imgData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const res = cb(d[i], d[i+1], d[i+2], d[i+3]);
-      d[i] = res[0]; d[i+1] = res[1]; d[i+2] = res[2]; d[i+3] = res[3];
-    }
-    c.ctx.putImageData(imgData, 0, 0);
-    this.renderizar();
-  }
-
-  aplicarGLFX(tipo, params = {}) {
-    const c = this.capaActiva;
-    if (!c || !this.fxCanvas) return alert('GLFX WebGL not available.');
-    this.guardarHistorial();
-    const w = c.ancho, h = c.alto;
-    const tex = this.fxCanvas.texture(c.canvas);
-    let fxInst = this.fxCanvas.draw(tex);
-    if (tipo === 'reducir_ruido') fxInst.denoise(params.exponente || 20);
-    else if (tipo === 'enfocar') fxInst.unsharpMask(params.radio || 5, params.fuerza || 1);
-    else if (tipo === 'ruido') fxInst.noise(params.cantidad || 0.15);
-    else if (tipo === 'vineta') fxInst.vignette(params.tamano || 0.5, params.cantidad || 0.5);
-    else if (tipo === 'desenfoque_zoom') fxInst.zoomBlur(w / 2, h / 2, params.fuerza || 0.1);
-    else if (tipo === 'desenfoque_triangular') fxInst.triangleBlur(params.radio || 10);
-    else if (tipo === 'remolino') fxInst.swirl(w / 2, h / 2, params.radio || 200, params.angulo || 3);
-    else if (tipo === 'burbuja') fxInst.bulgePinch(w / 2, h / 2, params.radio || 200, params.fuerza || 0.5);
-    fxInst.update();
-    c.ctx.clearRect(0, 0, c.ancho, c.alto);
-    c.ctx.drawImage(this.fxCanvas, 0, 0);
-    this.renderizar();
-  }
-
-  async exportarEstado() {
-    const list = [];
-    for (const c of this.capas) {
-      list.push({
-        id: c.id, nombre: c.nombre, x: c.x, y: c.y,
-        ancho: c.ancho, alto: c.alto, opacidad: c.opacidad, visible: c.visible,
-        imagenData: c.canvas.toDataURL('image/png')
-      });
-    }
-    return {
-      documento: { ...this.documento },
-      indiceActiva: this.indiceActiva,
-      tamano: this.tamano, dureza: this.dureza, fuerza: this.fuerza, rotacion: this.rotacion, color: this.color,
-      capas: list
-    };
-  }
-
-  async cargarEstado(st) {
-    if (!st || !st.capas) return;
-    this.documento = { ...st.documento };
-    this.tamano = st.tamano || 30;
-    this.dureza = st.dureza || 0.7;
-    this.fuerza = st.fuerza || 1;
-    this.rotacion = st.rotacion || 0;
-    this.color = st.color || '#ffffff';
-    this.capas = [];
-    for (const dc of st.capas) {
-      const c = new Capa(dc.ancho, dc.alto, dc.nombre);
-      c.id = dc.id; c.x = dc.x; c.y = dc.y;
-      c.opacidad = dc.opacidad; c.visible = dc.visible;
-      await new Promise(r => {
-        const img = new Image();
-        img.onload = () => { c.ctx.drawImage(img, 0, 0); r(); };
-        img.src = dc.imagenData;
-      });
-      this.capas.push(c);
-    }
-    this.indiceActiva = Math.min(st.indiceActiva, this.capas.length - 1);
-    this.notificarCapas();
-    this.renderizar();
-  }
+    canUndo() { return this.undoStack.length > 0; }
+    canRedo() { return this.redoStack.length > 0; }
+    notify() { this.onStateChange(this.canUndo(), this.canRedo(), this.undoStack.length, this.redoStack.length); }
 }
 
-class InterfazUsuario {
-  constructor(app, contenedorCentral) {
-    this.app = app;
-    this.contenedorCentral = contenedorCentral;
-    this.setupContainers();
-    this.construirPanelIzquierdo();
-    this.construirPanelDerecho();
-    this.enlazarEventosLienzo();
-
-    this.app.onCapasActualizadas = () => this.actualizarPanelCapas();
-    this.app.onColorActualizado = col => { if (this.inColor) this.inColor.value = col; };
-    this.app.onZoomActualizado = z => { if (this.lblZoom) this.lblZoom.setText(Math.round(z * 100) + '%'); };
-  }
-
-  setupContainers() {
-    this.topBar = new UIContainer({
-      id: 'app_top_bar',
-      direction: 'row',
-      width: '100vw',
-      height: '36px',
-      gap: 6
-    });
-    Object.assign(this.topBar.element.style, {
-      position: 'fixed', top: '0', left: '0', zIndex: '2000',
-      borderBottom: '1px solid var(--ui-border)', justifyContent: 'space-between'
-    });
-    this.topBar.mount(document.body);
-
-    const leftSlot = document.createElement('div');
-    leftSlot.style.display = 'flex';
-    leftSlot.style.gap = '4px';
-    leftSlot.style.alignItems = 'center';
-
-    const rightSlot = document.createElement('div');
-    rightSlot.style.display = 'flex';
-    rightSlot.style.gap = '4px';
-    rightSlot.style.alignItems = 'center';
-
-    const btnToggleLeft = new UIButton({ text: '◧ LEFT PANEL', onClick: () => this.leftGroup.toggle() });
-    const btnUndo = new UIButton({ text: '↶ UNDO', onClick: () => this.app.deshacer() });
-    const btnRedo = new UIButton({ text: '↷ REDO', onClick: () => this.app.rehacer() });
-
-    btnToggleLeft.mount(leftSlot);
-    btnUndo.mount(leftSlot);
-    btnRedo.mount(leftSlot);
-
-    const btnLayouts = new UIButton({ text: 'LAYOUT ☰', onClick: () => UILayoutManager.open() });
-    const btnToggleRight = new UIButton({ text: 'RIGHT PANEL ◨', onClick: () => this.rightGroup.toggle() });
-
-    btnLayouts.mount(rightSlot);
-    btnToggleRight.mount(rightSlot);
-
-    this.topBar.element.appendChild(leftSlot);
-    this.topBar.element.appendChild(rightSlot);
-
-    this.leftGroup = new UIContainer({
-      id: 'col_izquierda',
-      direction: 'column',
-      width: '296px',
-      height: 'calc(100vh - 44px)',
-      gap: 8
-    });
-    Object.assign(this.leftGroup.element.style, {
-      position: 'fixed', top: '40px', left: '6px', zIndex: '1500',
-      overflowY: 'auto', overflowX: 'hidden'
-    });
-    this.leftGroup.mount(document.body);
-
-    this.rightGroup = new UIContainer({
-      id: 'col_derecha',
-      direction: 'column',
-      width: '296px',
-      height: 'calc(100vh - 44px)',
-      gap: 8
-    });
-    Object.assign(this.rightGroup.element.style, {
-      position: 'fixed', top: '40px', right: '6px', zIndex: '1500',
-      overflowY: 'auto', overflowX: 'hidden'
-    });
-    this.rightGroup.mount(document.body);
-  }
-
-  construirPanelIzquierdo() {
-    this.panelIzq = new UISmartPanel({
-      id: 'panel_izq_herramientas',
-      title: 'Tools & Brush Dynamics',
-      width: 290,
-      floating: false
-    });
-
-    const accordion = new UIAccordion({ exclusive: false });
-    this.panelIzq.append(accordion);
-
-    const secTools = accordion.addItem({ title: 'Tool Selection', open: true });
-    this.radTools = new UIRadioGroup({
-      items: [
-        { label: 'Brush (B)', value: 'pincel' },
-        { label: 'Eraser (E)', value: 'borrador' },
-        { label: 'Line', value: 'linea' },
-        { label: 'Rectangle', value: 'rectangulo' },
-        { label: 'Circle', value: 'circulo' },
-        { label: 'Arrow', value: 'flecha' },
-        { label: 'Eyedropper', value: 'cuentagotas' },
-        { label: 'Clone Stamp (C)', value: 'clonar' },
-        { label: 'Image Stamp (S)', value: 'sello' },
-        { label: 'Move Layer (M)', value: 'mover' },
-        { label: 'Rect Select', value: 'sel_rect' },
-        { label: 'Lasso Select', value: 'sel_lasso' }
-      ],
-      activeIndex: 0,
-      onChange: (id) => {
-        this.app.herramienta = id;
-        if (id === 'sel_rect') this.app.gestorSeleccion.activarModo('rect');
-        else if (id === 'sel_lasso') this.app.gestorSeleccion.activarModo('lasso');
-        else this.app.gestorSeleccion.modo = 'ninguno';
-      }
-    });
-    secTools.append(this.radTools);
-
-    const tglRellenar = new UIToggle({
-      label: 'Fill Shape',
-      value: false,
-      onChange: (v) => { this.app.rellenarForma = v; }
-    });
-    secTools.append(tglRellenar);
-
-    const btnCargarSello = new UIButton({
-      text: 'Load Stamp Texture',
-      onClick: () => document.getElementById('archivoSello').click()
-    });
-    document.getElementById('archivoSello').onchange = e => {
-      if (e.target.files && e.target.files[0]) {
-        const rd = new FileReader();
-        rd.onload = ev => {
-          const im = new Image();
-          im.onload = () => {
-            this.app.imagenSello = im;
-            this.app.herramienta = 'sello';
-            this.radTools.setValue('sello');
-          };
-          im.src = ev.target.result;
-        };
-        rd.readAsDataURL(e.target.files[0]);
-        e.target.value = '';
-      }
-    };
-    secTools.append(btnCargarSello);
-
-    const secClip = accordion.addItem({ title: 'Clipboard & Selection', open: false });
-    const btnCopiar = new UIButton({ text: 'Copy', onClick: () => this.app.gestorSeleccion.copiar() });
-    const btnCortar = new UIButton({ text: 'Cut', onClick: () => this.app.gestorSeleccion.cortar() });
-    const btnPegar = new UIButton({ text: 'Paste As Layer', variant: 'primary', onClick: () => this.app.gestorSeleccion.pegarComoCapa() });
-    const btnBorrar = new UIButton({ text: 'Delete Area', variant: 'danger', onClick: () => this.app.gestorSeleccion.eliminar() });
-    secClip.addRow(btnCopiar, btnCortar);
-    secClip.addRow(btnPegar, btnBorrar);
-
-    const secBrush = accordion.addItem({ title: 'Brush Settings', open: true });
-    const slTam = new UIConfigurableSlider({ label: 'Brush Size', min: 1, max: 1200, step: 1, value: 30, onChange: v => { this.app.tamano = v; } });
-    const slDur = new UIConfigurableSlider({ label: 'Hardness', min: 0, max: 1, step: 0.05, value: 0.7, onChange: v => { this.app.dureza = v; } });
-    const slFza = new UIConfigurableSlider({ label: 'Opacity / Strength', min: 0.05, max: 1, step: 0.05, value: 1, onChange: v => { this.app.fuerza = v; } });
-    const slRot = new UIConfigurableSlider({ label: 'Angle / Rotation', min: 0, max: 360, step: 1, value: 0, onChange: v => { this.app.rotacion = v; } });
-    const slFeather = new UIConfigurableSlider({
-      label: 'Edge Decay (Feather)', min: 0, max: 1, step: 0.02, value: 0.5,
-      onChange: v => { this.app.desgasteBorde = v; this.app.mascaraCache = null; }
-    });
-    secBrush.append(slTam);
-    secBrush.append(slDur);
-    secBrush.append(slFza);
-    secBrush.append(slRot);
-    secBrush.append(slFeather);
-
-    const inCol = document.createElement('input');
-    inCol.type = 'color'; inCol.value = '#ffffff';
-    inCol.style.cssText = 'flex:1;height:26px;border:none;background:transparent;cursor:pointer;';
-    inCol.oninput = e => { this.app.color = e.target.value; };
-    this.inColor = inCol;
-    secBrush.addRow(new UILabel({ text: 'Main Color:' }), inCol);
-
-    const secCanvas = accordion.addItem({ title: 'Canvas & Zoom', open: false });
-    const btnZoomMenos = new UIButton({ text: '-', onClick: () => this.app.cambiarZoom(this.app.zoom / 1.25) });
-    const btnZoomMas = new UIButton({ text: '+', onClick: () => this.app.cambiarZoom(this.app.zoom * 1.25) });
-    const btnZoom100 = new UIButton({ text: '100%', onClick: () => this.app.cambiarZoom(1) });
-    const btnFit = new UIButton({
-      text: 'Fit Viewport',
-      onClick: () => {
-        const r = this.contenedorCentral.getBoundingClientRect();
-        const z = Math.min((r.width - 60) / this.app.documento.ancho, (r.height - 60) / this.app.documento.alto);
-        this.app.cambiarZoom(Math.max(0.05, z));
-      }
-    });
-    this.lblZoom = new UILabel({ text: '100%' });
-    secCanvas.addRow(btnZoomMenos, this.lblZoom, btnZoomMas);
-    secCanvas.addRow(btnZoom100, btnFit);
-
-    const btnFitLayer = new UIButton({
-      text: 'Fit Canvas to Layer (Q)',
-      variant: 'primary',
-      onClick: () => this.app.ajustarCanvasACapa()
-    });
-    secCanvas.append(btnFitLayer);
-
-    this.leftGroup.addPanel(this.panelIzq);
-  }
-
-  construirPanelDerecho() {
-    this.panelDer = new UISmartPanel({
-      id: 'panel_der_gestion',
-      title: 'Layers & Color Filters',
-      width: 290,
-      floating: false
-    });
-
-    const accordion = new UIAccordion({ exclusive: false });
-    this.panelDer.append(accordion);
-
-    const secLayers = accordion.addItem({ title: 'Layer Stack', open: true });
-    const btnNC = new UIButton({ text: '+ Layer', variant: 'primary', onClick: () => this.app.nuevaCapa() });
-    const btnDC = new UIButton({ text: 'Duplicate', onClick: () => this.app.duplicarCapa() });
-    const btnEC = new UIButton({ text: 'Delete', variant: 'danger', onClick: () => this.app.eliminarCapa() });
-    secLayers.addRow(btnNC, btnDC, btnEC);
-
-    const btnSub = new UIButton({ text: 'Move Up', onClick: () => this.app.subirCapa() });
-    const btnBaj = new UIButton({ text: 'Move Down', onClick: () => this.app.bajarCapa() });
-    secLayers.addRow(btnSub, btnBaj);
-
-    const btnVolH = new UIButton({
-      text: 'Flip Horiz',
-      onClick: () => { if (this.app.capaActiva) { this.app.guardarHistorial(); this.app.capaActiva.voltear(true); this.app.renderizar(); } }
-    });
-    const btnVolV = new UIButton({
-      text: 'Flip Vert',
-      onClick: () => { if (this.app.capaActiva) { this.app.guardarHistorial(); this.app.capaActiva.voltear(false); this.app.renderizar(); } }
-    });
-    secLayers.addRow(btnVolH, btnVolV);
-
-    this.selModoMezcla = new UISelect({
-      options: [
-        { value: 'normal', label: 'NORMAL' },
-        { value: 'multiply', label: 'MULTIPLY' },
-        { value: 'screen', label: 'SCREEN' },
-        { value: 'overlay', label: 'OVERLAY' },
-        { value: 'difference', label: 'DIFFERENCE' }
-      ],
-      value: 'normal'
-    });
-
-    const btnMerge = new UIButton({
-      text: 'Merge Down',
-      variant: 'primary',
-      onClick: () => {
-        if (this.app.indiceActiva <= 0) return alert('Select a layer that has a layer below it.');
-        const sup = this.app.capas[this.app.indiceActiva];
-        const inf = this.app.capas[this.app.indiceActiva - 1];
-        const res = this.app.mezclador.mezclar(sup, inf, this.selModoMezcla.getValue(), sup.opacidad);
-        if (res) {
-          this.app.guardarHistorial();
-          inf.redimensionar(res.ancho, res.alto);
-          inf.x = res.x; inf.y = res.y;
-          inf.ctx.putImageData(res.imageData, 0, 0);
-          this.app.capas.splice(this.app.indiceActiva, 1);
-          this.app.indiceActiva = Math.max(0, this.app.indiceActiva - 1);
-          this.actualizarPanelCapas();
-          this.app.renderizar();
+class Layer {
+    constructor(id, name, width, height) {
+        this.id = id;
+        this.name = name;
+        this.width = width;
+        this.height = height;
+        this.visible = true;
+        this.opacity = 1.0;
+        this.canvas = document.createElement('canvas');
+        this.canvas.width = width;
+        this.canvas.height = height;
+        this.canvas.style.width = width + 'px';
+        this.canvas.style.height = height + 'px';
+        this.canvas.className = 'engine-canvas-layer';
+        this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+    }
+    setSize(w, h, preserveData = true) {
+        let temp = null;
+        if (preserveData) {
+            temp = document.createElement('canvas');
+            temp.width = this.width;
+            temp.height = this.height;
+            temp.getContext('2d').drawImage(this.canvas, 0, 0);
         }
-      }
-    });
-    secLayers.addRow(this.selModoMezcla, btnMerge);
+        this.width = w;
+        this.height = h;
+        this.canvas.width = w;
+        this.canvas.height = h;
+        this.canvas.style.width = w + 'px';
+        this.canvas.style.height = h + 'px';
+        if (temp) this.ctx.drawImage(temp, 0, 0);
+    }
+    getSnapshot() { return this.ctx.getImageData(0, 0, this.width, this.height); }
+    restoreSnapshot(data) { this.ctx.putImageData(data, 0, 0); }
+}
 
-    const btnLoadImg = new UIButton({
-      text: 'Import Image to Layer',
-      onClick: () => document.getElementById('archivoCapa').click()
-    });
-    document.getElementById('archivoCapa').onchange = e => {
-      if (e.target.files && e.target.files[0]) {
-        const f = e.target.files[0];
-        const rd = new FileReader();
-        rd.onload = ev => {
-          const im = new Image();
-          im.onload = () => {
-            const c = new Capa(im.naturalWidth, im.naturalHeight, f.name);
-            c.ctx.drawImage(im, 0, 0);
-            this.app.capas.push(c);
-            this.app.indiceActiva = this.app.capas.length - 1;
-            this.actualizarPanelCapas();
-            this.app.renderizar();
-          };
-          im.src = ev.target.result;
-        };
-        rd.readAsDataURL(f);
-        e.target.value = '';
-      }
-    };
-    secLayers.append(btnLoadImg);
-
-    this.reorderListCapas = new UIReorderList({
-      items: this.app.capas,
-      maxHeight: 160,
-      onSelect: (capa, idx) => {
-        this.app.indiceActiva = idx;
-        this.actualizarSliderOpacidad();
-      },
-      onVisibilityChange: (capa, idx, visible) => {
-        capa.visible = visible;
-        this.app.renderizar();
-      },
-      onReorder: (nuevasCapas) => {
-        this.app.capas = nuevasCapas;
-        this.app.renderizar();
-      }
-    });
-    secLayers.append(this.reorderListCapas);
-
-    this.sliderOpacCapa = new UIConfigurableSlider({
-      label: 'Layer Opacity (%)', min: 0, max: 100, step: 1, value: 100,
-      onChange: (v) => {
-        if (this.app.capaActiva) {
-          this.app.capaActiva.opacidad = v / 100;
-          this.app.renderizar();
-          this.reorderListCapas.render();
+class LayerStackEngine {
+    constructor({ defaultWidth = 1024, defaultHeight = 768, renderContainer, onStackChanged = () => {} } = {}) {
+        this.defaultWidth = defaultWidth;
+        this.defaultHeight = defaultHeight;
+        this.container = renderContainer;
+        this.onStackChanged = onStackChanged;
+        this.layers = [];
+        this.activeLayerId = null;
+        this.counter = 0;
+    }
+    createLayer(name = null, width = null, height = null) {
+        this.counter++;
+        const id = 'layer_' + this.counter + '_' + Math.random().toString(36).substring(2, 7);
+        const layerName = name || `Capa ${this.counter}`;
+        const w = width || this.defaultWidth;
+        const h = height || this.defaultHeight;
+        const layer = new Layer(id, layerName, w, h);
+        this.layers.push(layer);
+        this.activeLayerId = id;
+        this.syncDOM();
+        this.onStackChanged(this.getLayerList(), this.activeLayerId);
+        return layer;
+    }
+    duplicateLayer(id) {
+        const src = this.getLayerById(id);
+        if (!src) return null;
+        this.counter++;
+        const newLayer = new Layer('layer_' + this.counter + '_' + Math.random().toString(36).substring(2, 7), `${src.name} (Copia)`, src.width, src.height);
+        newLayer.ctx.drawImage(src.canvas, 0, 0);
+        newLayer.opacity = src.opacity;
+        newLayer.visible = src.visible;
+        const idx = this.layers.findIndex(l => l.id === id);
+        this.layers.splice(idx + 1, 0, newLayer);
+        this.activeLayerId = newLayer.id;
+        this.syncDOM();
+        this.onStackChanged(this.getLayerList(), this.activeLayerId);
+        return newLayer;
+    }
+    deleteLayer(id) {
+        if (this.layers.length <= 1) return;
+        const idx = this.layers.findIndex(l => l.id === id);
+        if (idx === -1) return;
+        this.layers.splice(idx, 1);
+        if (this.activeLayerId === id) this.activeLayerId = this.layers[Math.max(0, idx - 1)].id;
+        this.syncDOM();
+        this.onStackChanged(this.getLayerList(), this.activeLayerId);
+    }
+    moveUp(id) {
+        const idx = this.layers.findIndex(l => l.id === id);
+        if (idx < this.layers.length - 1) {
+            const temp = this.layers[idx];
+            this.layers[idx] = this.layers[idx + 1];
+            this.layers[idx + 1] = temp;
+            this.syncDOM();
+            this.onStackChanged(this.getLayerList(), this.activeLayerId);
         }
-      }
-    });
-    secLayers.append(this.sliderOpacCapa);
+    }
+    moveDown(id) {
+        const idx = this.layers.findIndex(l => l.id === id);
+        if (idx > 0) {
+            const temp = this.layers[idx];
+            this.layers[idx] = this.layers[idx - 1];
+            this.layers[idx - 1] = temp;
+            this.syncDOM();
+            this.onStackChanged(this.getLayerList(), this.activeLayerId);
+        }
+    }
+    mergeDown(id, blendMode = 'source-over') {
+        const idx = this.layers.findIndex(l => l.id === id);
+        if (idx <= 0) return;
+        const upper = this.layers[idx];
+        const lower = this.layers[idx - 1];
+        lower.ctx.save();
+        lower.ctx.globalAlpha = upper.opacity;
+        lower.ctx.globalCompositeOperation = blendMode;
+        lower.ctx.drawImage(upper.canvas, 0, 0);
+        lower.ctx.restore();
+        this.deleteLayer(upper.id);
+    }
+    flipHoriz(id) {
+        const layer = this.getLayerById(id);
+        if (!layer) return;
+        const temp = document.createElement('canvas');
+        temp.width = layer.width; temp.height = layer.height;
+        const tctx = temp.getContext('2d');
+        tctx.translate(layer.width, 0);
+        tctx.scale(-1, 1);
+        tctx.drawImage(layer.canvas, 0, 0);
+        layer.ctx.clearRect(0, 0, layer.width, layer.height);
+        layer.ctx.drawImage(temp, 0, 0);
+    }
+    flipVert(id) {
+        const layer = this.getLayerById(id);
+        if (!layer) return;
+        const temp = document.createElement('canvas');
+        temp.width = layer.width; temp.height = layer.height;
+        const tctx = temp.getContext('2d');
+        tctx.translate(0, layer.height);
+        tctx.scale(1, -1);
+        tctx.drawImage(layer.canvas, 0, 0);
+        layer.ctx.clearRect(0, 0, layer.width, layer.height);
+        layer.ctx.drawImage(temp, 0, 0);
+    }
+    getLayerById(id) { return this.layers.find(l => l.id === id) || null; }
+    getActiveLayer() { return this.getLayerById(this.activeLayerId); }
+    setActiveLayer(id) {
+        this.activeLayerId = id;
+        this.onStackChanged(this.getLayerList(), this.activeLayerId);
+    }
+    setLayerVisibility(id, v) {
+        const layer = this.getLayerById(id);
+        if (layer) {
+            layer.visible = v;
+            layer.canvas.style.display = v ? 'block' : 'none';
+            this.onStackChanged(this.getLayerList(), this.activeLayerId);
+        }
+    }
+    setLayerOpacity(id, op) {
+        const layer = this.getLayerById(id);
+        if (layer) {
+            layer.opacity = op;
+            layer.canvas.style.opacity = op;
+            this.onStackChanged(this.getLayerList(), this.activeLayerId);
+        }
+    }
+    reorder(newLayerList) {
+        const map = new Map(this.layers.map(l => [l.id, l]));
+        this.layers = newLayerList.map(item => map.get(item.id)).filter(Boolean);
+        this.syncDOM();
+        this.onStackChanged(this.getLayerList(), this.activeLayerId);
+    }
+    syncDOM() {
+        this.container.innerHTML = '';
+        this.layers.forEach((l, idx) => {
+            l.canvas.style.display = l.visible ? 'block' : 'none';
+            l.canvas.style.opacity = l.opacity;
+            l.canvas.style.zIndex = String(idx + 1);
+            this.container.appendChild(l.canvas);
+        });
+    }
+    getLayerList() {
+        return this.layers.map(l => ({
+            id: l.id,
+            name: `${l.name} (${l.width}x${l.height})`,
+            visible: l.visible,
+            opacity: l.opacity
+        }));
+    }
+}
 
-    const secColor = accordion.addItem({ title: 'GIMP Color Inspector', open: false });
-    this.app.gimpPicker.buildInsideAccordion(secColor, this.app.color);
+class BrushSettingsEngine {
+    constructor({ onSettingsChange = () => {} } = {}) {
+        this.size = 60;
+        this.aspectRatio = 0.0;
+        this.hardness = 0.5;
+        this.opacity = 1.0;
+        this.force = 100.0;
+        this.angle = 0;
+        this.randomRotation = false;
+        this.spacing = 25.0;
+        this.fillShape = false;
+        this.mainColor = '#ffffff';
+        this.stampImage = null;
+        this.tipRenderer = new BrushTipRenderer();
+        this.onSettingsChange = onSettingsChange;
+    }
+    set(key, val, silent = false) {
+        this[key] = val;
+        if (!silent) this.onSettingsChange(key, val);
+    }
+    getStampDimensions() {
+        const sx = this.aspectRatio >= 0 ? 1 : 1 + this.aspectRatio;
+        const sy = this.aspectRatio <= 0 ? 1 : 1 - Math.abs(this.aspectRatio);
+        return {
+            w: Math.max(1, this.size * Math.max(0.01, sx)),
+            h: Math.max(1, this.size * Math.max(0.01, sy))
+        };
+    }
+    getTipCanvas() {
+        return this.tipRenderer.renderTip({
+            size: this.size,
+            hardness: this.hardness,
+            color: this.mainColor,
+            texture: this.stampImage
+        });
+    }
+}
 
-    const secCurvas = accordion.addItem({ title: 'Color Curves Adjustment', open: false });
-    this.app.curvas.buildInsideAccordion(secCurvas);
+class SelectionManager {
+    constructor({ selectionCanvas, onSelectionChange = () => {} } = {}) {
+        this.canvas = selectionCanvas;
+        this.ctx = this.canvas.getContext('2d');
+        this.onSelectionChange = onSelectionChange;
+        this.polygon = [];
+        this.hasSelection = false;
+        this.maskCanvas = document.createElement('canvas');
+        this.maskCtx = this.maskCanvas.getContext('2d');
+    }
+    setSize(w, h) {
+        this.canvas.width = w;
+        this.canvas.height = h;
+        this.canvas.style.width = w + 'px';
+        this.canvas.style.height = h + 'px';
+        this.maskCanvas.width = w;
+        this.maskCanvas.height = h;
+    }
+    setRect(x, y, w, h) {
+        this.polygon = [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }];
+        this.hasSelection = (w > 1 && h > 1);
+        this.updateMask();
+        this.drawMarchingAnts();
+        this.onSelectionChange(this.hasSelection);
+    }
+    setLasso(points) {
+        this.polygon = [...points];
+        this.hasSelection = points.length > 2;
+        this.updateMask();
+        this.drawMarchingAnts();
+        this.onSelectionChange(this.hasSelection);
+    }
+    updateMask() {
+        this.maskCtx.clearRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
+        if (!this.hasSelection || this.polygon.length < 3) return;
+        this.maskCtx.fillStyle = '#ffffff';
+        this.maskCtx.beginPath();
+        this.maskCtx.moveTo(this.polygon[0].x, this.polygon[0].y);
+        for (let i = 1; i < this.polygon.length; i++) this.maskCtx.lineTo(this.polygon[i].x, this.polygon[i].y);
+        this.maskCtx.closePath();
+        this.maskCtx.fill();
+    }
+    clear() {
+        this.polygon = [];
+        this.hasSelection = false;
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.maskCtx.clearRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
+        this.onSelectionChange(false);
+    }
+    applyClipping(targetCtx) {
+        if (!this.hasSelection || this.polygon.length < 3) return false;
+        targetCtx.beginPath();
+        targetCtx.moveTo(this.polygon[0].x, this.polygon[0].y);
+        for (let i = 1; i < this.polygon.length; i++) targetCtx.lineTo(this.polygon[i].x, this.polygon[i].y);
+        targetCtx.closePath();
+        targetCtx.clip();
+        return true;
+    }
+    drawMarchingAnts(previewPoints = null) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        const pts = previewPoints || this.polygon;
+        if (!pts || pts.length < 2) return;
+        this.ctx.save();
+        this.ctx.strokeStyle = '#38bdf8';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) this.ctx.lineTo(pts[i].x, pts[i].y);
+        if (!previewPoints) this.ctx.closePath();
+        this.ctx.stroke();
+        this.ctx.restore();
+    }
+    getBounds() {
+        if (!this.hasSelection || this.polygon.length === 0) return { x: 0, y: 0, width: this.canvas.width, height: this.canvas.height };
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        this.polygon.forEach(p => {
+            if (p.x < minX) minX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y > maxY) maxY = p.y;
+        });
+        return {
+            x: Math.max(0, Math.floor(minX)),
+            y: Math.max(0, Math.floor(minY)),
+            width: Math.min(this.canvas.width - minX, Math.ceil(maxX - minX)),
+            height: Math.min(this.canvas.height - minY, Math.ceil(maxY - minY))
+        };
+    }
+}
 
-    const secMirror = accordion.addItem({ title: 'Mirror Extension', open: false });
-    const btnMirrorH = new UIButton({ text: 'Mirror Horiz (2x Width)', variant: 'primary', onClick: () => this.app.aplicarMirror(true) });
-    const btnMirrorV = new UIButton({ text: 'Mirror Vert (2x Height)', variant: 'primary', onClick: () => this.app.aplicarMirror(false) });
-    secMirror.addRow(btnMirrorH, btnMirrorV);
+class ClipboardManager {
+    constructor({ onClipboardChanged = () => {} } = {}) {
+        this.buffer = null;
+        this.bounds = null;
+        this.onClipboardChanged = onClipboardChanged;
+    }
+    async copy(layer, selectionManager) {
+        if (!layer) return null;
+        const b = selectionManager.getBounds();
+        if (b.width <= 0 || b.height <= 0) return null;
 
-    const secFiltros = accordion.addItem({ title: 'Image Filters & Adjustments', open: false });
-    const slBri = new UIConfigurableSlider({ label: 'Brightness', min: 0, max: 200, step: 1, value: 100 });
-    const slCon = new UIConfigurableSlider({ label: 'Contrast', min: 0, max: 200, step: 1, value: 100 });
-    const slSat = new UIConfigurableSlider({ label: 'Saturation', min: 0, max: 200, step: 1, value: 100 });
-    const slBlur = new UIConfigurableSlider({ label: 'Blur Radius (px)', min: 0, max: 30, step: 0.5, value: 0 });
+        const clipCanvas = document.createElement('canvas');
+        clipCanvas.width = b.width;
+        clipCanvas.height = b.height;
+        const cctx = clipCanvas.getContext('2d');
 
-    const btnApplyCSS = new UIButton({
-      text: 'Apply Adjustments', variant: 'primary',
-      onClick: () => {
-        const c = this.app.capaActiva;
-        if (!c) return;
-        this.app.guardarHistorial();
-        const t = document.createElement('canvas');
-        t.width = c.ancho; t.height = c.alto;
-        const tc = t.getContext('2d');
-        tc.filter = `brightness(${slBri.getValue()}%) contrast(${slCon.getValue()}%) saturate(${slSat.getValue()}%) blur(${slBlur.getValue()}px)`;
-        tc.drawImage(c.canvas, 0, 0);
-        c.ctx.clearRect(0, 0, c.ancho, c.alto);
-        c.ctx.drawImage(t, 0, 0);
-        this.app.renderizar();
-      }
-    });
-    secFiltros.append(slBri);
-    secFiltros.append(slCon);
-    secFiltros.append(slSat);
-    secFiltros.append(slBlur);
-    secFiltros.append(btnApplyCSS);
+        if (selectionManager.hasSelection) {
+            cctx.save();
+            cctx.drawImage(selectionManager.maskCanvas, b.x, b.y, b.width, b.height, 0, 0, b.width, b.height);
+            cctx.globalCompositeOperation = 'source-in';
+            cctx.drawImage(layer.canvas, b.x, b.y, b.width, b.height, 0, 0, b.width, b.height);
+            cctx.restore();
+        } else {
+            cctx.drawImage(layer.canvas, b.x, b.y, b.width, b.height, 0, 0, b.width, b.height);
+        }
 
-    const btnGray = new UIButton({
-      text: 'Grayscale',
-      onClick: () => this.app.aplicarFiltroPixel((r, g, b, a) => {
-        const v = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-        return [v, v, v, a];
-      })
-    });
-    const btnBW = new UIButton({
-      text: 'Threshold (B&W)',
-      onClick: () => this.app.aplicarFiltroPixel((r, g, b, a) => {
-        const v = (0.299 * r + 0.587 * g + 0.114 * b) > 128 ? 255 : 0;
-        return [v, v, v, a];
-      })
-    });
-    secFiltros.addRow(btnGray, btnBW);
+        this.buffer = clipCanvas;
+        this.bounds = { ...b };
+        this.onClipboardChanged(true);
 
-    const btnInvert = new UIButton({
-      text: 'Invert Colors',
-      onClick: () => this.app.aplicarFiltroPixel((r, g, b, a) => [255 - r, 255 - g, 255 - b, a])
-    });
-    const btnSepia = new UIButton({
-      text: 'Sepia Tone',
-      onClick: () => this.app.aplicarFiltroPixel((r, g, b, a) => {
-        const nr = Math.min(255, (r * 0.393) + (g * 0.769) + (b * 0.189));
-        const ng = Math.min(255, (r * 0.349) + (g * 0.686) + (b * 0.168));
-        const nb = Math.min(255, (r * 0.272) + (g * 0.534) + (b * 0.131));
-        return [nr, ng, nb, a];
-      })
-    });
-    secFiltros.addRow(btnInvert, btnSepia);
+        try {
+            clipCanvas.toBlob(async (blob) => {
+                if (blob && navigator.clipboard && window.ClipboardItem) {
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                }
+            }, 'image/png');
+        } catch (e) {}
 
-    const secGLFX = accordion.addItem({ title: 'WebGL Acceleration (GLFX)', open: false });
-    const btnDenoise = new UIButton({ text: 'Denoise', onClick: () => this.app.aplicarGLFX('reducir_ruido', { exponente: 25 }) });
-    const btnSharpen = new UIButton({ text: 'Sharpen', onClick: () => this.app.aplicarGLFX('enfocar', { radio: 5, fuerza: 1.2 }) });
-    secGLFX.addRow(btnDenoise, btnSharpen);
+        return clipCanvas;
+    }
+    async cut(layer, selectionManager) {
+        if (!layer) return null;
+        const res = await this.copy(layer, selectionManager);
+        this.deleteArea(layer, selectionManager);
+        return res;
+    }
+    deleteArea(layer, selectionManager) {
+        if (!layer) return;
+        const ctx = layer.ctx;
+        ctx.save();
+        if (selectionManager.hasSelection) {
+            ctx.globalCompositeOperation = 'destination-out';
+            selectionManager.applyClipping(ctx);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, layer.width, layer.height);
+        } else {
+            ctx.clearRect(0, 0, layer.width, layer.height);
+        }
+        ctx.restore();
+    }
+}
 
-    const btnNoise = new UIButton({ text: 'Add Noise', onClick: () => this.app.aplicarGLFX('ruido', { cantidad: 0.15 }) });
-    const btnVignette = new UIButton({ text: 'Vignette', onClick: () => this.app.aplicarGLFX('vineta', { tamano: 0.5, cantidad: 0.6 }) });
-    secGLFX.addRow(btnNoise, btnVignette);
+class ToolManager {
+    constructor({ previewCanvas, layerStackEngine, brushSettingsEngine, selectionManager, cadEngine, onColorSampled = () => {}, onStrokeStart = () => {}, onStrokeFinished = () => {} } = {}) {
+        this.preview = previewCanvas;
+        this.pctx = previewCanvas.getContext('2d');
+        this.layers = layerStackEngine;
+        this.brush = brushSettingsEngine;
+        this.selection = selectionManager;
+        this.cad = cadEngine;
+        this.onColorSampled = onColorSampled;
+        this.onStrokeStart = onStrokeStart;
+        this.onStrokeFinished = onStrokeFinished;
 
-    const secExport = accordion.addItem({ title: 'Export & Project Files', open: false });
-    const btnDLpng = new UIButton({
-      text: 'Download PNG', variant: 'primary',
-      onClick: () => {
+        this.currentTool = 'brush';
+        this.isDrawing = false;
+        this.startX = 0;
+        this.startY = 0;
+        this.lastX = 0;
+        this.lastY = 0;
+        this.distAccum = 0;
+        this.cloneSource = null;
+        this.cloneBuffer = null;
+        this.lassoPoints = [];
+        this.polyPoints = [];
+    }
+    setTool(tool) {
+        if (this.currentTool === 'poly' && tool !== 'poly') this.finishPolySelection();
+        this.currentTool = tool;
+        if (this.cad) this.cad.active = (tool === 'cad');
+    }
+    pointerDown(x, y, e) {
+        if (this.currentTool === 'cad' && this.cad) {
+            this.cad.handlePointerDown(x, y, e);
+            return;
+        }
+
+        if ((e.button === 2 || e.altKey) && this.currentTool === 'clone') {
+            const active = this.layers.getActiveLayer();
+            if (active) {
+                this.cloneSource = { x, y };
+                this.cloneBuffer = document.createElement('canvas');
+                this.cloneBuffer.width = active.width;
+                this.cloneBuffer.height = active.height;
+                this.cloneBuffer.getContext('2d').drawImage(active.canvas, 0, 0);
+            }
+            return;
+        }
+
+        if (this.currentTool === 'poly') {
+            if (e.button === 2) {
+                this.polyPoints = [];
+                this.selection.clear();
+                return;
+            }
+            if (e.detail === 2 || (this.polyPoints.length >= 3 && Math.hypot(x - this.polyPoints[0].x, y - this.polyPoints[0].y) < 15)) {
+                this.finishPolySelection();
+                return;
+            }
+            this.polyPoints.push({ x, y });
+            this.selection.drawMarchingAnts(this.polyPoints);
+            return;
+        }
+
+        if (e.button !== 0) return;
+        const layer = this.layers.getActiveLayer();
+        if (!layer) return;
+
+        this.onStrokeStart(layer);
+        this.isDrawing = true;
+        this.startX = x;
+        this.startY = y;
+        this.lastX = x;
+        this.lastY = y;
+        this.distAccum = 0;
+
+        if (this.currentTool === 'eyedropper') {
+            this.sampleColor(x, y);
+            this.isDrawing = false;
+            return;
+        }
+        if (this.currentTool === 'lasso') {
+            this.lassoPoints = [{ x, y }];
+            return;
+        }
+        if (this.currentTool === 'rectSelect') {
+            this.selection.clear();
+            return;
+        }
+        if (['brush', 'eraser', 'clone', 'stamp'].includes(this.currentTool)) {
+            this.drawInterpolatedStamp(layer.ctx, x, y, this.currentTool === 'eraser');
+        }
+    }
+    pointerMove(x, y) {
+        if (this.currentTool === 'cad') return;
+
+        if (this.currentTool === 'poly' && this.polyPoints.length > 0) {
+            const temp = [...this.polyPoints, { x, y }];
+            this.selection.drawMarchingAnts(temp);
+            return;
+        }
+
+        if (!this.isDrawing) return;
+        const layer = this.layers.getActiveLayer();
+        if (!layer) return;
+
+        if (['brush', 'eraser', 'clone', 'stamp'].includes(this.currentTool)) {
+            this.drawContinuousStroke(layer.ctx, this.lastX, this.lastY, x, y, this.currentTool === 'eraser');
+        } else if (this.currentTool === 'move') {
+            const dx = x - this.lastX;
+            const dy = y - this.lastY;
+            const temp = document.createElement('canvas');
+            temp.width = layer.width; temp.height = layer.height;
+            temp.getContext('2d').drawImage(layer.canvas, 0, 0);
+            layer.ctx.clearRect(0, 0, layer.width, layer.height);
+            layer.ctx.drawImage(temp, dx, dy);
+        } else if (this.currentTool === 'rectSelect') {
+            this.selection.setRect(
+                Math.min(this.startX, x), Math.min(this.startY, y),
+                Math.abs(x - this.startX), Math.abs(y - this.startY)
+            );
+        } else if (this.currentTool === 'lasso') {
+            this.lassoPoints.push({ x, y });
+            this.selection.setLasso(this.lassoPoints);
+        } else {
+            this.renderShapePreview(x, y);
+        }
+        this.lastX = x;
+        this.lastY = y;
+    }
+    pointerUp(x, y) {
+        if (!this.isDrawing) return;
+        this.isDrawing = false;
+        this.distAccum = 0;
+        const layer = this.layers.getActiveLayer();
+        if (layer && ['line', 'rect', 'circle', 'arrow'].includes(this.currentTool)) {
+            this.pctx.clearRect(0, 0, this.preview.width, this.preview.height);
+            this.drawShape(layer.ctx, this.startX, this.startY, x, y);
+        }
+        if (this.currentTool === 'lasso' && this.lassoPoints.length > 2) {
+            this.selection.setLasso(this.lassoPoints);
+        }
+        this.onStrokeFinished(layer);
+    }
+    finishPolySelection() {
+        if (this.polyPoints.length >= 3) this.selection.setLasso(this.polyPoints);
+        this.polyPoints = [];
+    }
+    drawContinuousStroke(ctx, x1, y1, x2, y2, isEraser = false) {
+        const dist = Math.hypot(x2 - x1, y2 - y1);
+        const step = Math.max(1, this.brush.size * (Math.max(1, this.brush.spacing) / 100));
+
+        this.distAccum += dist;
+        if (this.distAccum >= step) {
+            const n = Math.floor(this.distAccum / step);
+            for (let i = 1; i <= n; i++) {
+                const t = (step * i) / dist;
+                this.drawInterpolatedStamp(ctx, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, isEraser);
+            }
+            this.distAccum %= step;
+        }
+    }
+    drawInterpolatedStamp(ctx, x, y, isEraser = false) {
+        ctx.save();
+        this.selection.applyClipping(ctx);
+        ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
+        ctx.globalAlpha = this.brush.opacity * (this.brush.force / 100);
+        const dims = this.brush.getStampDimensions();
+
+        if (this.currentTool === 'clone' && this.cloneSource && this.cloneBuffer) {
+            const dx = x - this.startX;
+            const dy = y - this.startY;
+            const sx = this.cloneSource.x + dx;
+            const sy = this.cloneSource.y + dy;
+            ctx.beginPath();
+            ctx.arc(x, y, dims.w / 2, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(this.cloneBuffer, sx - dims.w / 2, sy - dims.h / 2, dims.w, dims.h, x - dims.w / 2, y - dims.h / 2, dims.w, dims.h);
+            ctx.restore();
+            return;
+        }
+
+        const currentAngle = this.brush.randomRotation ? (Math.random() * 180 - 90) : this.brush.angle;
+        const tipCanvas = this.brush.getTipCanvas();
+        ctx.translate(x, y);
+        if (currentAngle !== 0) ctx.rotate((currentAngle * Math.PI) / 180);
+        ctx.drawImage(tipCanvas, -dims.w / 2, -dims.h / 2, dims.w, dims.h);
+        ctx.restore();
+    }
+    renderShapePreview(x, y) {
+        this.pctx.clearRect(0, 0, this.preview.width, this.preview.height);
+        this.drawShape(this.pctx, this.startX, this.startY, x, y);
+    }
+    drawShape(ctx, x1, y1, x2, y2) {
+        ctx.save();
+        this.selection.applyClipping(ctx);
+        ctx.strokeStyle = this.brush.mainColor;
+        ctx.fillStyle = this.brush.mainColor;
+        ctx.lineWidth = this.brush.size;
+        ctx.globalAlpha = this.brush.opacity;
+
+        if (this.currentTool === 'line') {
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        } else if (this.currentTool === 'rect') {
+            const rx = Math.min(x1, x2), ry = Math.min(y1, y2), rw = Math.abs(x2 - x1), rh = Math.abs(y2 - y1);
+            if (this.brush.fillShape) ctx.fillRect(rx, ry, rw, rh); else ctx.strokeRect(rx, ry, rw, rh);
+        } else if (this.currentTool === 'circle') {
+            const rx = (x2 - x1) / 2, ry = (y2 - y1) / 2;
+            ctx.beginPath(); ctx.ellipse(x1 + rx, y1 + ry, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
+            if (this.brush.fillShape) ctx.fill(); else ctx.stroke();
+        } else if (this.currentTool === 'arrow') {
+            this.drawArrow(ctx, x1, y1, x2, y2);
+        }
+        ctx.restore();
+    }
+    drawArrow(ctx, fromx, fromy, tox, toy) {
+        const headlen = Math.max(10, this.brush.size * 2.5);
+        const angle = Math.atan2(toy - fromy, tox - fromx);
+        ctx.beginPath(); ctx.moveTo(fromx, fromy); ctx.lineTo(tox, toy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(tox, toy);
+        ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath(); ctx.fill();
+    }
+    sampleColor(x, y) {
+        const layer = this.layers.getActiveLayer();
+        if (!layer) return;
+        const px = layer.ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+        const hex = "#" + ((1 << 24) + (px[0] << 16) + (px[1] << 8) + px[2]).toString(16).slice(1);
+        this.onColorSampled(hex);
+    }
+}
+
+class ProjectExporter {
+    static exportImage(layerStack, format = 'png') {
+        const active = layerStack.getActiveLayer();
+        const exportWidth = active ? active.width : layerStack.defaultWidth;
+        const exportHeight = active ? active.height : layerStack.defaultHeight;
+        const out = document.createElement('canvas');
+        out.width = exportWidth; out.height = exportHeight;
+        const octx = out.getContext('2d');
+        layerStack.layers.forEach(l => {
+            if (l.visible) {
+                octx.save();
+                octx.globalAlpha = l.opacity;
+                octx.drawImage(l.canvas, 0, 0);
+                octx.restore();
+            }
+        });
         const a = document.createElement('a');
-        a.download = 'render.png'; a.href = this.app.lienzo.toDataURL('image/png'); a.click();
-      }
-    });
-    const btnDLjpg = new UIButton({
-      text: 'Download JPG',
-      onClick: () => {
-        const t = document.createElement('canvas');
-        t.width = this.app.lienzo.width; t.height = this.app.lienzo.height;
-        const tc = t.getContext('2d');
-        tc.fillStyle = '#ffffff'; tc.fillRect(0, 0, t.width, t.height);
-        tc.drawImage(this.app.lienzo, 0, 0);
-        const a = document.createElement('a');
-        a.download = 'render.jpg'; a.href = t.toDataURL('image/jpeg', 0.95); a.click();
-      }
-    });
-    secExport.addRow(btnDLpng, btnDLjpg);
-
-    const btnGuardarJSON = new UIButton({
-      text: 'Save Project (JSON)',
-      onClick: async () => {
-        const st = await this.app.exportarEstado();
-        const b = new Blob([JSON.stringify(st)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(b);
-        a.download = `project_${Date.now()}.json`;
+        a.download = `substance_output_${Date.now()}.${format}`;
+        a.href = out.toDataURL(format === 'png' ? 'image/png' : 'image/jpeg', 0.95);
         a.click();
-      }
-    });
-    const btnCargarJSON = new UIButton({
-      text: 'Load Project (JSON)',
-      onClick: () => document.getElementById('archivoJSON').click()
-    });
-    document.getElementById('archivoJSON').onchange = e => {
-      if (e.target.files && e.target.files[0]) {
-        const rd = new FileReader();
-        rd.onload = ev => this.app.cargarEstado(JSON.parse(ev.target.result));
-        rd.readAsText(e.target.files[0]);
-        e.target.value = '';
-      }
-    };
-    secExport.addRow(btnGuardarJSON, btnCargarJSON);
-
-    this.construirPanelIAGenerator();
-    this.construirPanelSDTurbo();
-
-    this.rightGroup.addPanel(this.panelDer);
-  }
-
-  construirPanelIAGenerator() {
-    this.panelAI = new UISmartPanel({
-      id: 'panel_ai_generator_studio',
-      title: 'AI Image Generator Studio',
-      width: 290,
-      floating: false
-    });
-
-    const accordion = new UIAccordion({ exclusive: false });
-    this.panelAI.append(accordion);
-
-    const secDirect = accordion.addItem({ title: 'One-Click Photo 8K', open: true });
-    secDirect.append(new UIButton({
-      text: '⚡ Generate 8K Photo Layer',
-      variant: 'primary',
-      onClick: () => this.generarFoto8kDirecto()
-    }));
-
-    const secConfig = accordion.addItem({ title: 'Studio Model Config', open: true });
-    this.aiBaseModel = new UISelect({
-      options: [
-        { value: 'sd_xl_base_1.0.safetensors', label: 'SDXL Standard' },
-        { value: 'realisticStockPhoto_v20.safetensors', label: 'Realistic Stock v2.0' },
-        { value: 'juggernautXL_v8Rundiffusion.safetensors', label: 'Juggernaut XL v8' }
-      ],
-      value: 'sd_xl_base_1.0.safetensors'
-    });
-    secConfig.addRow(new UILabel({ text: 'Base Model:' }), this.aiBaseModel);
-
-    this.aiPerf = new UIRadioGroup({
-      items: [
-        { label: 'Speed', value: 'Speed' },
-        { label: 'Quality', value: 'Quality' },
-        { label: 'Lightning', value: 'Lightning' }
-      ],
-      activeIndex: 0
-    });
-    secConfig.append(this.aiPerf);
-
-    this.aiAspect = new UISelect({
-      options: [
-        { value: '1024×1024', label: '1024×1024 (1:1)' },
-        { value: '1152×896', label: '1152×896 (9:7)' },
-        { value: '896×1152', label: '896×1152 (7:9)' },
-        { value: '1216×832', label: '1216×832 (3:2)' },
-        { value: '1344×768', label: '1344×768 (16:9)' }
-      ],
-      value: '1024×1024'
-    });
-    secConfig.addRow(new UILabel({ text: 'Resolution:' }), this.aiAspect);
-
-    this.aiUseActiveLayer = new UIToggle({ label: 'Use Active Layer Input', value: true });
-    secConfig.append(this.aiUseActiveLayer);
-
-    this.aiNumImages = new UIConfigurableSlider({ label: 'Image Count', min: 1, max: 4, step: 1, value: 1 });
-    secConfig.append(this.aiNumImages);
-
-    const secPrompts = accordion.addItem({ title: 'Prompts Setup', open: true });
-    secPrompts.append(new UILabel({ text: 'Positive Prompt:' }));
-    this.txtAiPrompt = document.createElement('textarea');
-    this.txtAiPrompt.rows = 3;
-    this.txtAiPrompt.className = 'ui-input';
-    this.txtAiPrompt.style.cssText = 'width:100%;height:60px;box-sizing:border-box;resize:vertical;';
-    this.txtAiPrompt.value = 'Concept art of an industrial sci-fi machine, pure background, sharp focus, 8k render';
-    secPrompts.append(this.txtAiPrompt);
-
-    secPrompts.append(new UILabel({ text: 'Negative Prompt:' }));
-    this.txtAiNeg = document.createElement('textarea');
-    this.txtAiNeg.rows = 2;
-    this.txtAiNeg.className = 'ui-input';
-    this.txtAiNeg.style.cssText = 'width:100%;height:45px;box-sizing:border-box;resize:vertical;';
-    this.txtAiNeg.value = 'blurry, unfocused, bad anatomy, low quality, artifacts, watermark';
-    secPrompts.append(this.txtAiNeg);
-
-    const secAction = accordion.addItem({ title: 'Execution', open: true });
-    this.lblAiStatus = document.createElement('div');
-    this.lblAiStatus.className = 'ui-label';
-    this.lblAiStatus.style.cssText = 'text-align:center;width:100%;min-height:16px;';
-    secAction.append(this.lblAiStatus);
-
-    this.btnRunStudio = new UIButton({
-      text: '⚡ Generate Images Studio',
-      variant: 'primary',
-      onClick: () => this.ejecutarGeneracionStudio()
-    });
-    secAction.append(this.btnRunStudio);
-
-    this.rightGroup.addPanel(this.panelAI);
-  }
-
-  construirPanelSDTurbo() {
-    this.panelTurbo = new UISmartPanel({
-      id: 'panel_sd_turbo_generator',
-      title: 'Fast AI (SD Turbo / Lightning)',
-      width: 290,
-      floating: false
-    });
-
-    const accordion = new UIAccordion({ exclusive: false });
-    this.panelTurbo.append(accordion);
-
-    const secConfig = accordion.addItem({ title: 'Parameters', open: true });
-    this.radTurboModel = new UIRadioGroup({
-      items: [
-        { label: 'SD-Turbo (Fast)', value: 0 },
-        { label: 'SDXL-Lightning', value: 1 }
-      ],
-      activeIndex: 0
-    });
-    secConfig.append(this.radTurboModel);
-
-    this.tglTurboLayer = new UIToggle({ label: 'Use Layer as Input (img2img)', value: false });
-    secConfig.append(this.tglTurboLayer);
-
-    this.sliderTurboStrength = new UIConfigurableSlider({ label: 'Denoising Strength', min: 0.1, max: 0.95, step: 0.01, value: 0.5 });
-    secConfig.append(this.sliderTurboStrength);
-
-    this.sliderTurboNum = new UIConfigurableSlider({ label: 'Images to Generate', min: 1, max: 4, step: 1, value: 1 });
-    secConfig.append(this.sliderTurboNum);
-
-    const secPrompt = accordion.addItem({ title: 'Prompt & Dimensions', open: true });
-    this.txtTurboPrompt = document.createElement('textarea');
-    this.txtTurboPrompt.rows = 3;
-    this.txtTurboPrompt.className = 'ui-input';
-    this.txtTurboPrompt.style.cssText = 'width:100%;height:60px;box-sizing:border-box;resize:vertical;';
-    this.txtTurboPrompt.value = 'photorealistic cinematic environment, volumetric light, highly detailed 8k photography';
-    secPrompt.append(this.txtTurboPrompt);
-
-    this.inTurboW = new UIInputNumberInt({ value: 1024, min: 128, max: 2048 });
-    this.inTurboH = new UIInputNumberInt({ value: 1024, min: 128, max: 2048 });
-    secPrompt.addRow(
-      new UILabel({ text: 'W:' }), this.inTurboW,
-      new UILabel({ text: 'H:' }), this.inTurboH
-    );
-
-    const secRun = accordion.addItem({ title: 'Generate', open: true });
-    this.lblTurboStatus = document.createElement('div');
-    this.lblTurboStatus.className = 'ui-label';
-    this.lblTurboStatus.style.cssText = 'text-align:center;width:100%;min-height:16px;';
-    secRun.append(this.lblTurboStatus);
-
-    this.btnRunTurbo = new UIButton({
-      text: '⚡ Generate Fast Image',
-      variant: 'primary',
-      onClick: () => this.ejecutarGeneracionTurbo()
-    });
-    secRun.append(this.btnRunTurbo);
-
-    this.rightGroup.addPanel(this.panelTurbo);
-  }
-
-  async generarFoto8kDirecto() {
-    const act = this.app.capaActiva;
-    if (!act) return alert('No active layer selected.');
-
-    const temp = document.createElement('canvas');
-    temp.width = 1024; temp.height = 1024;
-    const tCtx = temp.getContext('2d');
-    tCtx.drawImage(act.canvas, 0, 0, 1024, 1024);
-
-    const payload = {
-      prompt: 'photorealistic, high quality, 8k resolution, professional photography, highly detailed, sharp focus, clean lighting, 8k uhd',
-      model: 0,
-      image: temp.toDataURL('image/png'),
-      strength: 0.1,
-      width: 1024,
-      height: 1024,
-      image_num: 1
-    };
-
-    try {
-      const res = await fetch('http://127.0.0.1:7860/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      const url = (data.images && data.images.length > 0) ? data.images[0] : data.image;
-      await this.app.setUrlComoCapa(url, 'AI Photo 8K');
-    } catch (err) {
-      alert('AI Server Error (7860): ' + err.message);
     }
-  }
-
-  async ejecutarGeneracionStudio() {
-    const pmt = this.txtAiPrompt.value.trim();
-    if (!pmt) return alert('Enter a prompt.');
-
-    let imgBase64 = null;
-    if (this.aiUseActiveLayer.getValue() && this.app.capaActiva) {
-      const temp = document.createElement('canvas');
-      temp.width = 1024; temp.height = 1024;
-      temp.getContext('2d').drawImage(this.app.capaActiva.canvas, 0, 0, 1024, 1024);
-      imgBase64 = temp.toDataURL('image/png');
-    }
-
-    const payload = {
-      prompt: pmt,
-      negative_prompt: this.txtAiNeg.value.trim(),
-      base_model: this.aiBaseModel.getValue(),
-      performance: this.aiPerf.getValue(),
-      aspect_ratio: this.aiAspect.getValue(),
-      input_image: imgBase64,
-      ip_type: 'ImagePrompt',
-      ip_stop: 0.5,
-      ip_weight: 0.6,
-      image_number: this.aiNumImages.getValue()
-    };
-
-    this.btnRunStudio.setDisabled(true);
-    this.lblAiStatus.textContent = 'Generating with Studio AI...';
-
-    try {
-      const res = await fetch('http://127.0.0.1:7865/custom_api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) throw new Error(`Code ${res.status}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Generation failed.');
-      const imgs = data.images || [];
-      for (let i = 0; i < imgs.length; i++) {
-        await this.app.setUrlComoCapa(imgs[i], `AI Studio (${i + 1})`);
-      }
-      this.lblAiStatus.textContent = '✓ Generation complete!';
-      setTimeout(() => { this.lblAiStatus.textContent = ''; }, 3000);
-    } catch (err) {
-      this.lblAiStatus.textContent = 'Error: ' + err.message;
-    } finally {
-      this.btnRunStudio.setDisabled(false);
-    }
-  }
-
-  async ejecutarGeneracionTurbo() {
-    const pmt = this.txtTurboPrompt.value.trim();
-    if (!pmt) return alert('Enter a prompt.');
-
-    let imgBase64 = null;
-    if (this.tglTurboLayer.getValue() && this.app.capaActiva) {
-      const temp = document.createElement('canvas');
-      temp.width = 1024; temp.height = 1024;
-      temp.getContext('2d').drawImage(this.app.capaActiva.canvas, 0, 0, 1024, 1024);
-      imgBase64 = temp.toDataURL('image/png');
-    }
-
-    const modelIdx = Number(this.radTurboModel.getValue());
-    const payload = {
-      prompt: pmt,
-      model: modelIdx,
-      image: imgBase64,
-      strength: this.sliderTurboStrength.getValue(),
-      width: this.inTurboW.getValue() || 1024,
-      height: this.inTurboH.getValue() || 1024,
-      image_num: this.sliderTurboNum.getValue()
-    };
-
-    this.btnRunTurbo.setDisabled(true);
-    const mName = modelIdx === 1 ? 'SDXL-Lightning' : 'SD-Turbo';
-    this.lblTurboStatus.textContent = `Generating with ${mName}...`;
-
-    try {
-      const res = await fetch('http://127.0.0.1:7860/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      const imgs = data.images && data.images.length > 0 ? data.images : [data.image];
-      for (let i = 0; i < imgs.length; i++) {
-        await this.app.setUrlComoCapa(imgs[i], `${mName} (${i + 1})`);
-      }
-      this.lblTurboStatus.textContent = '✓ Done!';
-      setTimeout(() => { this.lblTurboStatus.textContent = ''; }, 3000);
-    } catch (err) {
-      this.lblTurboStatus.textContent = 'Error: ' + err.message;
-    } finally {
-      this.btnRunTurbo.setDisabled(false);
-    }
-  }
-
-  actualizarPanelCapas() {
-    if (!this.reorderListCapas) return;
-    this.reorderListCapas.setItems(this.app.capas, this.app.indiceActiva);
-    this.actualizarSliderOpacidad();
-  }
-
-  actualizarSliderOpacidad() {
-    if (!this.sliderOpacCapa || !this.app.capaActiva) return;
-    this.sliderOpacCapa.setValue(Math.round(this.app.capaActiva.opacidad * 100));
-  }
-
-  enlazarEventosLienzo() {
-    this.app.lienzo.addEventListener('pointerdown', e => {
-      this.app.lienzo.setPointerCapture(e.pointerId);
-      this.app.onPuntero('down', e);
-    });
-    this.app.lienzo.addEventListener('pointermove', e => this.app.onPuntero('move', e));
-    this.app.lienzo.addEventListener('pointerup', e => this.app.onPuntero('up', e));
-    this.app.lienzo.addEventListener('pointercancel', e => this.app.onPuntero('up', e));
-    this.app.lienzo.addEventListener('pointerleave', () => this.app.previsualizacion.style.display = 'none');
-
-    this.contenedorCentral.addEventListener('wheel', e => {
-      e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.12 : 0.88;
-      this.app.cambiarZoom(this.app.zoom * factor);
-    }, { passive: false });
-
-    window.addEventListener('keydown', ev => {
-      if (ev.target.tagName === 'INPUT') return;
-      const k = ev.key.toLowerCase();
-      if (ev.ctrlKey && !ev.shiftKey && k === 'z') { ev.preventDefault(); this.app.deshacer(); return; }
-      if ((ev.ctrlKey && ev.shiftKey && k === 'z') || (ev.ctrlKey && k === 'y')) { ev.preventDefault(); this.app.rehacer(); return; }
-      if (k === 'q') { ev.preventDefault(); this.app.ajustarCanvasACapa(); return; }
-      if (k === 'b') { this.app.herramienta = 'pincel'; this.radTools.setValue('pincel'); return; }
-      if (k === 'e') { this.app.herramienta = 'borrador'; this.radTools.setValue('borrador'); return; }
-      if (k === 'c') { this.app.herramienta = 'clonar'; this.radTools.setValue('clonar'); return; }
-      if (k === 's') { this.app.herramienta = 'sello'; this.radTools.setValue('sello'); return; }
-      if (k === 'm') { this.app.herramienta = 'mover'; this.radTools.setValue('mover'); return; }
-    });
-  }
 }
 
-const appInstancia = new AplicacionPaint(
-  document.getElementById('lienzoComposicion'),
-  document.getElementById('previsualizacionPincel'),
-  document.getElementById('areaLienzoCentral')
-);
+class ApplicationAdapter {
+    constructor() {
+        this.defaultWidth = 1024;
+        this.defaultHeight = 768;
+        this.isInternalColorSync = false;
+        this.preStrokeState = null;
+        this.toolButtons = {};
+        this.initDOM();
+        this.initEngines();
+        this.buildLeftVerticalToolbar();
+        this.buildRightUI();
+        this.bindEvents();
+    }
+    initDOM() {
+        this.stage = document.getElementById('canvas-stage');
+        this.target = document.getElementById('viewport-transform');
+        this.layersContainer = document.getElementById('layers-render-target');
+        this.previewCanvas = document.getElementById('preview-canvas');
+        this.cadCanvas = document.getElementById('cad-vector-canvas');
+        this.selectionCanvas = document.getElementById('selection-canvas');
+        this.syncInteractiveCanvases(this.defaultWidth, this.defaultHeight);
+    }
+    syncInteractiveCanvases(w, h) {
+        this.previewCanvas.width = w; this.previewCanvas.height = h;
+        this.previewCanvas.style.width = w + 'px'; this.previewCanvas.style.height = h + 'px';
 
-const uiInstancia = new InterfazUsuario(
-  appInstancia,
-  document.getElementById('areaLienzoCentral')
-);
+        this.cadCanvas.width = w; this.cadCanvas.height = h;
+        this.cadCanvas.style.width = w + 'px'; this.cadCanvas.style.height = h + 'px';
+
+        this.selectionCanvas.width = w; this.selectionCanvas.height = h;
+        this.selectionCanvas.style.width = w + 'px'; this.selectionCanvas.style.height = h + 'px';
+
+        if (this.cad) this.cad.setSize(w, h);
+        if (this.selection) this.selection.setSize(w, h);
+    }
+    initEngines() {
+        this.zoom = new CanvasZoomManager({
+            container: this.stage,
+            target: this.target,
+            onTransformChange: (scale, panX, panY) => {
+                const hud = document.getElementById('hud');
+                if (hud) {
+                    const cadType = (this.cad && this.cad.currentType) ? this.cad.currentType : 'Off';
+                    hud.textContent = `Zoom: ${(scale * 100).toFixed(0)}% | CAD: ${cadType} | Q: Adaptar`;
+                }
+            }
+        });
+
+        this.history = new HistoryManager({ onStateChange: () => {} });
+
+        this.layers = new LayerStackEngine({
+            defaultWidth: this.defaultWidth,
+            defaultHeight: this.defaultHeight,
+            renderContainer: this.layersContainer,
+            onStackChanged: (list, activeId) => {
+                if (this.reorderList) {
+                    this.reorderList.setItems(list.map(l => ({
+                        id: l.id, name: l.name, visible: l.visible, opacity: l.opacity
+                    })), list.findIndex(l => l.id === activeId));
+                }
+            }
+        });
+
+        this.brush = new BrushSettingsEngine({
+            onSettingsChange: (k, v) => {
+                if (k === 'mainColor' && this.colorPicker && !this.isInternalColorSync) {
+                    this.isInternalColorSync = true;
+                    this.colorPicker.setHex(v);
+                    this.isInternalColorSync = false;
+                }
+                this.updateBrushPreview();
+                if (this.cad && this.cad.useBrushStamp) this.cad.render();
+            }
+        });
+
+        this.selection = new SelectionManager({ selectionCanvas: this.selectionCanvas });
+        this.clipboard = new ClipboardManager();
+
+        this.cad = new CadVectorEngine({
+            canvas: this.cadCanvas,
+            brushEngine: this.brush,
+            getCoords: (e) => this.zoom.screenToWorld(e.clientX, e.clientY),
+            onStateChange: (engine) => {
+                const hud = document.getElementById('hud');
+                if (hud) {
+                    const ctype = (engine && engine.currentType) ? engine.currentType : 'bezier';
+                    const slen = (engine && engine.shapes) ? engine.shapes.length : 0;
+                    hud.textContent = `CAD: ${ctype} | Figuras: ${slen}`;
+                }
+            }
+        });
+
+        this.tools = new ToolManager({
+            previewCanvas: this.previewCanvas,
+            layerStackEngine: this.layers,
+            brushSettingsEngine: this.brush,
+            selectionManager: this.selection,
+            cadEngine: this.cad,
+            onColorSampled: (hex) => {
+                this.isInternalColorSync = true;
+                this.brush.set('mainColor', hex, true);
+                if (this.colorPicker) this.colorPicker.setHex(hex);
+                this.isInternalColorSync = false;
+                this.updateBrushPreview();
+            },
+            onStrokeStart: (layer) => { this.preStrokeState = layer.getSnapshot(); },
+            onStrokeFinished: (layer) => {
+                if (!this.preStrokeState) return;
+                const before = this.preStrokeState;
+                const after = layer.getSnapshot();
+                const targetLayer = layer;
+                this.history.push({
+                    undo: () => targetLayer.restoreSnapshot(before),
+                    redo: () => targetLayer.restoreSnapshot(after)
+                });
+                this.preStrokeState = null;
+            }
+        });
+
+        const bg = this.layers.createLayer('Base Background', this.defaultWidth, this.defaultHeight);
+        bg.ctx.fillStyle = '#22252c';
+        bg.ctx.fillRect(0, 0, this.defaultWidth, this.defaultHeight);
+        this.layers.createLayer('Paint Layer 1', this.defaultWidth, this.defaultHeight);
+        requestAnimationFrame(() => this.ajustarCanvasACapaActiva());
+    }
+
+    updateBrushPreview() {
+        if (!this.brushPreviewCanvas) return;
+        const pctx = this.brushPreviewCanvas.getContext('2d');
+        pctx.clearRect(0, 0, this.brushPreviewCanvas.width, this.brushPreviewCanvas.height);
+        const tip = this.brush.getTipCanvas();
+        pctx.drawImage(tip, 0, 0, this.brushPreviewCanvas.width, this.brushPreviewCanvas.height);
+    }
+
+    centerView(w = null, h = null) {
+        const act = this.layers.getActiveLayer();
+        const width = w || (act ? act.width : this.defaultWidth);
+        const height = h || (act ? act.height : this.defaultHeight);
+        const leftMargin = 70;
+        const rightMargin = 330;
+        const availW = Math.max(100, window.innerWidth - leftMargin - rightMargin);
+        const availH = Math.max(100, window.innerHeight - 50);
+
+        const fit = Math.min(availW / width, availH / height, 1.0) * 0.90;
+        this.zoom.scale = Math.max(0.05, fit);
+        const centerX = leftMargin + availW / 2;
+        const centerY = window.innerHeight / 2;
+        this.zoom.panX = centerX - (width * this.zoom.scale) / 2;
+        this.zoom.panY = centerY - (height * this.zoom.scale) / 2;
+        this.zoom.apply();
+    }
+
+    ajustarCanvasACapaActiva() {
+        const act = this.layers.getActiveLayer();
+        if (!act) return;
+        this.syncInteractiveCanvases(act.width, act.height);
+        this.centerView(act.width, act.height);
+        const hud = document.getElementById('hud');
+        if (hud) hud.textContent = `✓ Canvas adaptado a: ${act.name} (${act.width}x${act.height})`;
+    }
+
+    adaptarCapaActivaAlCanvas() {
+        const act = this.layers.getActiveLayer();
+        if (!act) return;
+        const targetW = this.defaultWidth;
+        const targetH = this.defaultHeight;
+        const before = act.getSnapshot();
+        const temp = document.createElement('canvas');
+        temp.width = act.width; temp.height = act.height;
+        temp.getContext('2d').drawImage(act.canvas, 0, 0);
+
+        act.setSize(targetW, targetH, false);
+        act.ctx.clearRect(0, 0, targetW, targetH);
+        act.ctx.drawImage(temp, 0, 0, targetW, targetH);
+        const after = act.getSnapshot();
+
+        this.history.push({
+            undo: () => act.restoreSnapshot(before),
+            redo: () => act.restoreSnapshot(after)
+        });
+        this.syncInteractiveCanvases(targetW, targetH);
+        this.centerView(targetW, targetH);
+    }
+
+    pegarComoNuevaCapa(canvasRecorte, nombre = 'Capa Pegada') {
+        if (!canvasRecorte || canvasRecorte.width <= 0 || canvasRecorte.height <= 0) return;
+        const w = canvasRecorte.width;
+        const h = canvasRecorte.height;
+        const nuevaCapa = this.layers.createLayer(`${nombre} (${w}x${h})`, w, h);
+        nuevaCapa.ctx.drawImage(canvasRecorte, 0, 0);
+
+        const capaId = nuevaCapa.id;
+        this.history.push({
+            undo: () => this.layers.deleteLayer(capaId),
+            redo: () => {
+                this.layers.layers.push(nuevaCapa);
+                this.layers.setActiveLayer(nuevaCapa.id);
+                this.layers.syncDOM();
+            }
+        });
+        this.ajustarCanvasACapaActiva();
+    }
+
+    buildLeftVerticalToolbar() {
+        const bar = document.getElementById('left-toolbar-strip');
+        bar.innerHTML = '';
+
+        const toolsConfig = [
+            { id: 'brush', label: 'BRS', title: 'Pincel (B)', icon: '<path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.71a.996.996 0 0 0-1.41 0l-9.3 9.3 2.83 2.83 9.3-9.3a.996.996 0 0 0 0-1.41l-1.42-1.42z"/>' },
+            { id: 'cad', label: 'CAD', title: 'Vector / CAD', icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>' },
+            { id: 'eraser', label: 'ERA', title: 'Borrador (E)', icon: '<path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.04 20h8.96l7.41-7.41c.78-.78.78-2.05 0-2.83L16.55 3.59c-.39-.39-.9-.59-1.41-.59zM14 6.83l3.17 3.17L12 15.17 8.83 12 14 6.83z"/>' },
+            { id: 'line', label: 'LIN', title: 'Línea', icon: '<path d="M3.5 20.5l17-17 1.4 1.4-17 17z"/>' },
+            { id: 'rect', label: 'REC', title: 'Rectángulo', icon: '<path d="M3 3h18v18H3V3zm2 2v14h14V5H5z"/>' },
+            { id: 'circle', label: 'CIR', title: 'Círculo', icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>' },
+            { id: 'arrow', label: 'ARR', title: 'Flecha', icon: '<path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>' },
+            { id: 'eyedropper', label: 'EYE', title: 'Cuentagotas', icon: '<path d="M20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.13-3.13c.39-.39.39-1.02 0-1.41zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/>' },
+            { id: 'clone', label: 'CLN', title: 'Clonar (C)', icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
+            { id: 'stamp', label: 'STM', title: 'Estampa (S)', icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h12l-4-5z"/>' },
+            { id: 'move', label: 'MOV', title: 'Mover (M)', icon: '<path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/>' },
+            { id: 'rectSelect', label: 'SEL', title: 'Selección Rectangular', icon: '<path d="M4 4h4v2H6v2H4V4zm16 0v4h-2V6h-2V4h4zM4 20v-4h2v2h2v2H4zm16 0h-4v-2h2v-2h2v4z"/>' },
+            { id: 'lasso', label: 'LAS', title: 'Selección Lazo', icon: '<path d="M12.3 2a9.7 9.7 0 0 0-9.7 9.7c0 3.7 2 7 5.2 8.6L6 22l3.4-1.3c.9.2 1.9.3 2.9.3 5.4 0 9.7-4.3 9.7-9.7S17.7 2 12.3 2zm0 17.4c-.9 0-1.8-.1-2.6-.4l-.6-.2-1.9.7.7-1.9-.3-.5c-2.7-1.4-4.3-4.1-4.3-7.1 0-4.3 3.6-7.7 7.7-7.7s7.7 3.5 7.7 7.7-3.4 7.7-7.7 7.7z"/>' },
+            { id: 'poly', label: 'POL', title: 'Selección Poligonal', icon: '<path d="M2 12l5-9h10l5 9-5 9H7l-5-9zm6.1-7l-3.9 7 3.9 7h7.8l3.9-7-3.9-7H8.1z"/>' }
+        ];
+
+        toolsConfig.forEach(t => {
+            const btn = document.createElement('button');
+            btn.className = `tool-btn ${t.id === 'brush' ? 'active' : ''}`;
+            btn.title = t.title;
+            btn.innerHTML = `<svg viewBox="0 0 24 24">${t.icon}</svg><span>${t.label}</span>`;
+            btn.onclick = () => this.setActiveTool(t.id);
+            bar.appendChild(btn);
+            this.toolButtons[t.id] = btn;
+        });
+
+        const sep = document.createElement('div');
+        sep.className = 'tool-sep';
+        bar.appendChild(sep);
+
+        const actions = [
+            { label: 'Q', title: 'Ajustar a Capa (Q)', action: () => this.ajustarCanvasACapaActiva(), icon: '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>' },
+            { label: 'W', title: 'Adaptar Capa (W)', action: () => this.adaptarCapaActivaAlCanvas(), icon: '<path d="M4 4h16v16H4V4zm2 2v12h12V6H6z"/>' },
+            { label: 'Z+', title: 'Zoom +', action: () => this.zoom.zoomDelta(1), icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
+            { label: 'Z-', title: 'Zoom -', action: () => this.zoom.zoomDelta(-1), icon: '<path d="M19 13H5v-2h14v2z"/>' },
+            { label: 'UND', title: 'Deshacer (Ctrl+Z)', action: () => this.history.undo(), icon: '<path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>' }
+        ];
+
+        actions.forEach(a => {
+            const btn = document.createElement('button');
+            btn.className = 'tool-btn';
+            btn.title = a.title;
+            btn.innerHTML = `<svg viewBox="0 0 24 24">${a.icon}</svg><span>${a.label}</span>`;
+            btn.onclick = a.action;
+            bar.appendChild(btn);
+        });
+    }
+
+    setActiveTool(toolId) {
+        this.tools.setTool(toolId);
+        Object.keys(this.toolButtons).forEach(id => {
+            if (this.toolButtons[id]) this.toolButtons[id].classList.toggle('active', id === toolId);
+        });
+    }
+
+    buildRightUI() {
+        const pickerWidth = 310;
+        const pickerHeight = 265;
+
+        this.colorPicker = new UI.ColorPicker({
+            id: 'standalone_color_picker',
+            title: 'SELECTOR DE COLOR',
+            x: window.innerWidth - pickerWidth - 14,
+            y: 12,
+            width: pickerWidth,
+            floating: true,
+            initialColor: { r: 255, g: 255, b: 255, a: 1 },
+            onChange: (rgba, RGBA, hex) => {
+                if (this.isInternalColorSync) return;
+                this.isInternalColorSync = true;
+                this.brush.set('mainColor', hex, false);
+                if (this.cad) {
+                    this.cad.defaultStyle.stroke = hex;
+                    this.cad.render();
+                }
+                this.isInternalColorSync = false;
+            }
+        });
+
+        this.rightContainer = new UI.Container({
+            id: 'dock_right',
+            direction: 'column',
+            width: pickerWidth,
+            floating: false
+        }).mount(document.body);
+
+        const containerEl = this.rightContainer.element;
+        containerEl.style.position = 'fixed';
+        containerEl.style.right = '14px';
+        containerEl.style.top = `${pickerHeight + 24}px`;
+        containerEl.style.bottom = '12px';
+        containerEl.style.maxHeight = `calc(100vh - ${pickerHeight + 36}px)`;
+        containerEl.style.overflowY = 'auto';
+        containerEl.style.zIndex = '900';
+
+        window.addEventListener('resize', () => {
+            if (this.colorPicker && this.colorPicker.element) {
+                this.colorPicker.element.style.left = `${window.innerWidth - pickerWidth - 14}px`;
+                this.colorPicker.element.style.top = '12px';
+            }
+            this.centerView();
+        });
+
+        const panelRight = new UI.SmartPanel({
+            id: 'panel_layers_tools',
+            title: 'CAPAS & HERRAMIENTAS',
+            width: pickerWidth - 4,
+            floating: false
+        });
+
+        const accordion = new UI.Accordion({ exclusive: false });
+
+        const itemCAD = accordion.addItem({ title: 'Editor CAD / Vectorial', open: true });
+        
+        const rCadMode = itemCAD.addRow(0);
+        const selCadMode = new UI.Select({
+            options: [
+                { value: 'bezier', label: 'Bézier' },
+                { value: 'poly', label: 'Regresión Polinómica' },
+                { value: 'arc3', label: 'Arco (3 puntos)' },
+                { value: 'arc2', label: 'Arco (2 puntos)' },
+                { value: 'circle', label: 'Círculo' },
+                { value: 'ellipse', label: 'Elipse' },
+                { value: 'rect', label: 'Rectángulo' },
+                { value: 'polygon', label: 'Polígono Regular' },
+                { value: 'trapezoid', label: 'Trapezoide' }
+            ],
+            value: 'bezier'
+        });
+        selCadMode.element.addEventListener('change', () => {
+            this.cad.currentType = selCadMode.getValue();
+            this.cad.finishCurrent();
+            this.setActiveTool('cad');
+        });
+        rCadMode.append(selCadMode);
+
+        const rCadDeg = itemCAD.addRow(4);
+        rCadDeg.append(new UI.ConfigurableSlider({
+            label: 'Grado Curva / Polinomio', min: 1, max: 7, step: 1, value: 3,
+            onChange: (v) => { this.cad.currentDegree = v; this.cad.render(); }
+        }));
+
+        const rCadStyle = itemCAD.addRow(4);
+        rCadStyle.append(new UI.ConfigurableSlider({
+            label: 'Grosor Trazo CAD', min: 1, max: 20, step: 1, value: 2,
+            onChange: (v) => { this.cad.defaultStyle.lineWidth = v; this.cad.render(); }
+        }));
+        rCadStyle.append(new UI.Toggle({
+            label: 'Rellenar Forma', value: false,
+            onChange: (v) => { this.cad.defaultStyle.fill = v ? this.brush.mainColor : null; this.cad.render(); }
+        }));
+
+        this.toggleCadBrush = new UI.Toggle({
+            label: 'Trazar con Brocha / Estampa', value: false,
+            onChange: (v) => { 
+                this.cad.useBrushStamp = v; 
+                this.cad.render();
+            }
+        });
+        itemCAD.append(this.toggleCadBrush);
+
+        const rCadOps = itemCAD.addRow(4);
+        rCadOps.append(new UI.Button({ text: 'Terminar Trazo (Esc)', onClick: () => this.cad.finishCurrent() }));
+        rCadOps.append(new UI.Button({ text: 'Borrar Sel', variant: 'danger', onClick: () => this.cad.deleteSelected() }));
+        rCadOps.append(new UI.Button({ text: 'Limpiar Todo', onClick: () => this.cad.clearAll() }));
+
+        const rCadBake = itemCAD.addRow(0);
+        rCadBake.append(new UI.Button({
+            text: 'Volcar CAD a Capa Activa', variant: 'primary',
+            onClick: () => {
+                const act = this.layers.getActiveLayer();
+                if (!act) return;
+                const before = act.getSnapshot();
+                this.cad.bakeToLayer(act, this.brush);
+                const after = act.getSnapshot();
+                this.history.push({
+                    undo: () => act.restoreSnapshot(before),
+                    redo: () => act.restoreSnapshot(after)
+                });
+                this.cad.clearAll();
+            }
+        }));
+
+        const itemLayers = accordion.addItem({ title: 'Pila de Capas (Layers)', open: false });
+        const rCanvasAdjust = itemLayers.addRow(4);
+        rCanvasAdjust.append(new UI.Button({ text: 'Ajustar a Capa (Q)', variant: 'primary', onClick: () => this.ajustarCanvasACapaActiva() }));
+        rCanvasAdjust.append(new UI.Button({ text: 'Ajustar a Canvas (W)', onClick: () => this.adaptarCapaActivaAlCanvas() }));
+
+        const rTop = itemLayers.addRow(4);
+        rTop.append(new UI.Button({ text: '+ Capa', variant: 'primary', onClick: () => { this.layers.createLayer(); this.ajustarCanvasACapaActiva(); } }));
+        rTop.append(new UI.Button({ text: 'Duplicar', onClick: () => { this.layers.duplicateLayer(this.layers.activeLayerId); this.ajustarCanvasACapaActiva(); } }));
+        rTop.append(new UI.Button({ text: 'Borrar', variant: 'danger', onClick: () => { this.layers.deleteLayer(this.layers.activeLayerId); this.ajustarCanvasACapaActiva(); } }));
+
+        const rMove = itemLayers.addRow(4);
+        rMove.append(new UI.Button({ text: '▲ Subir', onClick: () => this.layers.moveUp(this.layers.activeLayerId) }));
+        rMove.append(new UI.Button({ text: '▼ Bajar', onClick: () => this.layers.moveDown(this.layers.activeLayerId) }));
+        rMove.append(new UI.Button({ text: 'Voltear H', onClick: () => this.layers.flipHoriz(this.layers.activeLayerId) }));
+        rMove.append(new UI.Button({ text: 'Voltear V', onClick: () => this.layers.flipVert(this.layers.activeLayerId) }));
+
+        this.reorderList = new UI.ReorderList({
+            items: this.layers.getLayerList(),
+            onSelect: (item) => {
+                this.layers.setActiveLayer(item.id);
+                this.ajustarCanvasACapaActiva();
+            },
+            onVisibilityChange: (item, idx, v) => this.layers.setLayerVisibility(item.id, v),
+            onReorder: (newList) => this.layers.reorder(newList)
+        });
+        itemLayers.append(this.reorderList);
+
+        itemLayers.append(new UI.ConfigurableSlider({
+            label: 'Opacidad de Capa', min: 0, max: 1, step: 0.01, value: 1.0,
+            onChange: (v) => this.layers.setLayerOpacity(this.layers.activeLayerId, v)
+        }));
+
+        const itemBrush = accordion.addItem({ title: 'Ajustes del Pincel & Trazo', open: false });
+
+        this.brushPreviewCanvas = document.createElement('canvas');
+        this.brushPreviewCanvas.className = 'preview-box';
+        this.brushPreviewCanvas.width = 44;
+        this.brushPreviewCanvas.height = 44;
+
+        const fileInp = document.createElement('input');
+        fileInp.type = 'file';
+        fileInp.accept = 'image/*';
+        fileInp.style.display = 'none';
+        fileInp.addEventListener('change', (e) => {
+            const f = e.target.files[0];
+            if (f) {
+                const img = new Image();
+                img.onload = () => {
+                    this.brush.set('stampImage', img);
+                    this.cad.useBrushStamp = true;
+                    if (this.toggleCadBrush) this.toggleCadBrush.setValue(true);
+                    this.updateBrushPreview();
+                    if (this.cad) this.cad.render();
+                };
+                img.src = URL.createObjectURL(f);
+            }
+        });
+
+        const rLoadStamp = itemBrush.addRow(4);
+        rLoadStamp.append(new UI.Button({ text: 'Cargar Textura/Estampa (Img)', variant: 'primary', onClick: () => fileInp.click() }));
+        rLoadStamp.append(this.brushPreviewCanvas);
+
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Tamaño (Size)', min: 1, max: 800, value: this.brush.size,
+            onChange: (v) => { this.brush.set('size', v); }
+        }));
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Proporción de Aspecto', min: -1.0, max: 1.0, step: 0.01, value: this.brush.aspectRatio,
+            onChange: (v) => { this.brush.set('aspectRatio', v); }
+        }));
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Ángulo', min: 0, max: 360, step: 1, value: this.brush.angle,
+            onChange: (v) => { this.brush.set('angle', v); }
+        }));
+        itemBrush.append(new UI.Toggle({
+            label: 'Giro Dinámico / Aleatorio', value: this.brush.randomRotation,
+            onChange: (v) => { this.brush.set('randomRotation', v); }
+        }));
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Espaciado (%)', min: 1, max: 200, step: 1, value: this.brush.spacing,
+            onChange: (v) => { this.brush.set('spacing', v); }
+        }));
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Dureza (Hardness)', min: 0, max: 1, step: 0.01, value: this.brush.hardness,
+            onChange: (v) => { this.brush.set('hardness', v); }
+        }));
+        
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Opacidad', min: 0.01, max: 1, step: 0.01, value: this.brush.opacity,
+            onChange: (v) => { this.brush.set('opacity', v); }
+        }));
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Forzar / Flujo (%)', min: 1, max: 100, step: 1, value: this.brush.force,
+            onChange: (v) => { this.brush.set('force', v); }
+        }));
+
+        const itemClip = accordion.addItem({ title: 'Portapapeles & Selección', open: false });
+        const rClip = itemClip.addRow(4);
+        rClip.append(new UI.Button({ 
+            text: 'Copiar (Ctrl+C)', variant: 'primary', 
+            onClick: async () => { await this.clipboard.copy(this.layers.getActiveLayer(), this.selection); }
+        }));
+        rClip.append(new UI.Button({ 
+            text: 'Pegar (Ctrl+V)', variant: 'primary', 
+            onClick: () => { if (this.clipboard.buffer) this.pegarComoNuevaCapa(this.clipboard.buffer, 'Selección Pegada'); }
+        }));
+        rClip.append(new UI.Button({ text: 'Limpiar Selección', onClick: () => this.selection.clear() }));
+
+        const itemProj = accordion.addItem({ title: 'Exportar Imagen', open: false });
+        const rExp = itemProj.addRow(4);
+        rExp.append(new UI.Button({ text: 'PNG', variant: 'primary', onClick: () => ProjectExporter.exportImage(this.layers, 'png') }));
+        rExp.append(new UI.Button({ text: 'JPG', onClick: () => ProjectExporter.exportImage(this.layers, 'jpg') }));
+
+        panelRight.append(accordion);
+        this.rightContainer.addPanel(panelRight);
+
+        requestAnimationFrame(() => this.updateBrushPreview());
+    }
+
+    bindEvents() {
+        let isSpacePressed = false;
+
+        window.addEventListener('paste', async (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+            let pastedImage = false;
+
+            if (items) {
+                for (let item of items) {
+                    if (item.type.indexOf('image') !== -1) {
+                        const blob = item.getAsFile();
+                        if (blob) {
+                            pastedImage = true;
+                            e.preventDefault();
+                            const img = new Image();
+                            img.onload = () => this.pegarComoNuevaCapa(img, 'Imagen Pegada');
+                            img.src = URL.createObjectURL(blob);
+                            return;
+                        }
+                    }
+                }
+            }
+            if (!pastedImage && this.clipboard.buffer) {
+                e.preventDefault();
+                this.pegarComoNuevaCapa(this.clipboard.buffer, 'Selección Pegada');
+            }
+        });
+
+        window.addEventListener('keydown', async (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.code === 'Space' && !isSpacePressed) {
+                isSpacePressed = true;
+                this.stage.style.cursor = 'grab';
+            }
+            if (e.ctrlKey && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
+                e.preventDefault();
+                await this.clipboard.copy(this.layers.getActiveLayer(), this.selection);
+            }
+            if (e.ctrlKey && (e.code === 'KeyX' || e.key === 'x' || e.key === 'X')) {
+                e.preventDefault();
+                await this.clipboard.cut(this.layers.getActiveLayer(), this.selection);
+            }
+            if (e.ctrlKey && e.code === 'KeyZ') {
+                if (e.shiftKey) this.history.redo();
+                else this.history.undo();
+                e.preventDefault();
+            } else if (e.ctrlKey && e.code === 'KeyY') {
+                this.history.redo();
+                e.preventDefault();
+            }
+
+            if (e.key === 'q' || e.key === 'Q') {
+                e.preventDefault();
+                this.ajustarCanvasACapaActiva();
+            }
+            if (e.key === 'w' || e.key === 'W') {
+                e.preventDefault();
+                this.adaptarCapaActivaAlCanvas();
+            }
+
+            if (e.key === 'b' || e.key === 'B') this.setActiveTool('brush');
+            if (e.key === 'e' || e.key === 'E') this.setActiveTool('eraser');
+            if (e.key === 'c' && !e.ctrlKey) this.setActiveTool('clone');
+            if (e.key === 's' || e.key === 'S') this.setActiveTool('stamp');
+            if (e.key === 'm' || e.key === 'M') this.setActiveTool('move');
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                isSpacePressed = false;
+                this.stage.style.cursor = 'crosshair';
+                this.zoom.endPan();
+            }
+        });
+
+        this.stage.addEventListener('pointerdown', (e) => {
+            if (isSpacePressed || e.button === 1) {
+                this.zoom.startPan(e.clientX, e.clientY);
+                return;
+            }
+            const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
+            this.tools.pointerDown(coords.x, coords.y, e);
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (this.zoom.isPanning) {
+                this.zoom.pan(e.clientX, e.clientY);
+                return;
+            }
+            const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
+            this.tools.pointerMove(coords.x, coords.y);
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (this.zoom.isPanning) {
+                this.zoom.endPan();
+                return;
+            }
+            const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
+            this.tools.pointerUp(coords.x, coords.y);
+        });
+
+        this.stage.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    window.AppInstance = new ApplicationAdapter();
+    window.grabador = new ClickPointRecorder({
+        target: document.getElementById('canvas-stage'),
+        activo: true,
+        limitar: true,
+        transform: (cx, cy) => window.AppInstance.zoom.screenToWorld(cx, cy),
+        getDimensions: () => {
+            const act = window.AppInstance.layers.getActiveLayer();
+            return act ? { width: act.width, height: act.height } : null;
+        },
+        onPoint: (punto, total) => {
+            console.clear();
+            console.log(total, "-> ClickPointRecorder:", punto);
+        }
+    });
+});
 </script>
 </body>
 </html>
