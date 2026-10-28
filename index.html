@@ -180,26 +180,26 @@
     width: 190px !important;
 }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #0d0e12; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;   }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;   }
         #app-viewport-root { position: absolute; inset: 0; width: 100vw; height: 100vh; overflow: hidden; }
-        #canvas-stage { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; touch-action: none; background: radial-gradient(circle at 50% 50%, #22252c 0%, #0d0e12 100%); }
-        #viewport-transform { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; pointer-events: none; width: 0; height: 0; }
-        #layers-render-target { position: absolute; top: 0; left: 0; pointer-events: none; }
-        .engine-canvas-layer { position: absolute; top: 0; left: 0; image-rendering: pixelated; pointer-events: none; box-shadow: 0 10px 40px rgba(0,0,0,0.85); background: transparent; }
-        #preview-canvas { position: absolute; top: 0; left: 0; pointer-events: none; image-rendering: pixelated; z-index: 997; }
-        #cad-vector-canvas { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 998; }
-        #selection-canvas { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 999; }
+        #canvas-stage { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair;  background-color: #212121;  }
+        #viewport-transform { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform;  width: 0; height: 0;  }
+        #layers-render-target { position: absolute; top: 0; left: 0;  }
+        .engine-canvas-layer {background-color: #808080; /* Color base (Gris medio) */ background-image: repeating-conic-gradient( #666666 0% 25%, transparent 0% 50% ); background-size: 16px 16px; position: absolute; top: 0; left: 0; image-rendering: pixelated;   outline: none !important; border: none !important;    }
+        #preview-canvas { position: absolute; top: 0; left: 0;  image-rendering: pixelated; z-index: 997; }
+        #cad-vector-canvas { position: absolute; top: 0; left: 0;  z-index: 998; }
+        #selection-canvas { position: absolute; top: 0; left: 0;  z-index: 999; }
         .cad-hud {
             position: absolute;
             left: 76px;
             bottom: 14px;
-            background: rgba(15, 23, 42, 0.9);
+            background: rgba(15, 23, 42, 0.01);
             border: 1px solid rgba(255, 255, 255, 0.12);
             color: #94a3b8;
             font-size: 11px;
             padding: 5px 12px;
             border-radius: 6px;
-            pointer-events: none;
+            
             z-index: 1050;
             font-family: monospace;
             backdrop-filter: blur(6px);
@@ -230,9 +230,9 @@
             width: 40px;
             height: 38px;
             border-radius: 6px;
-            background: #1f232c;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            color: #9aa4b2;
+            background: #353535;
+            border: 1px solid #353535;
+            color: #abaeb1;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -244,10 +244,10 @@
             flex-shrink: 0;
             position: relative;
         }
-        .tool-btn:hover { background: #2a303d; color: #ffffff; border-color: rgba(255, 255, 255, 0.2); }
-        .tool-btn.active { background: #3b82f6; color: #ffffff; border-color: #60a5fa; box-shadow: 0 0 10px rgba(59, 130, 246, 0.45); }
+        .tool-btn:hover { background: rgb(86, 88, 91); color: #ffffff; border-color: rgba(255, 255, 255, 0.2); }
+        .tool-btn.active { background: #333333; color: #bebdbd; border-color: #333333; }
         .tool-btn svg { width: 17px; height: 17px; fill: currentColor; margin-bottom: 2px; }
-        .tool-sep { width: 30px; height: 1px; background: rgba(255, 255, 255, 0.08); margin: 4px 0; flex-shrink: 0; }
+        .tool-sep { width: 30px; height: 1px; background: rgba(255, 255, 255, 0); margin: 4px 0; flex-shrink: 0; }
         #dock_right { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
         #dock_right::-webkit-scrollbar { width: 5px; }
         #dock_right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
@@ -1200,8 +1200,7 @@ class Layer {
         this.name = name;
         this.width = width;
         this.height = height;
-        this.visible = true;
-        this.opacity = 1.0;
+        this.visible = true; 
         this.canvas = document.createElement('canvas');
         this.canvas.width = width;
         this.canvas.height = height;
@@ -1566,7 +1565,7 @@ class ClipboardManager {
         if (selectionManager.hasSelection) {
             ctx.globalCompositeOperation = 'destination-out';
             selectionManager.applyClipping(ctx);
-            ctx.fillStyle = '#000000';
+            ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, layer.width, layer.height);
         } else {
             ctx.clearRect(0, 0, layer.width, layer.height);
@@ -2084,8 +2083,9 @@ syncInteractiveCanvases(w, h) {
         });
 
         const bg = this.layers.createLayer('Base Background', this.defaultWidth, this.defaultHeight);
-        bg.ctx.fillStyle = '#22252c';
-        bg.ctx.fillRect(0, 0, this.defaultWidth, this.defaultHeight);
+ 
+ 
+       
         this.layers.createLayer('Paint Layer 1', this.defaultWidth, this.defaultHeight);
         requestAnimationFrame(() => this.ajustarCanvasACapaActiva());
     }
@@ -2670,7 +2670,7 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
             this.tools.pointerUp(coords.x, coords.y);
         });
 
-        this.stage.addEventListener('contextmenu', (e) => e.preventDefault());
+        //this.stage.addEventListener('contextmenu', (e) => e.preventDefault());
     }
 }
 
