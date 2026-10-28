@@ -67,7 +67,7 @@
     #canvas-stage { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; background-color: #212121; }
     #viewport-transform { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; width: 0; height: 0; }
     #layers-render-target { position: absolute; top: 0; left: 0; }
-    .engine-canvas-layer { background-color: #808080; background-image: repeating-conic-gradient( #666666 0% 25%, transparent 0% 50% ); background-size: 16px 16px; position: absolute; top: 0; left: 0; image-rendering: pixelated; outline: none !important; border: none !important; }
+    .engine-canvas-layer { background: transparent !important; /* ANTES TENÍA UN FONDO GRIS QUE TAPABA TODO */ position: absolute; top: 0; left: 0; image-rendering: pixelated; outline: none !important; border: none !important; }
     #preview-canvas { position: absolute; top: 0; left: 0; image-rendering: pixelated; z-index: 997; pointer-events: none; }
     #cad-vector-canvas { position: absolute; top: 0; left: 0; z-index: 998; pointer-events: none; }
     #selection-canvas { position: absolute; top: 0; left: 0; z-index: 999; pointer-events: none; }
@@ -1309,12 +1309,17 @@ class HistoryManager {
     notify() { this.onStateChange(this.canUndo(), this.canRedo(), this.undoStack.length, this.redoStack.length); }
 }
 
-class Layer {
+ 
+  class Layer {
     constructor(id, name, width, height) {
         this.id = id;
         this.name = name;
         this.width = width;
         this.height = height;
+        // Guardar la resolución nativa original intacta:
+        this.originalWidth = width;
+        this.originalHeight = height;
+        
         this.visible = true; 
         this.opacity = 1.0;
         this.canvas = document.createElement('canvas');
@@ -2323,25 +2328,57 @@ class ApplicationAdapter {
         this.zoom.panY = centerY - (height * this.zoom.scale) / 2;
         this.zoom.apply();
     }
-    ajustarCanvasACapaActiva() {
-        const act = this.layers.getActiveLayer();
-        if (!act) return;
+  ajustarCanvasACapaActiva() {
+    const act = this.layers.getActiveLayer();
+    if (!act) return;
 
-        const targetW = act.width;
-        const targetH = act.height;
+    // 1. Obtener la resolución original nativa con la que nació la imagen
+    const targetW = act.originalWidth || act.width;
+    const targetH = act.originalHeight || act.height;
 
-        this.defaultWidth = targetW;
-        this.defaultHeight = targetH;
-        this.layers.defaultWidth = targetW;
-        this.layers.defaultHeight = targetH;
-
-        this.syncInteractiveCanvases(targetW, targetH, false);
-        this.centerView(targetW, targetH);
-
-        const hud = document.getElementById('hud');
-        if (hud) hud.textContent = `✓ Canvas adaptado a: ${act.name} (${targetW}x${targetH} px)`;
+    // Si la capa había cambiado de tamaño, restaurarla a su resolución nativa
+    if (act.width !== targetW || act.height !== targetH) {
+        act.setSize(targetW, targetH, true);
     }
-    adaptarCapaActivaAlCanvas() {
+
+    // 2. AISLAR LA CAPA: Ocultar todas las demás capas para ver SOLO esta
+    // MANTÉN TODAS LAS CAPAS VISIBLES:
+this.layers.layers.forEach(l => {
+    l.canvas.style.display = l.visible ? 'block' : 'none';
+});
+
+    // 3. Ajustar los lienzos interactivos (CAD, Selección, Preview) al tamaño exacto
+    this.defaultWidth = targetW;
+    this.defaultHeight = targetH;
+    this.layers.defaultWidth = targetW;
+    this.layers.defaultHeight = targetH;
+
+    // Asegurar que el contenedor no deje ver nada fuera de estos límites
+    if (this.layersContainer) {
+        this.layersContainer.style.width = targetW + 'px';
+        this.layersContainer.style.height = targetH + 'px';
+        this.layersContainer.style.overflow = 'hidden';
+    }
+
+    this.syncInteractiveCanvases(targetW, targetH, false);
+
+    // 4. Centrar y encuadrar el zoom a esta capa en pantalla
+    this.centerView(targetW, targetH);
+
+    // 5. Actualizar la lista visual de capas en la interfaz (checkboxes)
+    if (this.reorderList) {
+        this.reorderList.setItems(
+            this.layers.getLayerList(),
+            this.layers.layers.findIndex(l => l.id === act.id)
+        );
+    }
+
+    // 6. Mensaje en HUD
+    const hud = document.getElementById('hud');
+    if (hud) {
+        hud.textContent = `✓ [Modo Solo] ${act.name}: ${targetW}x${targetH} px`;
+    }
+}  adaptarCapaActivaAlCanvas() {
         const act = this.layers.getActiveLayer();
         if (!act) return;
         const targetW = this.initialCanvasWidth;
@@ -2368,31 +2405,35 @@ class ApplicationAdapter {
         this.centerView(targetW, targetH);
     }
     pegarComoNuevaCapa(canvasRecorte, nombre = 'Capa Pegada') {
-        if (!canvasRecorte || canvasRecorte.width <= 0 || canvasRecorte.height <= 0) return;
-        
-        const w = canvasRecorte.naturalWidth || canvasRecorte.width;
-        const h = canvasRecorte.naturalHeight || canvasRecorte.height;
+    if (!canvasRecorte || canvasRecorte.width <= 0 || canvasRecorte.height <= 0) return;
+    
+    const w = canvasRecorte.naturalWidth || canvasRecorte.width;
+    const h = canvasRecorte.naturalHeight || canvasRecorte.height;
 
-        const nuevaCapa = this.layers.createLayer(`${nombre} (${w}x${h})`, w, h);
-        nuevaCapa.ctx.drawImage(canvasRecorte, 0, 0, w, h);
+    const nuevaCapa = this.layers.createLayer(`${nombre} (${w}x${h})`, w, h);
+    nuevaCapa.originalWidth = w;
+    nuevaCapa.originalHeight = h;
+    
+    nuevaCapa.ctx.drawImage(canvasRecorte, 0, 0, w, h);
 
-        const capaId = nuevaCapa.id;
-        const indiceOriginal = this.layers.layers.findIndex(l => l.id === capaId);
+    const capaId = nuevaCapa.id;
+    const indiceOriginal = this.layers.layers.findIndex(l => l.id === capaId);
 
-        this.layers.setActiveLayer(nuevaCapa.id);
+    this.layers.setActiveLayer(nuevaCapa.id);
 
-        this.history.push({
-            undo: () => this.layers.deleteLayer(capaId),
-            redo: () => {
-                this.layers.layers.splice(indiceOriginal, 0, nuevaCapa);
-                this.layers.setActiveLayer(nuevaCapa.id);
-                this.layers.syncDOM();
-                this.ajustarCanvasACapaActiva();
-            }
-        });
+    this.history.push({
+        undo: () => this.layers.deleteLayer(capaId),
+        redo: () => {
+            this.layers.layers.splice(indiceOriginal, 0, nuevaCapa);
+            this.layers.setActiveLayer(nuevaCapa.id);
+            this.layers.syncDOM();
+            this.ajustarCanvasACapaActiva();
+        }
+    });
 
-        this.ajustarCanvasACapaActiva();
-    }
+    this.ajustarCanvasACapaActiva();
+}
+    
     buildLeftVerticalToolbar() {
         const bar = document.getElementById('left-toolbar-strip');
         bar.innerHTML = '';
