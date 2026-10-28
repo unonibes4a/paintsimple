@@ -10,255 +10,94 @@
             localStorage.setItem(`ui_force_factory_${window.programaId}`, 'true');
         } catch(e) {}
     </script>
-<script src="https://unonibes4a.github.io/pintaresta/a.js"></script> 
+    <script src="https://unonibes4a.github.io/pintaresta/a.js"></script> 
     <style>
     .cllcssopTolls {
-    position: fixed;
-    top: 12px;
-    left: 76px;
-    max-width: 90vw;
-    height: 100px;
-    background-color: rgba(0, 0, 0, 0.1);
-    border-radius: 9px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 0 16px;
-    z-index: 9999;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(6px);
-    box-sizing: border-box;
-    white-space: nowrap;
-}
+        position: fixed;
+        top: 0px;
+        left: 76px;
+        max-width: 90vw;
+        height: 45px;
+        background-color: rgba(0, 0, 0, 0);
+        border-radius: 7px;
+        overflow-x: auto; 
+        padding: 0 16px;
+        z-index: 9999;
+        backdrop-filter: blur(6px);
+        box-sizing: border-box;
+        white-space: nowrap;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        justify-content: space-around;
+        align-items: center;
+        align-content: space-between;
+    }
+    .cllcssopTolls > * { flex-shrink: 0; }
+    .btn-sq-custom {
+        width: 38px;
+        height: 38px;
+        background: #1f232c;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #e0e0e0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        transition: all 0.2s ease;
+        user-select: none;
+    }
+    .btn-sq-custom:hover { background: #2a303d; border-color: #38bdf8; color: #ffffff; }
+    .btn-sq-custom.active { background: #3b82f6; border-color: #60a5fa; color: #ffffff; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
+    .custom-slider-box { display: flex; flex-direction: column; gap: 6px; width: 140px; }
+    .custom-slider-header { display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; font-family: monospace; }
+    .custom-slider-range { -webkit-appearance: none; appearance: none; width: 100%; height: 5px; background: #2c2d30; border-radius: 3px; outline: none; cursor: pointer; }
+    .custom-slider-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #ffffff42; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); cursor: pointer; transition: transform 0.1s ease; }
+    .custom-slider-range::-webkit-slider-thumb:hover { transform: scale(1.2); }
+    .custom-slider-range::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #ffffff88; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); cursor: pointer; }
+    .ui-fixed-tr { position: fixed !important; top: 12px; right: 14px; bottom: 12px; max-height: calc(100vh - 24px); overflow-y: auto; z-index: 900; }
+    .ui-fixed-tl { position: fixed !important; top: 12px; left: 14px; bottom: 12px; max-height: calc(100vh - 24px); overflow-y: auto; z-index: 900; }
+    .ui-fixed-top-right-compact { position: fixed !important; top: 12px; right: 14px; z-index: 1000; }
+    .cllcssopTolls .ui-slider-card { width: 190px !important; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #app-viewport-root { position: absolute; inset: 0; width: 100vw; height: 100vh; overflow: hidden; }
+    #canvas-stage { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; background-color: #212121; }
+    #viewport-transform { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; width: 0; height: 0; }
+    #layers-render-target { position: absolute; top: 0; left: 0; }
+    .engine-canvas-layer { background-color: #808080; background-image: repeating-conic-gradient( #666666 0% 25%, transparent 0% 50% ); background-size: 16px 16px; position: absolute; top: 0; left: 0; image-rendering: pixelated; outline: none !important; border: none !important; }
+    #preview-canvas { position: absolute; top: 0; left: 0; image-rendering: pixelated; z-index: 997; pointer-events: none; }
+    #cad-vector-canvas { position: absolute; top: 0; left: 0; z-index: 998; pointer-events: none; }
+    #selection-canvas { position: absolute; top: 0; left: 0; z-index: 999; pointer-events: none; }
+    .cad-hud { position: absolute; left: 76px; bottom: 14px; background: rgba(15, 23, 42, 0.0); border: 1px solid rgba(255, 255, 255, 0.12); color: #94a3b8; font-size: 11px; padding: 5px 12px; border-radius: 6px; z-index: 1050; font-family: monospace; backdrop-filter: blur(6px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); user-select: none; }
+    #left-toolbar-strip { position: fixed; top: 12px; bottom: 12px; left: 12px; width: 52px; background: rgba(22, 24, 30, 0.94); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7); z-index: 1000; display: flex; flex-direction: column; align-items: center; padding: 8px 4px; gap: 5px; overflow-y: auto; scrollbar-width: none; }
+    #left-toolbar-strip::-webkit-scrollbar { display: none; }
+    .tool-btn { width: 40px; height: 38px; border-radius: 6px; background: #353535; border: 1px solid #353535; color: #abaeb1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease; font-size: 9px; font-weight: 600; flex-shrink: 0; position: relative; user-select: none; }
+    .tool-btn:hover { background: rgb(86, 88, 91); color: #ffffff; border-color: rgba(255, 255, 255, 0.2); }
+    .tool-btn.active { background: #38bdf8; color: #0f172a; border-color: #38bdf8; }
+    .tool-btn svg { width: 17px; height: 17px; fill: currentColor; margin-bottom: 2px; }
+    .tool-sep { width: 30px; height: 1px; background: rgba(255, 255, 255, 0.1); margin: 4px 0; flex-shrink: 0; }
+    #dock_right { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
+    #dock_right::-webkit-scrollbar { width: 5px; }
+    #dock_right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    .preview-box { width: 44px; height: 44px; background: #151821; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; image-rendering: pixelated; }
 
-.cllcssopTolls > * {
-    flex-shrink: 0;
-}
-
-.btn-sq-custom {
-    width: 38px;
-    height: 38px;
-    background: #1f232c;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 6px;
-    color: #e0e0e0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    transition: all 0.2s ease;
-    user-select: none;
-}
-
-.btn-sq-custom:hover {
-    background: #2a303d;
-    border-color: #38bdf8;
-    color: #ffffff;
-}
-
-.btn-sq-custom.active {
-    background: #3b82f6;
-    border-color: #60a5fa;
-    color: #ffffff;
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
-}
-
-.custom-slider-box {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 140px;
-}
-
-.custom-slider-header {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: #94a3b8;
-    font-family: monospace;
-}
-
-.custom-slider-range {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    height: 5px;
-    background: #2c2d30;
-    border-radius: 3px;
-    outline: none;
-    cursor: pointer;
-}
-
-.custom-slider-range::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 13px;
-    height: 13px;
-    border-radius: 50%;
-    background: #ffffff42;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-    cursor: pointer;
-    transition: transform 0.1s ease;
-}
-
-.custom-slider-range::-webkit-slider-thumb:hover {
-    transform: scale(1.2);
-}
-
-.custom-slider-range::-moz-range-thumb {
-    width: 13px;
-    height: 13px;
-    border-radius: 50%;
-    background: #ffffff88;
-    border: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-    cursor: pointer;
-}
-.ui-fixed-tr {
-    position: fixed !important;
-    top: 12px;
-    right: 14px;
-    bottom: 12px;
-    max-height: calc(100vh - 24px);
-    overflow-y: auto;
-    z-index: 900;
-}
-
- 
-.ui-fixed-tl {
-    position: fixed !important;
-    top: 12px;
-    left: 14px;
-    bottom: 12px;
-    max-height: calc(100vh - 24px);
-    overflow-y: auto;
-    z-index: 900;
-}
-
-.ui-fixed-top-right-compact {
-    position: fixed !important;
-    top: 12px;
-    right: 14px;
-    z-index: 1000;
-}
-/* Barra de herramientas superior horizontal */ 
-
-.cllcssopTolls {
-    position: fixed;
-    top: 0px;
-    left: 76px;
-    max-width: 90vw;
-    height: 45px;
-    background-color: rgba(0, 0, 0, 0);
-    border-radius: 7px;
-    overflow-x: auto; 
-    padding: 0 16px;
-    z-index: 9999;
-    
-    backdrop-filter: blur(6px);
-    box-sizing: border-box;
-    white-space: nowrap;
-
-	display: flex;
-	flex-direction: row;
-	flex-wrap: nowrap;
-	justify-content: space-around;
-	align-items: center;
-	align-content: space-between;
-
- 
-}
-
-/* Evita que los sliders se encojan en el scroll horizontal */
-.cllcssopTolls > * {
-    flex-shrink: 0;
-}
-.cllcssopTolls .ui-slider-card {
-    width: 190px !important;
-}
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;   }
-        #app-viewport-root { position: absolute; inset: 0; width: 100vw; height: 100vh; overflow: hidden; }
-        #canvas-stage { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair;  background-color: #212121;  }
-        #viewport-transform { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform;  width: 0; height: 0;  }
-        #layers-render-target { position: absolute; top: 0; left: 0;  }
-        .engine-canvas-layer {background-color: #808080; /* Color base (Gris medio) */ background-image: repeating-conic-gradient( #666666 0% 25%, transparent 0% 50% ); background-size: 16px 16px; position: absolute; top: 0; left: 0; image-rendering: pixelated;   outline: none !important; border: none !important;    }
-        #preview-canvas { position: absolute; top: 0; left: 0;  image-rendering: pixelated; z-index: 997; }
-        #cad-vector-canvas { position: absolute; top: 0; left: 0;  z-index: 998; }
-        #selection-canvas { position: absolute; top: 0; left: 0;  z-index: 999; }
-        .cad-hud {
-            position: absolute;
-            left: 76px;
-            bottom: 14px;
-            background: rgba(15, 23, 42, 0.01);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: #94a3b8;
-            font-size: 11px;
-            padding: 5px 12px;
-            border-radius: 6px;
-            
-            z-index: 1050;
-            font-family: monospace;
-            backdrop-filter: blur(6px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        #left-toolbar-strip {
-            position: fixed;
-            top: 12px;
-            bottom: 12px;
-            left: 12px;
-            width: 52px;
-            background: rgba(22, 24, 30, 0.94);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 8px 4px;
-            gap: 5px;
-            overflow-y: auto;
-            scrollbar-width: none;
-        }
-        #left-toolbar-strip::-webkit-scrollbar { display: none; }
-        .tool-btn {
-            width: 40px;
-            height: 38px;
-            border-radius: 6px;
-            background: #353535;
-            border: 1px solid #353535;
-            color: #abaeb1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            font-size: 9px;
-            font-weight: 600;
-            flex-shrink: 0;
-            position: relative;
-        }
-        .tool-btn:hover { background: rgb(86, 88, 91); color: #ffffff; border-color: rgba(255, 255, 255, 0.2); }
-        .tool-btn.active { background: #333333; color: #bebdbd; border-color: #333333; }
-        .tool-btn svg { width: 17px; height: 17px; fill: currentColor; margin-bottom: 2px; }
-        .tool-sep { width: 30px; height: 1px; background: rgba(255, 255, 255, 0); margin: 4px 0; flex-shrink: 0; }
-        #dock_right { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
-        #dock_right::-webkit-scrollbar { width: 5px; }
-        #dock_right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-        .preview-box {
-            width: 44px;
-            height: 44px;
-            background: #151821;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            image-rendering: pixelated;
-        }
+    .fb-container { display: flex; flex-direction: column; gap: 8px; font-family: monospace; font-size: 11px; color: #e2e8f0; }
+    .fb-panel { background: rgba(30, 41, 59, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .fb-panel-title { font-weight: bold; color: #38bdf8; text-transform: uppercase; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 4px; }
+    .fb-row { display: flex; gap: 6px; align-items: center; }
+    .fb-btn { background: #334155; border: 1px solid #475569; color: #f8fafc; border-radius: 4px; padding: 4px 8px; cursor: pointer; flex: 1; text-align: center; }
+    .fb-btn:hover { background: #475569; }
+    .fb-btn-primary { background: #0284c7; border-color: #38bdf8; }
+    .fb-btn-danger { background: #dc2626; border-color: #ef4444; }
+    .fb-select { background: #1e293b; border: 1px solid #475569; color: #f8fafc; padding: 4px; border-radius: 4px; width: 100%; outline: none; }
+    .fb-reorder-list { display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto; background: #0f172a; padding: 4px; border-radius: 4px; }
+    .fb-reorder-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; background: #1e293b; border-radius: 3px; cursor: pointer; }
+    .fb-reorder-item.active { background: #0369a1; }
+    .fb-colorpicker { display: flex; flex-direction: column; gap: 6px; background: #0f172a; padding: 8px; border-radius: 6px; }
+    .fb-colorpicker input[type="color"] { border: none; width: 100%; height: 28px; border-radius: 4px; cursor: pointer; background: transparent; }
     </style>
 </head>
 <body>
@@ -278,6 +117,247 @@
 <div id="left-toolbar-strip"></div>
 
 <script>
+(function() {
+    if (!window.UI) window.UI = {};
+    if (!window.ToolJavaScriptGio) {
+        window.ToolJavaScriptGio = {
+            aplicarClase: (el, cls) => { if (el) el.classList.add(cls); }
+        };
+    }
+    if (!window.UIColorPicker) {
+        window.UIColorPicker = class {
+            constructor({ initialColor = { r: 255, g: 255, b: 255 }, onChange = () => {} } = {}) {
+                this.onChange = onChange;
+                this.panel = document.createElement('div');
+                this.panel.className = 'fb-colorpicker';
+                const lbl = document.createElement('span');
+                lbl.textContent = 'Paleta & Color';
+                const inp = document.createElement('input');
+                inp.type = 'color';
+                const r = initialColor.r.toString(16).padStart(2, '0');
+                const g = initialColor.g.toString(16).padStart(2, '0');
+                const b = initialColor.b.toString(16).padStart(2, '0');
+                inp.value = `#${r}${g}${b}`;
+                inp.addEventListener('input', (e) => {
+                    const hex = e.target.value;
+                    const cr = parseInt(hex.slice(1, 3), 16);
+                    const cg = parseInt(hex.slice(3, 5), 16);
+                    const cb = parseInt(hex.slice(5, 7), 16);
+                    this.onChange({ r: cr, g: cg, b: cb, a: 1 }, {}, hex, {});
+                });
+                this.input = inp;
+                this.panel.appendChild(lbl);
+                this.panel.appendChild(inp);
+                this.element = this.panel;
+            }
+            setHex(hex) { if (this.input) this.input.value = hex; }
+        };
+    }
+    if (!window.UI.Container) {
+        window.UI.Container = class {
+            constructor({ id, width }) {
+                this.element = document.createElement('div');
+                this.element.id = id;
+                this.element.className = 'fb-container';
+                if (width) this.element.style.width = width + 'px';
+            }
+            mount(parent) { parent.appendChild(this.element); return this; }
+            addPanel(panel) {
+                if (panel.element) this.element.appendChild(panel.element);
+                else if (panel instanceof HTMLElement) this.element.appendChild(panel);
+                return this;
+            }
+        };
+    }
+    if (!window.UI.SmartPanel) {
+        window.UI.SmartPanel = class {
+            constructor({ title }) {
+                this.element = document.createElement('div');
+                this.element.className = 'fb-panel';
+                if (title) {
+                    const t = document.createElement('div');
+                    t.className = 'fb-panel-title';
+                    t.textContent = title;
+                    this.element.appendChild(t);
+                }
+            }
+            append(el) {
+                if (el.element) this.element.appendChild(el.element);
+                else if (el instanceof HTMLElement) this.element.appendChild(el);
+            }
+        };
+    }
+    if (!window.UI.Accordion) {
+        window.UI.Accordion = class {
+            constructor() {
+                this.element = document.createElement('div');
+                this.element.style.display = 'flex';
+                this.element.style.flexDirection = 'column';
+                this.element.style.gap = '6px';
+            }
+            addItem({ title, open = true }) {
+                const item = document.createElement('details');
+                if (open) item.open = true;
+                item.style.background = '#0f172a';
+                item.style.border = '1px solid #334155';
+                item.style.borderRadius = '4px';
+                item.style.padding = '4px 6px';
+                const sm = document.createElement('summary');
+                sm.style.cursor = 'pointer';
+                sm.style.fontWeight = 'bold';
+                sm.style.color = '#94a3b8';
+                sm.textContent = title;
+                item.appendChild(sm);
+                const content = document.createElement('div');
+                content.style.display = 'flex';
+                content.style.flexDirection = 'column';
+                content.style.gap = '6px';
+                content.style.paddingTop = '6px';
+                item.appendChild(content);
+                this.element.appendChild(item);
+                return {
+                    addRow: (gap = 4) => {
+                        const r = document.createElement('div');
+                        r.className = 'fb-row';
+                        r.style.gap = gap + 'px';
+                        content.appendChild(r);
+                        return {
+                            append: (child) => {
+                                if (child.element) r.appendChild(child.element);
+                                else if (child instanceof HTMLElement) r.appendChild(child);
+                            }
+                        };
+                    },
+                    append: (child) => {
+                        if (child.element) content.appendChild(child.element);
+                        else if (child instanceof HTMLElement) content.appendChild(child);
+                    }
+                };
+            }
+        };
+    }
+    if (!window.UI.Button) {
+        window.UI.Button = class {
+            constructor({ text, variant = '', onClick = () => {} }) {
+                this.element = document.createElement('button');
+                this.element.className = `fb-btn ${variant === 'primary' ? 'fb-btn-primary' : ''} ${variant === 'danger' ? 'fb-btn-danger' : ''}`;
+                this.element.textContent = text;
+                this.element.onclick = onClick;
+            }
+        };
+    }
+    if (!window.UI.Select) {
+        window.UI.Select = class {
+            constructor({ options = [], value = '' }) {
+                this.element = document.createElement('select');
+                this.element.className = 'fb-select';
+                options.forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt.value;
+                    o.textContent = opt.label;
+                    if (opt.value === value) o.selected = true;
+                    this.element.appendChild(o);
+                });
+            }
+            getValue() { return this.element.value; }
+        };
+    }
+    if (!window.UI.ConfigurableSlider) {
+        window.UI.ConfigurableSlider = class {
+            constructor({ label, min = 0, max = 100, step = 1, value = 0, onChange = () => {} }) {
+                this.element = document.createElement('div');
+                this.element.className = 'custom-slider-box';
+                this.element.style.width = '100%';
+                const head = document.createElement('div');
+                head.className = 'custom-slider-header';
+                const tit = document.createElement('span');
+                tit.textContent = label;
+                const val = document.createElement('span');
+                val.textContent = value;
+                head.appendChild(tit);
+                head.appendChild(val);
+                const inp = document.createElement('input');
+                inp.type = 'range';
+                inp.className = 'custom-slider-range';
+                inp.min = min;
+                inp.max = max;
+                inp.step = step;
+                inp.value = value;
+                inp.addEventListener('input', (e) => {
+                    const v = parseFloat(e.target.value);
+                    val.textContent = v;
+                    onChange(v);
+                });
+                this.element.appendChild(head);
+                this.element.appendChild(inp);
+            }
+        };
+    }
+    if (!window.UI.Toggle) {
+        window.UI.Toggle = class {
+            constructor({ label, value = false, onChange = () => {} }) {
+                this.element = document.createElement('label');
+                this.element.style.display = 'flex';
+                this.element.style.alignItems = 'center';
+                this.element.style.gap = '6px';
+                this.element.style.cursor = 'pointer';
+                this.input = document.createElement('input');
+                this.input.type = 'checkbox';
+                this.input.checked = value;
+                this.input.addEventListener('change', () => onChange(this.input.checked));
+                const span = document.createElement('span');
+                span.textContent = label;
+                this.element.appendChild(this.input);
+                this.element.appendChild(span);
+            }
+            setValue(v) { this.input.checked = v; }
+        };
+    }
+    if (!window.UI.ReorderList) {
+        window.UI.ReorderList = class {
+            constructor({ items = [], onSelect = () => {}, onVisibilityChange = () => {}, onReorder = () => {} }) {
+                this.items = items;
+                this.onSelect = onSelect;
+                this.onVisibilityChange = onVisibilityChange;
+                this.onReorder = onReorder;
+                this.element = document.createElement('div');
+                this.element.className = 'fb-reorder-list';
+                this.selectedIndex = 0;
+                this.render();
+            }
+            setItems(items, selectedIndex = 0) {
+                this.items = items;
+                this.selectedIndex = selectedIndex;
+                this.render();
+            }
+            render() {
+                this.element.innerHTML = '';
+                this.items.forEach((item, idx) => {
+                    const row = document.createElement('div');
+                    row.className = `fb-reorder-item ${idx === this.selectedIndex ? 'active' : ''}`;
+                    const name = document.createElement('span');
+                    name.textContent = item.name;
+                    name.onclick = () => {
+                        this.selectedIndex = idx;
+                        this.render();
+                        this.onSelect(item);
+                    };
+                    const chk = document.createElement('input');
+                    chk.type = 'checkbox';
+                    chk.checked = item.visible !== false;
+                    chk.onclick = (e) => {
+                        e.stopPropagation();
+                        this.onVisibilityChange(item, idx, chk.checked);
+                    };
+                    row.appendChild(chk);
+                    row.appendChild(name);
+                    this.element.appendChild(row);
+                });
+            }
+        };
+    }
+})();
+
 const MathCad = {
     distanciaPuntoSegmento(p, a, b) {
         const dx = b.x - a.x;
@@ -307,25 +387,6 @@ const MathCad = {
         } else {
             return [puntos[0], puntos[end]];
         }
-    },
-    simplificarTrazo(puntos, factor = 0.5) {
-        if (!puntos || puntos.length <= 2) return puntos ? puntos.slice() : [];
-        const objetivo = Math.max(2, Math.round(puntos.length * factor));
-        if (objetivo >= puntos.length) return puntos.slice();
-        let tolerancia = 0.5;
-        let resultado = this.rdp(puntos, tolerancia);
-        let iter = 0;
-        while (resultado.length > objetivo && iter < 30) {
-            tolerancia *= 1.35;
-            resultado = this.rdp(puntos, tolerancia);
-            iter++;
-        }
-        while (resultado.length < objetivo && iter < 60) {
-            tolerancia *= 0.7;
-            resultado = this.rdp(puntos, tolerancia);
-            iter++;
-        }
-        return resultado;
     },
     deCasteljau(puntos, t) {
         let temp = puntos.map(p => ({ x: p.x, y: p.y }));
@@ -514,23 +575,67 @@ const MathCad = {
     }
 };
 
-
-
-
 class FloodFillTool {
-    static hexToRgba(hex) {
-        let c = String(hex).replace('#', '');
+    static isLittleEndian = (() => {
+        const u8 = new Uint8Array([0xAA, 0xBB]);
+        const u16 = new Uint16Array(u8.buffer);
+        return u16[0] === 0xBBAA;
+    })();
+
+    static hexToRgba(colorStr) {
+        if (!colorStr) return { r: 0, g: 0, b: 0, a: 255 };
+        let c = String(colorStr).trim();
+        if (c.startsWith('rgba') || c.startsWith('rgb')) {
+            const nums = c.match(/[\d.]+/g);
+            if (nums && nums.length >= 3) {
+                return {
+                    r: Math.min(255, Math.max(0, parseInt(nums[0], 10))),
+                    g: Math.min(255, Math.max(0, parseInt(nums[1], 10))),
+                    b: Math.min(255, Math.max(0, parseInt(nums[2], 10))),
+                    a: nums[3] !== undefined ? Math.min(255, Math.max(0, Math.round(parseFloat(nums[3]) * 255))) : 255
+                };
+            }
+        }
+        c = c.replace('#', '');
         if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        if (c.length === 6) c += 'ff';
         const num = parseInt(c, 16);
+        if (isNaN(num)) return { r: 0, g: 0, b: 0, a: 255 };
         return {
-            r: (num >> 16) & 255,
-            g: (num >> 8) & 255,
-            b: num & 255,
-            a: 255
+            r: (num >> 24) & 255,
+            g: (num >> 16) & 255,
+            b: (num >> 8) & 255,
+            a: num & 255
         };
     }
 
-    static fill(layer, startX, startY, fillColorHex, tolerance = 15, selectionManager = null) {
+    static packColor(r, g, b, a) {
+        if (this.isLittleEndian) {
+            return ((a & 0xFF) << 24) | ((b & 0xFF) << 16) | ((g & 0xFF) << 8) | (r & 0xFF);
+        } else {
+            return ((r & 0xFF) << 24) | ((g & 0xFF) << 16) | ((b & 0xFF) << 8) | (a & 0xFF);
+        }
+    }
+
+    static unpackColor(c32) {
+        if (this.isLittleEndian) {
+            return {
+                r: c32 & 0xFF,
+                g: (c32 >> 8) & 0xFF,
+                b: (c32 >> 16) & 0xFF,
+                a: (c32 >> 24) & 0xFF
+            };
+        } else {
+            return {
+                r: (c32 >> 24) & 0xFF,
+                g: (c32 >> 16) & 0xFF,
+                b: (c32 >> 8) & 0xFF,
+                a: c32 & 0xFF
+            };
+        }
+    }
+
+    static fill(layer, startX, startY, fillColorStr, opacity = 1.0, tolerance = 15, selectionManager = null) {
         if (!layer) return false;
         const w = layer.width;
         const h = layer.height;
@@ -544,32 +649,26 @@ class FloodFillTool {
         const startIndex = y0 * w + x0;
         const targetColor = data32[startIndex];
 
-        const fc = this.hexToRgba(fillColorHex);
-        const fillColor32 = (fc.a << 24) | (fc.b << 16) | (fc.g << 8) | fc.r;
+        const fc = this.hexToRgba(fillColorStr);
+        const finalAlpha = Math.min(255, Math.max(0, Math.round(fc.a * Math.min(1.0, Math.max(0.01, opacity)))));
+        const fillColor32 = this.packColor(fc.r, fc.g, fc.b, finalAlpha);
 
         if (targetColor === fillColor32) return false;
 
-        // Soporte para máscara de selección
         let selData = null;
         if (selectionManager && selectionManager.hasSelection) {
             selData = selectionManager.maskCtx.getImageData(0, 0, w, h).data;
         }
 
-        const tR = targetColor & 0xFF;
-        const tG = (targetColor >> 8) & 0xFF;
-        const tB = (targetColor >> 16) & 0xFF;
-        const tA = (targetColor >> 24) & 0xFF;
+        const tc = this.unpackColor(targetColor);
         const maxDiff = (tolerance / 100) * 255;
 
         const matchesTarget = (col) => {
-            const r = col & 0xFF;
-            const g = (col >> 8) & 0xFF;
-            const b = (col >> 16) & 0xFF;
-            const a = (col >> 24) & 0xFF;
-            return Math.abs(r - tR) <= maxDiff &&
-                   Math.abs(g - tG) <= maxDiff &&
-                   Math.abs(b - tB) <= maxDiff &&
-                   Math.abs(a - tA) <= maxDiff;
+            const sc = this.unpackColor(col);
+            return Math.abs(sc.r - tc.r) <= maxDiff &&
+                   Math.abs(sc.g - tc.g) <= maxDiff &&
+                   Math.abs(sc.b - tc.b) <= maxDiff &&
+                   Math.abs(sc.a - tc.a) <= maxDiff;
         };
 
         const isAllowed = (px, py) => {
@@ -603,30 +702,7 @@ class FloodFillTool {
         return true;
     }
 }
-class LayerCopier {
-    static copyActiveLayer(layerStack) {
-        const active = layerStack.getActiveLayer();
-        if (!active) return null;
-        return this.clone(active);
-    }
 
-    static clone(sourceLayer) {
-        if (!sourceLayer) return null;
-        const copyCanvas = document.createElement('canvas');
-        copyCanvas.width = sourceLayer.width;
-        copyCanvas.height = sourceLayer.height;
-        copyCanvas.getContext('2d').drawImage(sourceLayer.canvas, 0, 0);
-
-        return {
-            name: `${sourceLayer.name} (Copia)`,
-            width: sourceLayer.width,
-            height: sourceLayer.height,
-            canvas: copyCanvas,
-            opacity: sourceLayer.opacity,
-            visible: sourceLayer.visible
-        };
-    }
-}
 class PureCadCurve {
     constructor({ type = 'bezier', degree = 3, style = {} } = {}) {
         this.type = type;
@@ -634,6 +710,12 @@ class PureCadCurve {
         this.pts = [];
         this.style = { stroke: '#38bdf8', lineWidth: 2, fill: null, ...style };
         this.forcedReady = false;
+        this.cachedPoints = null;
+        this.isDirty = true;
+    }
+    markDirty() {
+        this.isDirty = true;
+        this.cachedPoints = null;
     }
     minPoints() {
         switch (this.type) {
@@ -653,53 +735,80 @@ class PureCadCurve {
         return this.forcedReady || (this.pts.length >= this.minPoints());
     }
     computePoints(extraPoint = null) {
+        if (!extraPoint && !this.isDirty && this.cachedPoints) {
+            return this.cachedPoints;
+        }
         const pList = extraPoint ? [...this.pts, extraPoint] : [...this.pts];
         if (pList.length < 2) return [];
+        let res = [];
         switch (this.type) {
             case 'bezier':
-                return MathCad.generarBezier(pList, 120);
+                res = MathCad.generarBezier(pList, 64);
+                break;
             case 'poly':
-                return MathCad.regresionPolinomica2D(pList, Math.min(this.degree, pList.length - 1), 120);
+                res = MathCad.regresionPolinomica2D(pList, Math.min(this.degree, pList.length - 1), 64);
+                break;
             case 'arc3':
                 if (pList.length >= 3) {
-                    const arc = MathCad.generarArco3Puntos(pList[0], pList[1], pList[2], 100);
-                    return arc || [pList[0], pList[pList.length - 1]];
+                    res = MathCad.generarArco3Puntos(pList[0], pList[1], pList[2], 64) || [pList[0], pList[pList.length - 1]];
+                } else {
+                    res = [pList[0], pList[pList.length - 1]];
                 }
-                return [pList[0], pList[pList.length - 1]];
+                break;
             case 'arc2':
                 if (pList.length >= 2) {
                     const d = Math.hypot(pList[1].x - pList[0].x, pList[1].y - pList[0].y);
-                    return MathCad.generarArco2Puntos(pList[0], pList[1], d * 0.25, 80);
+                    res = MathCad.generarArco2Puntos(pList[0], pList[1], d * 0.25, 48);
+                } else {
+                    res = pList;
                 }
-                return pList;
+                break;
             case 'circle':
-                return MathCad.generarCirculo(pList[0], pList[1], 120);
+                res = MathCad.generarCirculo(pList[0], pList[1], 64);
+                break;
             case 'ellipse':
-                return MathCad.generarElipse(pList[0], pList[1], 120);
+                res = MathCad.generarElipse(pList[0], pList[1], 64);
+                break;
             case 'rect':
-                return MathCad.generarRectangulo(pList[0], pList[1]);
+                res = MathCad.generarRectangulo(pList[0], pList[1]);
+                break;
             case 'polygon':
-                return MathCad.generarPoligonoRegular(pList[0], pList[1], 5);
+                res = MathCad.generarPoligonoRegular(pList[0], pList[1], 5);
+                break;
             case 'trapezoid':
-                if (pList.length >= 4) return MathCad.generarTrapezoide(pList[0], pList[1], pList[2], pList[3]);
-                return pList;
+                res = (pList.length >= 4) ? MathCad.generarTrapezoide(pList[0], pList[1], pList[2], pList[3]) : pList;
+                break;
             default:
-                return MathCad.generarBezier(pList, 120);
+                res = MathCad.generarBezier(pList, 64);
+                break;
         }
+        if (!extraPoint) {
+            this.cachedPoints = res;
+            this.isDirty = false;
+        }
+        return res;
+    }
+    clone() {
+        const c = new PureCadCurve({ type: this.type, degree: this.degree, style: this.style });
+        c.pts = this.pts.map(p => ({ x: p.x, y: p.y }));
+        c.forcedReady = this.forcedReady;
+        c.isDirty = true;
+        return c;
     }
     serialize() {
         return {
             type: this.type,
             degree: this.degree,
-            pts: this.pts.map(p => ({ ...p })),
+            pts: this.pts.map(p => ({ x: p.x, y: p.y })),
             style: { ...this.style },
             forcedReady: this.forcedReady
         };
     }
     static deserialize(d) {
         const c = new PureCadCurve({ type: d.type, degree: d.degree, style: d.style });
-        c.pts = d.pts.map(p => ({ ...p }));
+        c.pts = d.pts.map(p => ({ x: p.x, y: p.y }));
         c.forcedReady = !!d.forcedReady;
+        c.isDirty = true;
         return c;
     }
 }
@@ -724,12 +833,11 @@ class CadVectorEngine {
         this.historyIndex = -1;
         this.active = false;
         this.useBrushStamp = false;
+        this.isPanningActive = false;
         this._bind();
         this._snapshot();
     }
     _bind() {
-        window.addEventListener('pointermove', (e) => this._onMove(e));
-        window.addEventListener('pointerup', () => this._onUp());
         window.addEventListener('keydown', (e) => this._onKey(e));
     }
     setSize(w, h) {
@@ -740,7 +848,7 @@ class CadVectorEngine {
         this.render();
     }
     handlePointerDown(x, y, e) {
-        if (!this.active) return;
+        if (!this.active || this.isPanningActive) return;
         const p = { x, y };
 
         if (this.selected) {
@@ -778,6 +886,7 @@ class CadVectorEngine {
             });
         }
         this.current.pts.push(p);
+        this.current.markDirty();
 
         if (this.current.pts.length === this.current.minPoints() && this.current.type !== 'bezier' && this.current.type !== 'poly') {
             this.current.forcedReady = true;
@@ -789,11 +898,12 @@ class CadVectorEngine {
 
         this.render();
     }
-    _onMove(e) {
-        if (!this.active) return;
-        const p = this.getCoords(e);
+    handlePointerMove(x, y) {
+        if (!this.active || this.isPanningActive) return;
+        const p = { x, y };
         if (this.dragging) {
             this.dragging.shape.pts[this.dragging.index] = p;
+            this.dragging.shape.markDirty();
             this.render();
             return;
         }
@@ -802,7 +912,7 @@ class CadVectorEngine {
             this.render();
         }
     }
-    _onUp() {
+    handlePointerUp() {
         if (this.dragging) {
             this.dragging = null;
             this._snapshot();
@@ -842,9 +952,15 @@ class CadVectorEngine {
         this.render();
     }
     _snapshot() {
-        const state = JSON.stringify(this.shapes.map(s => s.serialize()));
+        const state = {
+            shapes: this.shapes.map(s => s.serialize()),
+            current: this.current ? this.current.serialize() : null,
+            selectedIdx: this.selected ? this.shapes.indexOf(this.selected) : -1,
+            selectedPointIndex: this.selectedPointIndex
+        };
         this.history = this.history.slice(0, this.historyIndex + 1);
         this.history.push(state);
+        if (this.history.length > 25) this.history.shift();
         this.historyIndex = this.history.length - 1;
         if (typeof this.onStateChange === 'function') this.onStateChange(this);
     }
@@ -860,12 +976,13 @@ class CadVectorEngine {
             this._restore(this.history[this.historyIndex]);
         }
     }
-    _restore(json) {
-        const arr = JSON.parse(json);
-        this.shapes = arr.map(d => PureCadCurve.deserialize(d));
-        this.current = null;
-        this.selected = null;
-        this.selectedPointIndex = -1;
+    _restore(state) {
+        this.shapes = state.shapes.map(d => PureCadCurve.deserialize(d));
+        this.current = state.current ? PureCadCurve.deserialize(state.current) : null;
+        this.selected = (state.selectedIdx >= 0 && state.selectedIdx < this.shapes.length) ? this.shapes[state.selectedIdx] : null;
+        this.selectedPointIndex = state.selectedPointIndex !== undefined ? state.selectedPointIndex : -1;
+        this.dragging = null;
+        this.hoverPoint = null;
         this.render();
         if (typeof this.onStateChange === 'function') this.onStateChange(this);
     }
@@ -888,7 +1005,8 @@ class CadVectorEngine {
     }
     render() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        for (const sh of this.shapes) {
+        for (let i = 0; i < this.shapes.length; i++) {
+            const sh = this.shapes[i];
             this.drawShapeDirect(this.ctx, sh, {
                 selected: sh === this.selected,
                 selectedPointIndex: sh === this.selected ? this.selectedPointIndex : -1
@@ -1044,10 +1162,7 @@ class BrushTipRenderer {
         this.lastConfigKey = "";
     }
     _hexToRgb(hex) {
-        let c = String(hex).replace('#', '');
-        if (c.length === 3) c = c.split('').map(x => x + x).join('');
-        const num = parseInt(c, 16);
-        return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+        return FloodFillTool.hexToRgba(hex);
     }
     renderTip({ size = 50, hardness = 0.5, color = '#ffffff', texture = null } = {}) {
         const res = 512;
@@ -1089,7 +1204,7 @@ class BrushTipRenderer {
                 d[idx]     = d[idx] * tintR;
                 d[idx + 1] = d[idx + 1] * tintG;
                 d[idx + 2] = d[idx + 2] * tintB;
-                d[idx + 3] = d[idx + 3] * grad;
+                d[idx + 3] = Math.round(d[idx + 3] * grad);
             }
         }
         ctx.putImageData(imgData, 0, 0);
@@ -1201,6 +1316,7 @@ class Layer {
         this.width = width;
         this.height = height;
         this.visible = true; 
+        this.opacity = 1.0;
         this.canvas = document.createElement('canvas');
         this.canvas.width = width;
         this.canvas.height = height;
@@ -1223,10 +1339,17 @@ class Layer {
         this.canvas.height = h;
         this.canvas.style.width = w + 'px';
         this.canvas.style.height = h + 'px';
-        if (temp) this.ctx.drawImage(temp, 0, 0);
+        if (temp) {
+            this.ctx.drawImage(temp, 0, 0, temp.width, temp.height, 0, 0, w, h);
+        }
     }
     getSnapshot() { return this.ctx.getImageData(0, 0, this.width, this.height); }
-    restoreSnapshot(data) { this.ctx.putImageData(data, 0, 0); }
+    restoreSnapshot(data) {
+        if (this.width !== data.width || this.height !== data.height) {
+            this.setSize(data.width, data.height, false);
+        }
+        this.ctx.putImageData(data, 0, 0);
+    }
 }
 
 class LayerStackEngine {
@@ -1239,23 +1362,22 @@ class LayerStackEngine {
         this.activeLayerId = null;
         this.counter = 0;
     }
-     createLayer(name = null, width = null, height = null) {
-    this.counter++;
-    const id = 'layer_' + this.counter + '_' + Math.random().toString(36).substring(2, 7);
-    const layerName = name || `Capa ${this.counter}`;
-    
-    // Hereda tamaño de la capa activa actual
-    const active = this.getActiveLayer();
-    const w = width || (active ? active.width : this.defaultWidth);
-    const h = height || (active ? active.height : this.defaultHeight);
-    
-    const layer = new Layer(id, layerName, w, h);
-    this.layers.push(layer);
-    this.activeLayerId = id;
-    this.syncDOM();
-    this.onStackChanged(this.getLayerList(), this.activeLayerId);
-    return layer;
-}
+    createLayer(name = null, width = null, height = null) {
+        this.counter++;
+        const id = 'layer_' + this.counter + '_' + Math.random().toString(36).substring(2, 7);
+        const layerName = name || `Capa ${this.counter}`;
+        
+        const active = this.getActiveLayer();
+        const w = width || (active ? active.width : this.defaultWidth);
+        const h = height || (active ? active.height : this.defaultHeight);
+        
+        const layer = new Layer(id, layerName, w, h);
+        this.layers.push(layer);
+        this.activeLayerId = id;
+        this.syncDOM();
+        this.onStackChanged(this.getLayerList(), this.activeLayerId);
+        return layer;
+    }
     duplicateLayer(id) {
         const src = this.getLayerById(id);
         if (!src) return null;
@@ -1299,18 +1421,6 @@ class LayerStackEngine {
             this.syncDOM();
             this.onStackChanged(this.getLayerList(), this.activeLayerId);
         }
-    }
-    mergeDown(id, blendMode = 'source-over') {
-        const idx = this.layers.findIndex(l => l.id === id);
-        if (idx <= 0) return;
-        const upper = this.layers[idx];
-        const lower = this.layers[idx - 1];
-        lower.ctx.save();
-        lower.ctx.globalAlpha = upper.opacity;
-        lower.ctx.globalCompositeOperation = blendMode;
-        lower.ctx.drawImage(upper.canvas, 0, 0);
-        lower.ctx.restore();
-        this.deleteLayer(upper.id);
     }
     flipHoriz(id) {
         const layer = this.getLayerById(id);
@@ -1447,7 +1557,7 @@ class SelectionManager {
         this.onSelectionChange(this.hasSelection);
     }
     setLasso(points) {
-        this.polygon = [...points];
+        this.polygon = points.map(p => ({ x: p.x, y: p.y }));
         this.hasSelection = points.length > 2;
         this.updateMask();
         this.drawMarchingAnts();
@@ -1597,49 +1707,51 @@ class ToolManager {
         this.cloneBuffer = null;
         this.lassoPoints = [];
         this.polyPoints = [];
+        this.lastPolyClickTime = 0;
+        this.moveSnapshotCanvas = null;
     }
     setTool(tool) {
         if (this.currentTool === 'poly' && tool !== 'poly') this.finishPolySelection();
         this.currentTool = tool;
         if (this.cad) this.cad.active = (tool === 'cad');
     }
-cancelSelection() {
-    this.lassoPoints = [];
-    this.polyPoints = [];
-    this.isDrawing = false;
-    if (this.preview && this.pctx) {
-        this.pctx.clearRect(0, 0, this.preview.width, this.preview.height);
+    cancelSelection() {
+        this.lassoPoints = [];
+        this.polyPoints = [];
+        this.isDrawing = false;
+        if (this.preview && this.pctx) {
+            this.pctx.clearRect(0, 0, this.preview.width, this.preview.height);
+        }
+        if (this.selection) {
+            this.selection.clear();
+        }
     }
-    if (this.selection) {
-        this.selection.clear();
-    }
-}
     pointerDown(x, y, e) {
         if (this.currentTool === 'cad' && this.cad) {
             this.cad.handlePointerDown(x, y, e);
             return;
         }
- 
-if (this.currentTool === 'fill') {
-    const layer = this.layers.getActiveLayer();
-    if (layer) { 
-        this.onStrokeStart(layer); 
-        const filled = FloodFillTool.fill(
-            layer, 
-            x, 
-            y, 
-            this.brush.mainColor, 
-            15, 
-            this.selection
-        );
-        
-        if (filled) {
-            this.onStrokeFinished(layer);
+
+        if (this.currentTool === 'fill') {
+            const layer = this.layers.getActiveLayer();
+            if (layer) { 
+                this.onStrokeStart(layer); 
+                const filled = FloodFillTool.fill(
+                    layer, 
+                    x, 
+                    y, 
+                    this.brush.mainColor, 
+                    this.brush.opacity,
+                    15, 
+                    this.selection
+                );
+                if (filled) {
+                    this.onStrokeFinished(layer);
+                }
+            }
+            this.isDrawing = false;
+            return;
         }
-    }
-    this.isDrawing = false;
-    return;
-}
 
         if ((e.button === 2 || e.altKey) && this.currentTool === 'clone') {
             const active = this.layers.getActiveLayer();
@@ -1649,6 +1761,8 @@ if (this.currentTool === 'fill') {
                 this.cloneBuffer.width = active.width;
                 this.cloneBuffer.height = active.height;
                 this.cloneBuffer.getContext('2d').drawImage(active.canvas, 0, 0);
+                const hud = document.getElementById('hud');
+                if (hud) hud.textContent = `Punto de origen de clonación fijado en (${Math.round(x)}, ${Math.round(y)})`;
             }
             return;
         }
@@ -1659,7 +1773,11 @@ if (this.currentTool === 'fill') {
                 this.selection.clear();
                 return;
             }
-            if (e.detail === 2 || (this.polyPoints.length >= 3 && Math.hypot(x - this.polyPoints[0].x, y - this.polyPoints[0].y) < 15)) {
+            const now = performance.now();
+            const isDoubleClick = (now - this.lastPolyClickTime < 320) || e.detail === 2;
+            this.lastPolyClickTime = now;
+
+            if (isDoubleClick || (this.polyPoints.length >= 3 && Math.hypot(x - this.polyPoints[0].x, y - this.polyPoints[0].y) < 15)) {
                 this.finishPolySelection();
                 return;
             }
@@ -1680,25 +1798,44 @@ if (this.currentTool === 'fill') {
         this.lastY = y;
         this.distAccum = 0;
 
+        if (this.currentTool === 'move') {
+            this.moveSnapshotCanvas = document.createElement('canvas');
+            this.moveSnapshotCanvas.width = layer.width;
+            this.moveSnapshotCanvas.height = layer.height;
+            this.moveSnapshotCanvas.getContext('2d').drawImage(layer.canvas, 0, 0);
+            return;
+        }
+
         if (this.currentTool === 'eyedropper') {
             this.sampleColor(x, y);
             this.isDrawing = false;
             return;
         }
+
         if (this.currentTool === 'lasso') {
             this.lassoPoints = [{ x, y }];
             return;
         }
+
         if (this.currentTool === 'rectSelect') {
             this.selection.clear();
             return;
         }
+
         if (['brush', 'eraser', 'clone', 'stamp'].includes(this.currentTool)) {
-            this.drawInterpolatedStamp(layer.ctx, x, y, this.currentTool === 'eraser');
+            layer.ctx.save();
+            this.selection.applyClipping(layer.ctx);
+            layer.ctx.globalCompositeOperation = (this.currentTool === 'eraser') ? 'destination-out' : 'source-over';
+            layer.ctx.globalAlpha = this.brush.opacity * (this.brush.force / 100);
+            this.drawInterpolatedStampDirect(layer.ctx, x, y);
+            layer.ctx.restore();
         }
     }
     pointerMove(x, y) {
-        if (this.currentTool === 'cad') return;
+        if (this.currentTool === 'cad') {
+            if (this.cad) this.cad.handlePointerMove(x, y);
+            return;
+        }
 
         if (this.currentTool === 'poly' && this.polyPoints.length > 0) {
             const temp = [...this.polyPoints, { x, y }];
@@ -1711,15 +1848,19 @@ if (this.currentTool === 'fill') {
         if (!layer) return;
 
         if (['brush', 'eraser', 'clone', 'stamp'].includes(this.currentTool)) {
-            this.drawContinuousStroke(layer.ctx, this.lastX, this.lastY, x, y, this.currentTool === 'eraser');
+            layer.ctx.save();
+            this.selection.applyClipping(layer.ctx);
+            layer.ctx.globalCompositeOperation = (this.currentTool === 'eraser') ? 'destination-out' : 'source-over';
+            layer.ctx.globalAlpha = this.brush.opacity * (this.brush.force / 100);
+            this.drawContinuousStroke(layer.ctx, this.lastX, this.lastY, x, y);
+            layer.ctx.restore();
         } else if (this.currentTool === 'move') {
-            const dx = x - this.lastX;
-            const dy = y - this.lastY;
-            const temp = document.createElement('canvas');
-            temp.width = layer.width; temp.height = layer.height;
-            temp.getContext('2d').drawImage(layer.canvas, 0, 0);
-            layer.ctx.clearRect(0, 0, layer.width, layer.height);
-            layer.ctx.drawImage(temp, dx, dy);
+            if (this.moveSnapshotCanvas) {
+                const totalDx = Math.round(x - this.startX);
+                const totalDy = Math.round(y - this.startY);
+                layer.ctx.clearRect(0, 0, layer.width, layer.height);
+                layer.ctx.drawImage(this.moveSnapshotCanvas, totalDx, totalDy);
+            }
         } else if (this.currentTool === 'rectSelect') {
             this.selection.setRect(
                 Math.min(this.startX, x), Math.min(this.startY, y),
@@ -1735,16 +1876,38 @@ if (this.currentTool === 'fill') {
         this.lastY = y;
     }
     pointerUp(x, y) {
-        if (!this.isDrawing) return;
+        if (this.currentTool === 'cad' && this.cad) {
+            this.cad.handlePointerUp();
+            return;
+        }
+        if (!this.isDrawing) {
+            if (this.currentTool === 'rectSelect' || this.currentTool === 'lasso') {
+                this.selection.clear();
+            }
+            return;
+        }
         this.isDrawing = false;
         this.distAccum = 0;
+        this.moveSnapshotCanvas = null;
+
         const layer = this.layers.getActiveLayer();
         if (layer && ['line', 'rect', 'circle', 'arrow'].includes(this.currentTool)) {
             this.pctx.clearRect(0, 0, this.preview.width, this.preview.height);
             this.drawShape(layer.ctx, this.startX, this.startY, x, y);
         }
-        if (this.currentTool === 'lasso' && this.lassoPoints.length > 2) {
-            this.selection.setLasso(this.lassoPoints);
+        if (this.currentTool === 'rectSelect') {
+            const w = Math.abs(x - this.startX);
+            const h = Math.abs(y - this.startY);
+            if (w <= 2 && h <= 2) {
+                this.selection.clear();
+            }
+        }
+        if (this.currentTool === 'lasso') {
+            if (this.lassoPoints.length <= 2) {
+                this.selection.clear();
+            } else {
+                this.selection.setLasso(this.lassoPoints);
+            }
         }
         this.onStrokeFinished(layer);
     }
@@ -1752,32 +1915,36 @@ if (this.currentTool === 'fill') {
         if (this.polyPoints.length >= 3) this.selection.setLasso(this.polyPoints);
         this.polyPoints = [];
     }
-    drawContinuousStroke(ctx, x1, y1, x2, y2, isEraser = false) {
+    drawContinuousStroke(ctx, x1, y1, x2, y2) {
         const dist = Math.hypot(x2 - x1, y2 - y1);
         const step = Math.max(1, this.brush.size * (Math.max(1, this.brush.spacing) / 100));
+
+        if (dist === 0) {
+            if (this.distAccum >= step) {
+                this.drawInterpolatedStampDirect(ctx, x2, y2);
+                this.distAccum = 0;
+            }
+            return;
+        }
 
         this.distAccum += dist;
         if (this.distAccum >= step) {
             const n = Math.floor(this.distAccum / step);
             for (let i = 1; i <= n; i++) {
-                const t = (step * i) / dist;
-                this.drawInterpolatedStamp(ctx, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, isEraser);
+                const t = Math.min(1.0, (step * i) / dist);
+                this.drawInterpolatedStampDirect(ctx, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t);
             }
             this.distAccum %= step;
         }
     }
-    drawInterpolatedStamp(ctx, x, y, isEraser = false) {
-        ctx.save();
-        this.selection.applyClipping(ctx);
-        ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
-        ctx.globalAlpha = this.brush.opacity * (this.brush.force / 100);
+    drawInterpolatedStampDirect(ctx, x, y) {
         const dims = this.brush.getStampDimensions();
 
-        if (this.currentTool === 'clone' && this.cloneSource && this.cloneBuffer) {
-            const dx = x - this.startX;
-            const dy = y - this.startY;
-            const sx = this.cloneSource.x + dx;
-            const sy = this.cloneSource.y + dy;
+        if (this.currentTool === 'clone') {
+            if (!this.cloneSource || !this.cloneBuffer) return;
+            const sx = this.cloneSource.x + (x - this.startX);
+            const sy = this.cloneSource.y + (y - this.startY);
+            ctx.save();
             ctx.beginPath();
             ctx.arc(x, y, dims.w / 2, 0, Math.PI * 2);
             ctx.clip();
@@ -1788,6 +1955,7 @@ if (this.currentTool === 'fill') {
 
         const currentAngle = this.brush.randomRotation ? (Math.random() * 180 - 90) : this.brush.angle;
         const tipCanvas = this.brush.getTipCanvas();
+        ctx.save();
         ctx.translate(x, y);
         if (currentAngle !== 0) ctx.rotate((currentAngle * Math.PI) / 180);
         ctx.drawImage(tipCanvas, -dims.w / 2, -dims.h / 2, dims.w, dims.h);
@@ -1839,11 +2007,16 @@ if (this.currentTool === 'fill') {
 
 class ProjectExporter {
     static exportImage(layerStack, format = 'png') {
-        const active = layerStack.getActiveLayer();
-        const exportWidth = active ? active.width : layerStack.defaultWidth;
-        const exportHeight = active ? active.height : layerStack.defaultHeight;
+        let maxWidth = 1;
+        let maxHeight = 1;
+        layerStack.layers.forEach(l => {
+            if (l.width > maxWidth) maxWidth = l.width;
+            if (l.height > maxHeight) maxHeight = l.height;
+        });
+
         const out = document.createElement('canvas');
-        out.width = exportWidth; out.height = exportHeight;
+        out.width = maxWidth;
+        out.height = maxHeight;
         const octx = out.getContext('2d');
         layerStack.layers.forEach(l => {
             if (l.visible) {
@@ -1862,6 +2035,8 @@ class ProjectExporter {
 
 class ApplicationAdapter {
     constructor() {
+        this.initialCanvasWidth = 1024;
+        this.initialCanvasHeight = 768;
         this.defaultWidth = 1024;
         this.defaultHeight = 768;
         this.isInternalColorSync = false;
@@ -1870,7 +2045,7 @@ class ApplicationAdapter {
         this.initDOM();
         this.initEngines();
         this.buildLeftVerticalToolbar();
-         this.buildTopBrushBar();  
+        this.buildTopBrushBar();  
         this.buildRightUI();
         this.bindEvents();
     }
@@ -1883,109 +2058,105 @@ class ApplicationAdapter {
         this.selectionCanvas = document.getElementById('selection-canvas');
         this.syncInteractiveCanvases(this.defaultWidth, this.defaultHeight);
     }
-   
-   buildTopBrushBar() {
-    const topBar = document.createElement('div');
-    topBar.classList.add('cllcssopTolls');
-    document.body.appendChild(topBar);
+    buildTopBrushBar() {
+        const topBar = document.createElement('div');
+        topBar.classList.add('cllcssopTolls');
+        document.body.appendChild(topBar);
 
-    this.brushPreviewCanvas = document.createElement('canvas');
-    this.brushPreviewCanvas.className = 'preview-box';
-    this.brushPreviewCanvas.width = 44;
-    this.brushPreviewCanvas.height = 44;
- 
+        this.brushPreviewCanvas = document.createElement('canvas');
+        this.brushPreviewCanvas.className = 'preview-box';
+        this.brushPreviewCanvas.width = 44;
+        this.brushPreviewCanvas.height = 44;
 
-    const fileInp = document.createElement('input');
-    fileInp.type = 'file';
-    fileInp.accept = 'image/*';
-    fileInp.style.display = 'none';
-    fileInp.addEventListener('change', (e) => {
-        const f = e.target.files[0];
-        if (f) {
-            const img = new Image();
-            img.onload = () => {
-                this.brush.set('stampImage', img);
-                if (this.cad) this.cad.useBrushStamp = true;
-                if (this.toggleCadBrush) this.toggleCadBrush.setValue(true);
-                this.updateBrushPreview();
-                if (this.cad) this.cad.render();
-            };
-            img.src = URL.createObjectURL(f);
-        }
-    });
-
-    const btnFile = document.createElement('button');
-    btnFile.className = 'btn-sq-custom';
-    btnFile.title = 'Cargar Imagen / Textura';
-    btnFile.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-        <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
-    </svg>`;
-    btnFile.addEventListener('click', () => fileInp.click());
-    topBar.appendChild(btnFile);
-
-    const btnGiro = document.createElement('button');
-    btnGiro.className = `btn-sq-custom ${this.brush.randomRotation ? 'active' : ''}`;
-    btnGiro.title = 'Giro Automático / Aleatorio';
-    btnGiro.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
-    </svg>`;
-    btnGiro.addEventListener('click', () => {
-        const estado = !this.brush.randomRotation;
-        this.brush.set('randomRotation', estado);
-        btnGiro.classList.toggle('active', estado);
-    });
-    topBar.appendChild(btnGiro);
-
-    const crearSliderPuro = (label, min, max, step, valorInicial, onChange) => {
-        const wrap = document.createElement('div');
-        wrap.className = 'custom-slider-box';
-
-        const head = document.createElement('div');
-        head.className = 'custom-slider-header';
-
-        const tit = document.createElement('span');
-        tit.textContent = label;
-
-        const val = document.createElement('span');
-        val.textContent = valorInicial;
-
-        head.appendChild(tit);
-        head.appendChild(val);
-
-        const input = document.createElement('input');
-        input.type = 'range';
-        input.className = 'custom-slider-range';
-        input.min = min;
-        input.max = max;
-        input.step = step;
-        input.value = valorInicial;
-
-        input.addEventListener('input', (e) => {
-            const v = parseFloat(e.target.value);
-            val.textContent = v;
-            onChange(v);
+        const fileInp = document.createElement('input');
+        fileInp.type = 'file';
+        fileInp.accept = 'image/*';
+        fileInp.style.display = 'none';
+        fileInp.addEventListener('change', (e) => {
+            const f = e.target.files[0];
+            if (f) {
+                const img = new Image();
+                img.onload = () => {
+                    this.brush.set('stampImage', img);
+                    if (this.cad) this.cad.useBrushStamp = true;
+                    if (this.toggleCadBrush) this.toggleCadBrush.setValue(true);
+                    this.updateBrushPreview();
+                    if (this.cad) this.cad.render();
+                };
+                img.src = URL.createObjectURL(f);
+            }
         });
 
-        wrap.appendChild(head);
-        wrap.appendChild(input);
-        topBar.appendChild(wrap);
-    };
+        const btnFile = document.createElement('button');
+        btnFile.className = 'btn-sq-custom';
+        btnFile.title = 'Cargar Imagen / Textura';
+        btnFile.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+        </svg>`;
+        btnFile.addEventListener('click', () => fileInp.click());
+        topBar.appendChild(btnFile);
 
-    crearSliderPuro('Tamaño', 1, 800, 1, this.brush.size, (v) => {
-        this.brush.set('size', v);
-    });
+        const btnGiro = document.createElement('button');
+        btnGiro.className = `btn-sq-custom ${this.brush.randomRotation ? 'active' : ''}`;
+        btnGiro.title = 'Giro Automático / Aleatorio';
+        btnGiro.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+        </svg>`;
+        btnGiro.addEventListener('click', () => {
+            const estado = !this.brush.randomRotation;
+            this.brush.set('randomRotation', estado);
+            btnGiro.classList.toggle('active', estado);
+        });
+        topBar.appendChild(btnGiro);
 
-    crearSliderPuro('Ángulo', 0, 360, 1, this.brush.angle, (v) => {
-        this.brush.set('angle', v);
-    });
+        const crearSliderPuro = (label, min, max, step, valorInicial, onChange) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'custom-slider-box';
 
-    crearSliderPuro('Opacidad', 0.01, 1, 0.01, this.brush.opacity, (v) => {
-        this.brush.set('opacity', v);
-    });
-}
+            const head = document.createElement('div');
+            head.className = 'custom-slider-header';
 
+            const tit = document.createElement('span');
+            tit.textContent = label;
 
-syncInteractiveCanvases(w, h) {
+            const val = document.createElement('span');
+            val.textContent = valorInicial;
+
+            head.appendChild(tit);
+            head.appendChild(val);
+
+            const input = document.createElement('input');
+            input.type = 'range';
+            input.className = 'custom-slider-range';
+            input.min = min;
+            input.max = max;
+            input.step = step;
+            input.value = valorInicial;
+
+            input.addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value);
+                val.textContent = v;
+                onChange(v);
+            });
+
+            wrap.appendChild(head);
+            wrap.appendChild(input);
+            topBar.appendChild(wrap);
+        };
+
+        crearSliderPuro('Tamaño', 1, 800, 1, this.brush.size, (v) => {
+            this.brush.set('size', v);
+        });
+
+        crearSliderPuro('Ángulo', 0, 360, 1, this.brush.angle, (v) => {
+            this.brush.set('angle', v);
+        });
+
+        crearSliderPuro('Opacidad', 0.01, 1, 0.01, this.brush.opacity, (v) => {
+            this.brush.set('opacity', v);
+        });
+    }
+    syncInteractiveCanvases(w, h, resizeLayers = false) {
         this.previewCanvas.width = w; this.previewCanvas.height = h;
         this.previewCanvas.style.width = w + 'px'; this.previewCanvas.style.height = h + 'px';
 
@@ -1997,6 +2168,10 @@ syncInteractiveCanvases(w, h) {
 
         if (this.cad) this.cad.setSize(w, h);
         if (this.selection) this.selection.setSize(w, h);
+
+        if (resizeLayers && this.layers) {
+            this.layers.layers.forEach(l => l.setSize(w, h, true));
+        }
     }
     initEngines() {
         this.zoom = new CanvasZoomManager({
@@ -2082,22 +2257,32 @@ syncInteractiveCanvases(w, h) {
             }
         });
 
-        const bg = this.layers.createLayer('Base Background', this.defaultWidth, this.defaultHeight);
- 
- 
-       
+        this.layers.createLayer('Base Background', this.defaultWidth, this.defaultHeight);
         this.layers.createLayer('Paint Layer 1', this.defaultWidth, this.defaultHeight);
         requestAnimationFrame(() => this.ajustarCanvasACapaActiva());
     }
-
     updateBrushPreview() {
         if (!this.brushPreviewCanvas) return;
         const pctx = this.brushPreviewCanvas.getContext('2d');
-        pctx.clearRect(0, 0, this.brushPreviewCanvas.width, this.brushPreviewCanvas.height);
-        const tip = this.brush.getTipCanvas();
-        pctx.drawImage(tip, 0, 0, this.brushPreviewCanvas.width, this.brushPreviewCanvas.height);
-    }
+        const w = this.brushPreviewCanvas.width;
+        const h = this.brushPreviewCanvas.height;
+        pctx.clearRect(0, 0, w, h);
 
+        const tip = this.brush.getTipCanvas();
+        const dims = this.brush.getStampDimensions();
+        const maxDim = Math.max(dims.w, dims.h);
+        const fitScale = maxDim > (w - 6) ? (w - 6) / maxDim : 1;
+        const dw = dims.w * fitScale;
+        const dh = dims.h * fitScale;
+
+        pctx.save();
+        pctx.translate(w / 2, h / 2);
+        if (this.brush.angle !== 0 && !this.brush.randomRotation) {
+            pctx.rotate((this.brush.angle * Math.PI) / 180);
+        }
+        pctx.drawImage(tip, -dw / 2, -dh / 2, dw, dh);
+        pctx.restore();
+    }
     centerView(w = null, h = null) {
         const act = this.layers.getActiveLayer();
         const width = w || (act ? act.width : this.defaultWidth);
@@ -2115,115 +2300,97 @@ syncInteractiveCanvases(w, h) {
         this.zoom.panY = centerY - (height * this.zoom.scale) / 2;
         this.zoom.apply();
     }
+    ajustarCanvasACapaActiva() {
+        const act = this.layers.getActiveLayer();
+        if (!act) return;
 
-   ajustarCanvasACapaActiva() {
-    const act = this.layers.getActiveLayer();
-    if (!act) return;
+        const targetW = act.width;
+        const targetH = act.height;
 
-    // 1. Tamaño real de la capa activa
-    const targetW = act.width;
-    const targetH = act.height;
+        this.defaultWidth = targetW;
+        this.defaultHeight = targetH;
+        this.layers.defaultWidth = targetW;
+        this.layers.defaultHeight = targetH;
 
-    // 2. Actualiza la resolución global del motor
-    this.defaultWidth = targetW;
-    this.defaultHeight = targetH;
-    this.layers.defaultWidth = targetW;
-    this.layers.defaultHeight = targetH;
+        this.syncInteractiveCanvases(targetW, targetH, false);
+        this.centerView(targetW, targetH);
 
-    // 3. Redimensiona los lienzos interactivos (CAD, Selección, Previo)
-    this.syncInteractiveCanvases(targetW, targetH);
-
-    // 4. Centra la vista y calcula el zoom perfecto en pantalla
-    this.centerView(targetW, targetH);
-
-    // 5. Notificación HUD
-    const hud = document.getElementById('hud');
-    if (hud) hud.textContent = `✓ Canvas adaptado a: ${act.name} (${targetW}x${targetH} px)`;
-}
-
+        const hud = document.getElementById('hud');
+        if (hud) hud.textContent = `✓ Canvas adaptado a: ${act.name} (${targetW}x${targetH} px)`;
+    }
     adaptarCapaActivaAlCanvas() {
         const act = this.layers.getActiveLayer();
         if (!act) return;
-        const targetW = this.defaultWidth;
-        const targetH = this.defaultHeight;
-        const before = act.getSnapshot();
-        const temp = document.createElement('canvas');
-        temp.width = act.width; temp.height = act.height;
-        temp.getContext('2d').drawImage(act.canvas, 0, 0);
+        const targetW = this.initialCanvasWidth;
+        const targetH = this.initialCanvasHeight;
+        if (act.width === targetW && act.height === targetH) return;
 
-        act.setSize(targetW, targetH, false);
-        act.ctx.clearRect(0, 0, targetW, targetH);
-        act.ctx.drawImage(temp, 0, 0, targetW, targetH);
+        const before = act.getSnapshot();
+        act.setSize(targetW, targetH, true);
         const after = act.getSnapshot();
 
         this.history.push({
-            undo: () => act.restoreSnapshot(before),
-            redo: () => act.restoreSnapshot(after)
+            undo: () => {
+                act.restoreSnapshot(before);
+                this.syncInteractiveCanvases(before.width, before.height, false);
+                this.centerView(before.width, before.height);
+            },
+            redo: () => {
+                act.restoreSnapshot(after);
+                this.syncInteractiveCanvases(after.width, after.height, false);
+                this.centerView(after.width, after.height);
+            }
         });
-        this.syncInteractiveCanvases(targetW, targetH);
+        this.syncInteractiveCanvases(targetW, targetH, false);
         this.centerView(targetW, targetH);
     }
+    pegarComoNuevaCapa(canvasRecorte, nombre = 'Capa Pegada') {
+        if (!canvasRecorte || canvasRecorte.width <= 0 || canvasRecorte.height <= 0) return;
+        
+        const w = canvasRecorte.naturalWidth || canvasRecorte.width;
+        const h = canvasRecorte.naturalHeight || canvasRecorte.height;
 
-pegarComoNuevaCapa(canvasRecorte, nombre = 'Capa Pegada') {
-    if (!canvasRecorte || canvasRecorte.width <= 0 || canvasRecorte.height <= 0) return;
-    
-    const w = canvasRecorte.naturalWidth || canvasRecorte.width;
-    const h = canvasRecorte.naturalHeight || canvasRecorte.height;
+        const nuevaCapa = this.layers.createLayer(`${nombre} (${w}x${h})`, w, h);
+        nuevaCapa.ctx.drawImage(canvasRecorte, 0, 0, w, h);
 
-    // 1. Crea la capa con las dimensiones nativas de la imagen pegada
-    const nuevaCapa = this.layers.createLayer(`${nombre} (${w}x${h})`, w, h);
-    nuevaCapa.ctx.drawImage(canvasRecorte, 0, 0, w, h);
+        const capaId = nuevaCapa.id;
+        const indiceOriginal = this.layers.layers.findIndex(l => l.id === capaId);
 
-    // 2. Hace activa la nueva capa inmediatamente
-    this.layers.setActiveLayer(nuevaCapa.id);
+        this.layers.setActiveLayer(nuevaCapa.id);
 
-    // 3. Registro para Deshacer / Rehacer
-    const capaId = nuevaCapa.id;
-    this.history.push({
-        undo: () => this.layers.deleteLayer(capaId),
-        redo: () => {
-            this.layers.layers.push(nuevaCapa);
-            this.layers.setActiveLayer(nuevaCapa.id);
-            this.layers.syncDOM();
-        }
-    });
+        this.history.push({
+            undo: () => this.layers.deleteLayer(capaId),
+            redo: () => {
+                this.layers.layers.splice(indiceOriginal, 0, nuevaCapa);
+                this.layers.setActiveLayer(nuevaCapa.id);
+                this.layers.syncDOM();
+                this.ajustarCanvasACapaActiva();
+            }
+        });
 
-    // 4. Adapta el proyecto al tamaño de la imagen que acabas de pegar
-    this.ajustarCanvasACapaActiva();
-}
-
+        this.ajustarCanvasACapaActiva();
+    }
     buildLeftVerticalToolbar() {
         const bar = document.getElementById('left-toolbar-strip');
         bar.innerHTML = '';
 
         const toolsConfig = [
-            { id: 'brush', label: 'BRS', title: 'Pincel (B)', icon: '<path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.71a.996.996 0 0 0-1.41 0l-9.3 9.3 2.83 2.83 9.3-9.3a.996.996 0 0 0 0-1.41l-1.42-1.42z"/>' },
-            { id: 'cad', label: 'CAD', title: 'Vector / CAD', icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>' },
-            { id: 'eraser', label: 'ERA', title: 'Borrador (E)', icon: '<path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.04 20h8.96l7.41-7.41c.78-.78.78-2.05 0-2.83L16.55 3.59c-.39-.39-.9-.59-1.41-.59zM14 6.83l3.17 3.17L12 15.17 8.83 12 14 6.83z"/>' },
-            { id: 'line', label: 'LIN', title: 'Línea', icon: '<path d="M3.5 20.5l17-17 1.4 1.4-17 17z"/>' },
-            { id: 'rect', label: 'REC', title: 'Rectángulo', icon: '<path d="M3 3h18v18H3V3zm2 2v14h14V5H5z"/>' },
-            { id: 'circle', label: 'CIR', title: 'Círculo', icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>' },
-            { id: 'arrow', label: 'ARR', title: 'Flecha', icon: '<path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>' },
-           
-            { 
-    id: 'eyedropper', 
-    label: 'EYE', 
-    title: 'Cuentagotas', 
-    icon: '<path d="M20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.42 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.13-3.13a1 1 0 0 0 0-1.41zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/>' 
-},
-            { id: 'clone', label: 'CLN', title: 'Clonar (C)', icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
-            { id: 'stamp', label: 'STM', title: 'Estampa (S)', icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h12l-4-5z"/>' },
-            { id: 'move', label: 'MOV', title: 'Mover (M)', icon: '<path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/>' },
-            { id: 'rectSelect', label: 'SEL', title: 'Selección Rectangular', icon: '<path d="M4 4h4v2H6v2H4V4zm16 0v4h-2V6h-2V4h4zM4 20v-4h2v2h2v2H4zm16 0h-4v-2h2v-2h2v4z"/>' },
-            { id: 'lasso', label: 'LAS', title: 'Selección Lazo', icon: '<path d="M12.3 2a9.7 9.7 0 0 0-9.7 9.7c0 3.7 2 7 5.2 8.6L6 22l3.4-1.3c.9.2 1.9.3 2.9.3 5.4 0 9.7-4.3 9.7-9.7S17.7 2 12.3 2zm0 17.4c-.9 0-1.8-.1-2.6-.4l-.6-.2-1.9.7.7-1.9-.3-.5c-2.7-1.4-4.3-4.1-4.3-7.1 0-4.3 3.6-7.7 7.7-7.7s7.7 3.5 7.7 7.7-3.4 7.7-7.7 7.7z"/>' },
-            { id: 'poly', label: 'POL', title: 'Selección Poligonal', icon: '<path d="M2 12l5-9h10l5 9-5 9H7l-5-9zm6.1-7l-3.9 7 3.9 7h7.8l3.9-7-3.9-7H8.1z"/>' },         
-            { 
-                id: 'fill', 
-                label: 'FIL', 
-                title: 'Bote de Pintura (G)', 
-                icon: '<path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15a1.49 1.49 0 0 0 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z"/>' 
-            },
-        ];
+    { id: 'brush',      label: 'BRS', title: 'Brush (B)',              icon: '<path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.71a.996.996 0 0 0-1.41 0l-9.3 9.3 2.83 2.83 9.3-9.3a.996.996 0 0 0 0-1.41l-1.42-1.42z"/>' },
+    { id: 'cad',        label: 'CAD', title: 'Vector / CAD',            icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>' },
+    { id: 'eraser',     label: 'ERA', title: 'Eraser (E)',             icon: '<path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.04 20h8.96l7.41-7.41c.78-.78.78-2.05 0-2.83L16.55 3.59c-.39-.39-.9-.59-1.41-.59zM14 6.83l3.17 3.17L12 15.17 8.83 12 14 6.83z"/>' },
+    { id: 'line',       label: 'LIN', title: 'Line',                   icon: '<path d="M3.5 20.5l17-17 1.4 1.4-17 17z"/>' },
+    { id: 'rect',       label: 'REC', title: 'Rectangle',              icon: '<path d="M3 3h18v18H3V3zm2 2v14h14V5H5z"/>' },
+    { id: 'circle',     label: 'CIR', title: 'Circle',                 icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>' },
+    { id: 'arrow',      label: 'ARR', title: 'Arrow',                  icon: '<path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>' },
+    { id: 'eyedropper', label: 'EYE', title: 'Eyedropper',             icon: '<path d="M20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.42 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.13-3.13a1 1 0 0 0 0-1.41zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/>' },
+    { id: 'clone',      label: 'CLN', title: 'Clone (C) [Alt+Click or Right-Click to Sample]', icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
+    { id: 'stamp',      label: 'STM', title: 'Stamp (S)',              icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h12l-4-5z"/>' },
+    { id: 'move',       label: 'MOV', title: 'Move (M)',               icon: '<path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/>' },
+    { id: 'rectSelect', label: 'SEL', title: 'Rectangular Selection',  icon: '<path d="M4 4h4v2H6v2H4V4zm16 0v4h-2V6h-2V4h4zM4 20v-4h2v2h2v2H4zm16 0h-4v-2h2v-2h2v4z"/>' },
+    { id: 'lasso',      label: 'LAS', title: 'Lasso Selection',        icon: '<path d="M12.3 2a9.7 9.7 0 0 0-9.7 9.7c0 3.7 2 7 5.2 8.6L6 22l3.4-1.3c.9.2 1.9.3 2.9.3 5.4 0 9.7-4.3 9.7-9.7S17.7 2 12.3 2zm0 17.4c-.9 0-1.8-.1-2.6-.4l-.6-.2-1.9.7.7-1.9-.3-.5c-2.7-1.4-4.3-4.1-4.3-7.1 0-4.3 3.6-7.7 7.7-7.7s7.7 3.5 7.7 7.7-3.4 7.7-7.7 7.7z"/>' },
+    { id: 'poly',       label: 'POL', title: 'Polygonal Selection (double-click / click origin to close)', icon: '<path d="M2 12l5-9h10l5 9-5 9H7l-5-9zm6.1-7l-3.9 7 3.9 7h7.8l3.9-7-3.9-7H8.1z"/>' },
+    { id: 'fill',       label: 'FIL', title: 'Paint Bucket (G)',       icon: '<path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15a1.49 1.49 0 0 0 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z"/>' },
+];
 
         toolsConfig.forEach(t => {
             const btn = document.createElement('button');
@@ -2239,13 +2406,13 @@ pegarComoNuevaCapa(canvasRecorte, nombre = 'Capa Pegada') {
         sep.className = 'tool-sep';
         bar.appendChild(sep);
 
-        const actions = [
-            { label: 'Q', title: 'Ajustar a Capa (Q)', action: () => this.ajustarCanvasACapaActiva(), icon: '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>' },
-            { label: 'W', title: 'Adaptar Capa (W)', action: () => this.adaptarCapaActivaAlCanvas(), icon: '<path d="M4 4h16v16H4V4zm2 2v12h12V6H6z"/>' },
-            { label: 'Z+', title: 'Zoom +', action: () => this.zoom.zoomDelta(1), icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
-            { label: 'Z-', title: 'Zoom -', action: () => this.zoom.zoomDelta(-1), icon: '<path d="M19 13H5v-2h14v2z"/>' },
-            { label: 'UND', title: 'Deshacer (Ctrl+Z)', action: () => this.history.undo(), icon: '<path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>' }
-        ];
+     const actions = [
+    { label: 'Q',   title: 'Fit to Layer (Q)',   action: () => this.ajustarCanvasACapaActiva(),      icon: '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>' },
+    { label: 'W',   title: 'Fit to Canvas (W)',  action: () => this.adaptarCapaActivaAlCanvas(),    icon: '<path d="M4 4h16v16H4V4zm2 2v12h12V6H6z"/>' },
+    { label: 'Z+',  title: 'Zoom In',            action: () => this.zoom.zoomDelta(1),              icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
+    { label: 'Z-',  title: 'Zoom Out',           action: () => this.zoom.zoomDelta(-1),             icon: '<path d="M19 13H5v-2h14v2z"/>' },
+    { label: 'UND', title: 'Undo (Ctrl+Z)',      action: () => this.history.undo(),                 icon: '<path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>' }
+];
 
         actions.forEach(a => {
             const btn = document.createElement('button');
@@ -2256,53 +2423,47 @@ pegarComoNuevaCapa(canvasRecorte, nombre = 'Capa Pegada') {
             bar.appendChild(btn);
         });
     }
-
     setActiveTool(toolId) {
         this.tools.setTool(toolId);
         Object.keys(this.toolButtons).forEach(id => {
             if (this.toolButtons[id]) this.toolButtons[id].classList.toggle('active', id === toolId);
         });
     }
-
     buildRightUI() {
         const pickerWidth = 310;
-        const pickerHeight = 265;
 
-     
+        this.colorPicker = new UIColorPicker({
+            id: 'brushCustomColorPicker',
+            title: '  Color HSV/RGB',
+            floating: false,  
+            initialColor: { r: 255, g: 240, b: 170, a: 1.0 },
+            canvas: () => {
+                const active = this.layers.getActiveLayer();
+                return active ? active.canvas : null;
+            },
+            onChange: (rgba, RGBA, hex, info) => {
+                if (this.isInternalColorSync) return;
+                this.isInternalColorSync = true;
+                this.brush.set('mainColor', hex, false);
+                if (this.cad) {
+                    this.cad.defaultStyle.stroke = hex;
+                    this.cad.render();
+                }
+                this.isInternalColorSync = false;
+                this.updateBrushPreview();
+            }
+        });
 
-       this.colorPicker = new UIColorPicker({
-    id: 'brushCustomColorPicker',
-    title: 'Paleta & Color HSV/RGB',
-    floating: false,  
-    initialColor: { r: 255, g: 240, b: 170, a: 1.0 },
-    canvas: () => {
-        const active = this.layers.getActiveLayer();
-        return active ? active.canvas : null;
-    },
-    onChange: (rgba, RGBA, hex, info) => {
-        if (this.isInternalColorSync) return;
-        this.isInternalColorSync = true;
-        this.brush.set('mainColor', hex, false);
-        if (this.cad) {
-            this.cad.defaultStyle.stroke = hex;
-            this.cad.render();
-        }
-        this.isInternalColorSync = false;
-        this.updateBrushPreview();
-    }
-});
         this.rightContainer = new UI.Container({
             id: 'dock_right',
             direction: 'column',
             width: pickerWidth,
             floating: false
         }).mount(document.body);
-        
 
-       const containerEl = this.rightContainer.element;
- this.rightContainer.addPanel(this.colorPicker.panel);
-
-ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
+        const containerEl = this.rightContainer.element;
+        this.rightContainer.addPanel(this.colorPicker.panel);
+        ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
 
         window.addEventListener('resize', () => {
             if (this.colorPicker && this.colorPicker.element) {
@@ -2325,19 +2486,19 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
         
         const rCadMode = itemCAD.addRow(0);
         const selCadMode = new UI.Select({
-            options: [
-                { value: 'bezier', label: 'Bézier' },
-                { value: 'poly', label: 'Regresión Polinómica' },
-                { value: 'arc3', label: 'Arco (3 puntos)' },
-                { value: 'arc2', label: 'Arco (2 puntos)' },
-                { value: 'circle', label: 'Círculo' },
-                { value: 'ellipse', label: 'Elipse' },
-                { value: 'rect', label: 'Rectángulo' },
-                { value: 'polygon', label: 'Polígono Regular' },
-                { value: 'trapezoid', label: 'Trapezoide' }
-            ],
-            value: 'bezier'
-        });
+    options: [
+        { value: 'bezier',     label: 'Bézier' },
+        { value: 'poly',       label: 'Polynomial Regression' },
+        { value: 'arc3',       label: 'Arc (3 points)' },
+        { value: 'arc2',       label: 'Arc (2 points)' },
+        { value: 'circle',     label: 'Circle' },
+        { value: 'ellipse',    label: 'Ellipse' },
+        { value: 'rect',       label: 'Rectangle' },
+        { value: 'polygon',    label: 'Regular Polygon' },
+        { value: 'trapezoid',  label: 'Trapezoid' }
+    ],
+    value: 'bezier'
+});
         selCadMode.element.addEventListener('change', () => {
             this.cad.currentType = selCadMode.getValue();
             this.cad.finishCurrent();
@@ -2347,37 +2508,36 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
 
         const rCadDeg = itemCAD.addRow(4);
         rCadDeg.append(new UI.ConfigurableSlider({
-            label: 'Grado Curva / Polinomio', min: 1, max: 7, step: 1, value: 3,
-            onChange: (v) => { this.cad.currentDegree = v; this.cad.render(); }
-        }));
+    label: 'Curve / Polynomial Degree', min: 1, max: 7, step: 1, value: 3,
+    onChange: (v) => { this.cad.currentDegree = v; this.cad.render(); }
+}));
 
-        const rCadStyle = itemCAD.addRow(4);
-        rCadStyle.append(new UI.ConfigurableSlider({
-            label: 'Grosor Trazo CAD', min: 1, max: 20, step: 1, value: 2,
-            onChange: (v) => { this.cad.defaultStyle.lineWidth = v; this.cad.render(); }
-        }));
-        rCadStyle.append(new UI.Toggle({
-            label: 'Rellenar Forma', value: false,
-            onChange: (v) => { this.cad.defaultStyle.fill = v ? this.brush.mainColor : null; this.cad.render(); }
-        }));
+const rCadStyle = itemCAD.addRow(4);
+rCadStyle.append(new UI.ConfigurableSlider({
+    label: 'CAD Stroke Width', min: 1, max: 20, step: 1, value: 2,
+    onChange: (v) => { this.cad.defaultStyle.lineWidth = v; this.cad.render(); }
+}));
+rCadStyle.append(new UI.Toggle({
+    label: 'Fill Shape', value: false,
+    onChange: (v) => { this.cad.defaultStyle.fill = v ? this.brush.mainColor : null; this.cad.render(); }
+}));
 
-        this.toggleCadBrush = new UI.Toggle({
-            label: 'Trazar con Brocha / Estampa', value: false,
-            onChange: (v) => { 
-                this.cad.useBrushStamp = v; 
-                this.cad.render();
-            }
-        });
+this.toggleCadBrush = new UI.Toggle({
+    label: 'Trace with Brush / Stamp', value: false,
+    onChange: (v) => { 
+        this.cad.useBrushStamp = v; 
+        this.cad.render();
+    }
+});
         itemCAD.append(this.toggleCadBrush);
 
         const rCadOps = itemCAD.addRow(4);
-        rCadOps.append(new UI.Button({ text: 'Terminar Trazo (Esc)', onClick: () => this.cad.finishCurrent() }));
-        rCadOps.append(new UI.Button({ text: 'Borrar Sel', variant: 'danger', onClick: () => this.cad.deleteSelected() }));
-        rCadOps.append(new UI.Button({ text: 'Limpiar Todo', onClick: () => this.cad.clearAll() }));
-
+      rCadOps.append(new UI.Button({ text: 'Finish Stroke (Esc)', onClick: () => this.cad.finishCurrent() }));
+rCadOps.append(new UI.Button({ text: 'Delete Sel.', variant: 'danger', onClick: () => this.cad.deleteSelected() }));
+rCadOps.append(new UI.Button({ text: 'Clear All', onClick: () => this.cad.clearAll() }));
         const rCadBake = itemCAD.addRow(0);
         rCadBake.append(new UI.Button({
-            text: 'Volcar CAD a Capa Activa', variant: 'primary',
+            text: 'Transfer CAD to Active Layer', variant: 'primary',
             onClick: () => {
                 const act = this.layers.getActiveLayer();
                 if (!act) return;
@@ -2392,54 +2552,48 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
             }
         }));
 
-        const itemLayers = accordion.addItem({ title: '  (Layers)', open: false });
+        const itemLayers = accordion.addItem({ title: 'Layers', open: false });
         const rCanvasAdjust = itemLayers.addRow(4);
         rCanvasAdjust.append(new UI.Button({ text: 'Fit to Layer (Q)', variant: 'primary', onClick: () => this.ajustarCanvasACapaActiva() }));
         rCanvasAdjust.append(new UI.Button({ text: 'Fit to Canvas (W)', onClick: () => this.adaptarCapaActivaAlCanvas() }));
 
         const rTop = itemLayers.addRow(4);
-        rTop.append(new UI.Button({ text: 'new Layer', variant: 'primary', onClick: () => { this.layers.createLayer(); this.ajustarCanvasACapaActiva(); } }));
+        rTop.append(new UI.Button({ text: 'New Layer', variant: 'primary', onClick: () => { this.layers.createLayer(); this.ajustarCanvasACapaActiva(); } }));
         rTop.append(new UI.Button({ text: 'Double', onClick: () => { this.layers.duplicateLayer(this.layers.activeLayerId); this.ajustarCanvasACapaActiva(); } }));
-         rTop.append(new UI.Button({
-    text: 'Borrar',
-    variant: 'danger',
-    onClick: () => {
-        // No permitir borrar si solo queda una capa
-        if (this.layers.layers.length <= 1) return;
+        rTop.append(new UI.Button({
+            text: 'Borrar',
+            variant: 'danger',
+            onClick: () => {
+                if (this.layers.layers.length <= 1) return;
+                const capaBorrar = this.layers.getActiveLayer();
+                if (!capaBorrar) return;
 
-        const capaBorrar = this.layers.getActiveLayer();
-        if (!capaBorrar) return;
+                const indiceOriginal = this.layers.layers.findIndex(l => l.id === capaBorrar.id);
+                const copiaCanvas = document.createElement('canvas');
+                copiaCanvas.width = capaBorrar.width;
+                copiaCanvas.height = capaBorrar.height;
+                copiaCanvas.getContext('2d').drawImage(capaBorrar.canvas, 0, 0);
 
-        // 1. Guardamos la posición, ID y datos de la capa antes de borrarla
-        const indiceOriginal = this.layers.layers.findIndex(l => l.id === capaBorrar.id);
-        const copiaCanvas = document.createElement('canvas');
-        copiaCanvas.width = capaBorrar.width;
-        copiaCanvas.height = capaBorrar.height;
-        copiaCanvas.getContext('2d').drawImage(capaBorrar.canvas, 0, 0);
+                this.history.push({
+                    undo: () => {
+                        this.layers.layers.splice(indiceOriginal, 0, capaBorrar);
+                        capaBorrar.ctx.clearRect(0, 0, capaBorrar.width, capaBorrar.height);
+                        capaBorrar.ctx.drawImage(copiaCanvas, 0, 0);
+                        this.layers.setActiveLayer(capaBorrar.id);
+                        this.layers.syncDOM();
+                        this.ajustarCanvasACapaActiva();
+                    },
+                    redo: () => {
+                        this.layers.deleteLayer(capaBorrar.id);
+                        this.ajustarCanvasACapaActiva();
+                    }
+                });
 
-        // 2. Registramos la acción en el historial
-        this.history.push({
-            undo: () => {
-                // Al pulsar Ctrl+Z: restaura la capa en su índice original
-                this.layers.layers.splice(indiceOriginal, 0, capaBorrar);
-                capaBorrar.ctx.clearRect(0, 0, capaBorrar.width, capaBorrar.height);
-                capaBorrar.ctx.drawImage(copiaCanvas, 0, 0);
-                this.layers.setActiveLayer(capaBorrar.id);
-                this.layers.syncDOM();
-                this.ajustarCanvasACapaActiva();
-            },
-            redo: () => {
-                // Al pulsar Ctrl+Y: vuelve a eliminarla
                 this.layers.deleteLayer(capaBorrar.id);
                 this.ajustarCanvasACapaActiva();
             }
-        });
+        }));
 
-        // 3. Eliminamos la capa
-        this.layers.deleteLayer(capaBorrar.id);
-        this.ajustarCanvasACapaActiva();
-    }
-}));
         const rMove = itemLayers.addRow(4);
         rMove.append(new UI.Button({ text: '▲', onClick: () => this.layers.moveUp(this.layers.activeLayerId) }));
         rMove.append(new UI.Button({ text: '▼', onClick: () => this.layers.moveDown(this.layers.activeLayerId) }));
@@ -2458,22 +2612,17 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
         itemLayers.append(this.reorderList);
 
         itemLayers.append(new UI.ConfigurableSlider({
-            label: 'Opacidad de Capa', min: 0, max: 1, step: 0.01, value: 1.0,
+            label: 'Layer Opacity', min: 0, max: 1, step: 0.01, value: 1.0,
             onChange: (v) => this.layers.setLayerOpacity(this.layers.activeLayerId, v)
         }));
 
-        const itemBrush = accordion.addItem({ title: 'Brush & Stroke Settings', open: false });
+        const itemBrush = accordion.addItem({ title: 'Brush Settings', open: false });
 
-        this.brushPreviewCanvas = document.createElement('canvas');
-        this.brushPreviewCanvas.className = 'preview-box';
-        this.brushPreviewCanvas.width = 44;
-        this.brushPreviewCanvas.height = 44;
-
-        const fileInp = document.createElement('input');
-        fileInp.type = 'file';
-        fileInp.accept = 'image/*';
-        fileInp.style.display = 'none';
-        fileInp.addEventListener('change', (e) => {
+        const fileInpBrush = document.createElement('input');
+        fileInpBrush.type = 'file';
+        fileInpBrush.accept = 'image/*';
+        fileInpBrush.style.display = 'none';
+        fileInpBrush.addEventListener('change', (e) => {
             const f = e.target.files[0];
             if (f) {
                 const img = new Image();
@@ -2489,68 +2638,71 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
         });
 
         const rLoadStamp = itemBrush.addRow(4);
-        rLoadStamp.append(new UI.Button({ text: 'Load Texture/Pattern (Img)', variant: 'primary', onClick: () => fileInp.click() }));
-        rLoadStamp.append(this.brushPreviewCanvas);
+        rLoadStamp.append(new UI.Button({ text: 'Load Texture/Pattern', variant: 'primary', onClick: () => fileInpBrush.click() }));
 
         itemBrush.append(new UI.ConfigurableSlider({
-            label: 'Tamaño (Size)', min: 1, max: 800, value: this.brush.size,
+            label: 'Size', min: 1, max: 800, value: this.brush.size,
             onChange: (v) => { this.brush.set('size', v); }
         }));
         itemBrush.append(new UI.ConfigurableSlider({
-            label: 'Proporción de Aspecto', min: -1.0, max: 1.0, step: 0.01, value: this.brush.aspectRatio,
+            label: 'Aspect Ratio', min: -1.0, max: 1.0, step: 0.01, value: this.brush.aspectRatio,
             onChange: (v) => { this.brush.set('aspectRatio', v); }
         }));
-        itemBrush.append(new UI.ConfigurableSlider({
-            label: 'Ángulo', min: 0, max: 360, step: 1, value: this.brush.angle,
-            onChange: (v) => { this.brush.set('angle', v); }
-        }));
-        itemBrush.append(new UI.Toggle({
-            label: 'Giro Dinámico / Aleatorio', value: this.brush.randomRotation,
-            onChange: (v) => { this.brush.set('randomRotation', v); }
-        }));
-        itemBrush.append(new UI.ConfigurableSlider({
-            label: 'Espaciado (%)', min: 1, max: 200, step: 1, value: this.brush.spacing,
-            onChange: (v) => { this.brush.set('spacing', v); }
-        }));
-        itemBrush.append(new UI.ConfigurableSlider({
-            label: 'Dureza (Hardness)', min: 0, max: 1, step: 0.01, value: this.brush.hardness,
-            onChange: (v) => { this.brush.set('hardness', v); }
-        }));
-        
-        itemBrush.append(new UI.ConfigurableSlider({
-            label: 'Opacidad', min: 0.01, max: 1, step: 0.01, value: this.brush.opacity,
-            onChange: (v) => { this.brush.set('opacity', v); }
-        }));
-        itemBrush.append(new UI.ConfigurableSlider({
-            label: 'Forzar / Flujo (%)', min: 1, max: 100, step: 1, value: this.brush.force,
-            onChange: (v) => { this.brush.set('force', v); }
-        }));
+         itemBrush.append(new UI.ConfigurableSlider({
+    label: 'Angle', min: 0, max: 360, step: 1, value: this.brush.angle,
+    onChange: (v) => { this.brush.set('angle', v); }
+}));
+itemBrush.append(new UI.Toggle({
+    label: 'Dynamic / Random Rotation', value: this.brush.randomRotation,
+    onChange: (v) => { this.brush.set('randomRotation', v); }
+}));
+itemBrush.append(new UI.ConfigurableSlider({
+    label: 'Spacing (%)', min: 1, max: 200, step: 1, value: this.brush.spacing,
+    onChange: (v) => { this.brush.set('spacing', v); }
+}));
+itemBrush.append(new UI.ConfigurableSlider({
+    label: 'Hardness', min: 0, max: 1, step: 0.01, value: this.brush.hardness,
+    onChange: (v) => { this.brush.set('hardness', v); }
+}));
+itemBrush.append(new UI.ConfigurableSlider({
+    label: 'Opacity', min: 0.01, max: 1, step: 0.01, value: this.brush.opacity,
+    onChange: (v) => { this.brush.set('opacity', v); }
+}));
+itemBrush.append(new UI.ConfigurableSlider({
+    label: 'Force / Flow (%)', min: 1, max: 100, step: 1, value: this.brush.force,
+    onChange: (v) => { this.brush.set('force', v); }
+}));
 
-        const itemClip = accordion.addItem({ title: 'Portapapeles & Selección', open: false });
+        const itemClip = accordion.addItem({ title: 'Clipboard & Selection', open: false });
         const rClip = itemClip.addRow(4);
         rClip.append(new UI.Button({ 
-            text: 'Copiar (Ctrl+C)', variant: 'primary', 
+            text: 'Copy (Ctrl+C)', variant: 'primary', 
             onClick: async () => { await this.clipboard.copy(this.layers.getActiveLayer(), this.selection); }
         }));
         rClip.append(new UI.Button({ 
-            text: 'Pegar (Ctrl+V)', variant: 'primary', 
+            text: 'Paste (Ctrl+V)', variant: 'primary', 
             onClick: () => { if (this.clipboard.buffer) this.pegarComoNuevaCapa(this.clipboard.buffer, 'Selección Pegada'); }
         }));
-        rClip.append(new UI.Button({ text: 'Clear Selection', onClick: () => this.selection.clear() }));
+        rClip.append(new UI.Button({ text: 'Deselect', onClick: () => this.selection.clear() }));
 
-        const itemProj = accordion.addItem({ title: 'Export Image', open: false });
+        const itemProj = accordion.addItem({ title: 'Export Project', open: false });
         const rExp = itemProj.addRow(4);
-        rExp.append(new UI.Button({ text: 'PNG', variant: 'primary', onClick: () => ProjectExporter.exportImage(this.layers, 'png') }));
-        rExp.append(new UI.Button({ text: 'JPG', onClick: () => ProjectExporter.exportImage(this.layers, 'jpg') }));
+        rExp.append(new UI.Button({ text: 'save PNG', variant: 'primary', onClick: () => ProjectExporter.exportImage(this.layers, 'png') }));
+        rExp.append(new UI.Button({ text: 'save JPG', onClick: () => ProjectExporter.exportImage(this.layers, 'jpg') }));
 
         panelRight.append(accordion);
         this.rightContainer.addPanel(panelRight);
 
         requestAnimationFrame(() => this.updateBrushPreview());
     }
-
     bindEvents() {
         let isSpacePressed = false;
+
+        this.stage.addEventListener('contextmenu', (e) => {
+            if (this.tools.currentTool === 'clone' || this.tools.currentTool === 'poly') {
+                e.preventDefault();
+            }
+        });
 
         window.addEventListener('paste', async (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -2565,7 +2717,7 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
                             pastedImage = true;
                             e.preventDefault();
                             const img = new Image();
-                            img.onload = () => this.pegarComoNuevaCapa(img, 'Pasted Image');
+                            img.onload = () => this.pegarComoNuevaCapa(img, 'Imagen Pegada');
                             img.src = URL.createObjectURL(blob);
                             return;
                         }
@@ -2574,11 +2726,9 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
             }
             if (!pastedImage && this.clipboard.buffer) {
                 e.preventDefault();
-                this.pegarComoNuevaCapa(this.clipboard.buffer, 'Paste Selection');
+                this.pegarComoNuevaCapa(this.clipboard.buffer, 'Selección Pegada');
             }
         });
-
-     
 
         window.addEventListener('keydown', async (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -2586,6 +2736,7 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
             if (e.code === 'Space' && !isSpacePressed) {
                 isSpacePressed = true;
                 this.stage.style.cursor = 'grab';
+                if (this.cad) this.cad.isPanningActive = true;
             }
             if (e.ctrlKey && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
                 e.preventDefault();
@@ -2604,19 +2755,19 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
                 e.preventDefault();
             }
             if (e.key === 'Escape') {
-        e.preventDefault();
-        this.tools.cancelSelection();
-        if (this.cad) {
-            this.cad.finishCurrent();
-            this.cad.selected = null;
-            this.cad.selectedPointIndex = -1;
-            this.cad.render();
-        }
-        const selectionTools = ['rectSelect', 'lasso', 'poly'];
-        if (selectionTools.includes(this.tools.currentTool)) {
-            this.setActiveTool('brush');
-        }
-    }
+                e.preventDefault();
+                this.tools.cancelSelection();
+                if (this.cad) {
+                    this.cad.finishCurrent();
+                    this.cad.selected = null;
+                    this.cad.selectedPointIndex = -1;
+                    this.cad.render();
+                }
+                const selectionTools = ['rectSelect', 'lasso', 'poly'];
+                if (selectionTools.includes(this.tools.currentTool)) {
+                    this.setActiveTool('brush');
+                }
+            }
 
             if (e.key === 'q' || e.key === 'Q') {
                 e.preventDefault();
@@ -2627,7 +2778,6 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
                 this.adaptarCapaActivaAlCanvas();
             }
             if (e.key === 'g' || e.key === 'G') this.setActiveTool('fill');
-
             if (e.key === 'b' || e.key === 'B') this.setActiveTool('brush');
             if (e.key === 'e' || e.key === 'E') this.setActiveTool('eraser');
             if (e.key === 'c' && !e.ctrlKey) this.setActiveTool('clone');
@@ -2640,11 +2790,13 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
                 isSpacePressed = false;
                 this.stage.style.cursor = 'crosshair';
                 this.zoom.endPan();
+                if (this.cad) this.cad.isPanningActive = false;
             }
         });
 
         this.stage.addEventListener('pointerdown', (e) => {
             if (isSpacePressed || e.button === 1) {
+                if (this.cad) this.cad.isPanningActive = true;
                 this.zoom.startPan(e.clientX, e.clientY);
                 return;
             }
@@ -2664,19 +2816,17 @@ ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
         window.addEventListener('pointerup', (e) => {
             if (this.zoom.isPanning) {
                 this.zoom.endPan();
+                if (this.cad) this.cad.isPanningActive = isSpacePressed;
                 return;
             }
             const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
             this.tools.pointerUp(coords.x, coords.y);
         });
-
-        //this.stage.addEventListener('contextmenu', (e) => e.preventDefault());
     }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
     window.AppInstance = new ApplicationAdapter();
-  
 });
 </script>
 </body>
