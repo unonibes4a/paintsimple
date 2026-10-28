@@ -66,8 +66,8 @@
     #app-viewport-root { position: absolute; inset: 0; width: 100vw; height: 100vh; overflow: hidden; }
     #canvas-stage { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; background-color: #212121; }
     #viewport-transform { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; width: 0; height: 0; }
-    #layers-render-target { position: absolute; top: 0; left: 0; }
-    .engine-canvas-layer { background: transparent !important; /* ANTES TENÍA UN FONDO GRIS QUE TAPABA TODO */ position: absolute; top: 0; left: 0; image-rendering: pixelated; outline: none !important; border: none !important; }
+    #layers-render-target { position: absolute; top: 0; left: 0;background-color: #808080; background-image: repeating-conic-gradient( #666666 0% 25%, transparent 0% 50% ); background-size: 16px 16px; }
+    .engine-canvas-layer { background: transparent !important;  position: absolute; top: 0; left: 0; image-rendering: pixelated; outline: none !important; border: none !important; }
     #preview-canvas { position: absolute; top: 0; left: 0; image-rendering: pixelated; z-index: 997; pointer-events: none; }
     #cad-vector-canvas { position: absolute; top: 0; left: 0; z-index: 998; pointer-events: none; }
     #selection-canvas { position: absolute; top: 0; left: 0; z-index: 999; pointer-events: none; }
@@ -1309,19 +1309,19 @@ class HistoryManager {
     notify() { this.onStateChange(this.canUndo(), this.canRedo(), this.undoStack.length, this.redoStack.length); }
 }
 
- 
-  class Layer {
+class Layer {
     constructor(id, name, width, height) {
         this.id = id;
         this.name = name;
         this.width = width;
         this.height = height;
-        // Guardar la resolución nativa original intacta:
         this.originalWidth = width;
         this.originalHeight = height;
         
         this.visible = true; 
         this.opacity = 1.0;
+        this.blendMode = 'normal'; // <-- MODO DE FUSIÓN INICIAL
+        
         this.canvas = document.createElement('canvas');
         this.canvas.width = width;
         this.canvas.height = height;
@@ -1356,8 +1356,7 @@ class HistoryManager {
         this.ctx.putImageData(data, 0, 0);
     }
 }
-
-class LayerStackEngine {
+ class LayerStackEngine {
     constructor({ defaultWidth = 1024, defaultHeight = 768, renderContainer, onStackChanged = () => {} } = {}) {
         this.defaultWidth = defaultWidth;
         this.defaultHeight = defaultHeight;
@@ -1367,7 +1366,54 @@ class LayerStackEngine {
         this.activeLayerId = null;
         this.counter = 0;
     }
-    createLayer(name = null, width = null, height = null) {
+    mergeDown(id) {
+        const idx = this.layers.findIndex(l => l.id === id);
+        if (idx <= 0) return null; // No se puede combinar si es la capa del fondo
+
+        const topLayer = this.layers[idx];
+        const bottomLayer = this.layers[idx - 1];
+
+        // 1. Verificar si tienen tamaños distintos para preguntar al usuario
+        const tienenDistintoTamano = (topLayer.width !== bottomLayer.width) || (topLayer.height !== bottomLayer.height);
+        
+        let usarTamanoArriba = false;
+        if (tienenDistintoTamano) {
+            usarTamanoArriba = confirm(
+                `Las capas tienen tamaños distintos:\n` +
+                `- Capa de arriba: ${topLayer.width}x${topLayer.height} px\n` +
+                `- Capa de abajo: ${bottomLayer.width}x${bottomLayer.height} px\n\n` +
+                `¿Deseas que la capa resultante adopte el tamaño de la de ARRIBA?\n` +
+                `[Aceptar] = Tamaño de ARRIBA (${topLayer.width}x${topLayer.height})\n` +
+                `[Cancelar] = Tamaño de ABAJO (${bottomLayer.width}x${bottomLayer.height})`
+            );
+        }
+
+        // 2. Si el usuario eligió el tamaño de arriba, redimensionar la capa inferior antes de fusionar
+        if (usarTamanoArriba) {
+            bottomLayer.setSize(topLayer.width, topLayer.height, true);
+            bottomLayer.originalWidth = topLayer.width;
+            bottomLayer.originalHeight = topLayer.height;
+        }
+
+        // 3. Pintar la capa superior dentro de la inferior respetando opacidad y modo de fusión
+        bottomLayer.ctx.save();
+        bottomLayer.ctx.globalAlpha = topLayer.opacity;
+        bottomLayer.ctx.globalCompositeOperation = (topLayer.blendMode === 'normal') 
+            ? 'source-over' 
+            : (topLayer.blendMode || 'source-over');
+        
+        bottomLayer.ctx.drawImage(topLayer.canvas, 0, 0);
+        bottomLayer.ctx.restore();
+
+        // 4. Eliminar la capa superior que ya fue combinada
+        this.layers.splice(idx, 1);
+        this.activeLayerId = bottomLayer.id;
+        this.syncDOM();
+        this.onStackChanged(this.getLayerList(), this.activeLayerId);
+
+        return bottomLayer;
+    }
+     createLayer(name = null, width = null, height = null) {
         this.counter++;
         const id = 'layer_' + this.counter + '_' + Math.random().toString(36).substring(2, 7);
         const layerName = name || `Capa ${this.counter}`;
@@ -1391,6 +1437,7 @@ class LayerStackEngine {
         newLayer.ctx.drawImage(src.canvas, 0, 0);
         newLayer.opacity = src.opacity;
         newLayer.visible = src.visible;
+        newLayer.blendMode = src.blendMode;
         const idx = this.layers.findIndex(l => l.id === id);
         this.layers.splice(idx + 1, 0, newLayer);
         this.activeLayerId = newLayer.id;
@@ -1473,6 +1520,14 @@ class LayerStackEngine {
             this.onStackChanged(this.getLayerList(), this.activeLayerId);
         }
     }
+    setLayerBlendMode(id, mode) {
+        const layer = this.getLayerById(id);
+        if (layer) {
+            layer.blendMode = mode;
+            layer.canvas.style.mixBlendMode = mode;
+            this.onStackChanged(this.getLayerList(), this.activeLayerId);
+        }
+    }
     reorder(newLayerList) {
         const map = new Map(this.layers.map(l => [l.id, l]));
         this.layers = newLayerList.map(item => map.get(item.id)).filter(Boolean);
@@ -1484,6 +1539,7 @@ class LayerStackEngine {
         this.layers.forEach((l, idx) => {
             l.canvas.style.display = l.visible ? 'block' : 'none';
             l.canvas.style.opacity = l.opacity;
+            l.canvas.style.mixBlendMode = l.blendMode || 'normal';
             l.canvas.style.zIndex = String(idx + 1);
             this.container.appendChild(l.canvas);
         });
@@ -1493,11 +1549,11 @@ class LayerStackEngine {
             id: l.id,
             name: `${l.name} (${l.width}x${l.height})`,
             visible: l.visible,
-            opacity: l.opacity
+            opacity: l.opacity,
+            blendMode: l.blendMode || 'normal'
         }));
     }
 }
-
 class BrushSettingsEngine {
     constructor({ onSettingsChange = () => {} } = {}) {
         this.size = 60;
@@ -2033,7 +2089,7 @@ class ToolManager {
     }
 }
 
-class ProjectExporter {
+ class ProjectExporter {
     static exportImage(layerStack, format = 'png') {
         let maxWidth = 1;
         let maxHeight = 1;
@@ -2050,6 +2106,7 @@ class ProjectExporter {
             if (l.visible) {
                 octx.save();
                 octx.globalAlpha = l.opacity;
+                octx.globalCompositeOperation = (l.blendMode === 'normal') ? 'source-over' : (l.blendMode || 'source-over');
                 octx.drawImage(l.canvas, 0, 0);
                 octx.restore();
             }
@@ -2060,7 +2117,6 @@ class ProjectExporter {
         a.click();
     }
 }
-
 class ApplicationAdapter {
     constructor() {
         this.initialCanvasWidth = 1024;
@@ -2493,7 +2549,7 @@ this.layers.layers.forEach(l => {
             if (this.toolButtons[id]) this.toolButtons[id].classList.toggle('active', id === toolId);
         });
     }
-    buildRightUI() {
+  buildRightUI() {
         const pickerWidth = 310;
 
         this.colorPicker = new UIColorPicker({
@@ -2550,19 +2606,19 @@ this.layers.layers.forEach(l => {
         
         const rCadMode = itemCAD.addRow(0);
         const selCadMode = new UI.Select({
-    options: [
-        { value: 'bezier',     label: 'Bézier' },
-        { value: 'poly',       label: 'Polynomial Regression' },
-        { value: 'arc3',       label: 'Arc (3 points)' },
-        { value: 'arc2',       label: 'Arc (2 points)' },
-        { value: 'circle',     label: 'Circle' },
-        { value: 'ellipse',    label: 'Ellipse' },
-        { value: 'rect',       label: 'Rectangle' },
-        { value: 'polygon',    label: 'Regular Polygon' },
-        { value: 'trapezoid',  label: 'Trapezoid' }
-    ],
-    value: 'bezier'
-});
+            options: [
+                { value: 'bezier',     label: 'Bézier' },
+                { value: 'poly',       label: 'Polynomial Regression' },
+                { value: 'arc3',       label: 'Arc (3 points)' },
+                { value: 'arc2',       label: 'Arc (2 points)' },
+                { value: 'circle',     label: 'Circle' },
+                { value: 'ellipse',    label: 'Ellipse' },
+                { value: 'rect',       label: 'Rectangle' },
+                { value: 'polygon',    label: 'Regular Polygon' },
+                { value: 'trapezoid',  label: 'Trapezoid' }
+            ],
+            value: 'bezier'
+        });
         selCadMode.element.addEventListener('change', () => {
             this.cad.currentType = selCadMode.getValue();
             this.cad.finishCurrent();
@@ -2572,33 +2628,34 @@ this.layers.layers.forEach(l => {
 
         const rCadDeg = itemCAD.addRow(4);
         rCadDeg.append(new UI.ConfigurableSlider({
-    label: 'Curve / Polynomial Degree', min: 1, max: 7, step: 1, value: 3,
-    onChange: (v) => { this.cad.currentDegree = v; this.cad.render(); }
-}));
+            label: 'Curve / Polynomial Degree', min: 1, max: 7, step: 1, value: 3,
+            onChange: (v) => { this.cad.currentDegree = v; this.cad.render(); }
+        }));
 
-const rCadStyle = itemCAD.addRow(4);
-rCadStyle.append(new UI.ConfigurableSlider({
-    label: 'CAD Stroke Width', min: 1, max: 20, step: 1, value: 2,
-    onChange: (v) => { this.cad.defaultStyle.lineWidth = v; this.cad.render(); }
-}));
-rCadStyle.append(new UI.Toggle({
-    label: 'Fill Shape', value: false,
-    onChange: (v) => { this.cad.defaultStyle.fill = v ? this.brush.mainColor : null; this.cad.render(); }
-}));
+        const rCadStyle = itemCAD.addRow(4);
+        rCadStyle.append(new UI.ConfigurableSlider({
+            label: 'CAD Stroke Width', min: 1, max: 20, step: 1, value: 2,
+            onChange: (v) => { this.cad.defaultStyle.lineWidth = v; this.cad.render(); }
+        }));
+        rCadStyle.append(new UI.Toggle({
+            label: 'Fill Shape', value: false,
+            onChange: (v) => { this.cad.defaultStyle.fill = v ? this.brush.mainColor : null; this.cad.render(); }
+        }));
 
-this.toggleCadBrush = new UI.Toggle({
-    label: 'Trace with Brush / Stamp', value: false,
-    onChange: (v) => { 
-        this.cad.useBrushStamp = v; 
-        this.cad.render();
-    }
-});
+        this.toggleCadBrush = new UI.Toggle({
+            label: 'Trace with Brush / Stamp', value: false,
+            onChange: (v) => { 
+                this.cad.useBrushStamp = v; 
+                this.cad.render();
+            }
+        });
         itemCAD.append(this.toggleCadBrush);
 
         const rCadOps = itemCAD.addRow(4);
-      rCadOps.append(new UI.Button({ text: 'Finish Stroke (Esc)', onClick: () => this.cad.finishCurrent() }));
-rCadOps.append(new UI.Button({ text: 'Delete Sel.', variant: 'danger', onClick: () => this.cad.deleteSelected() }));
-rCadOps.append(new UI.Button({ text: 'Clear All', onClick: () => this.cad.clearAll() }));
+        rCadOps.append(new UI.Button({ text: 'Finish Stroke (Esc)', onClick: () => this.cad.finishCurrent() }));
+        rCadOps.append(new UI.Button({ text: 'Delete Sel.', variant: 'danger', onClick: () => this.cad.deleteSelected() }));
+        rCadOps.append(new UI.Button({ text: 'Clear All', onClick: () => this.cad.clearAll() }));
+        
         const rCadBake = itemCAD.addRow(0);
         rCadBake.append(new UI.Button({
             text: 'Transfer CAD to Active Layer', variant: 'primary',
@@ -2616,7 +2673,9 @@ rCadOps.append(new UI.Button({ text: 'Clear All', onClick: () => this.cad.clearA
             }
         }));
 
+        // --- SECCIÓN LAYERS CON SELECTOR DE FUSIÓN ---
         const itemLayers = accordion.addItem({ title: 'Layers', open: false });
+        
         const rCanvasAdjust = itemLayers.addRow(4);
         rCanvasAdjust.append(new UI.Button({ text: 'Fit to Layer (Q)', variant: 'primary', onClick: () => this.ajustarCanvasACapaActiva() }));
         rCanvasAdjust.append(new UI.Button({ text: 'Fit to Canvas (W)', onClick: () => this.adaptarCapaActivaAlCanvas() }));
@@ -2624,8 +2683,25 @@ rCadOps.append(new UI.Button({ text: 'Clear All', onClick: () => this.cad.clearA
         const rTop = itemLayers.addRow(4);
         rTop.append(new UI.Button({ text: 'New Layer', variant: 'primary', onClick: () => { this.layers.createLayer(); this.ajustarCanvasACapaActiva(); } }));
         rTop.append(new UI.Button({ text: 'Double', onClick: () => { this.layers.duplicateLayer(this.layers.activeLayerId); this.ajustarCanvasACapaActiva(); } }));
+         rTop.append(new UI.Button({ 
+            text: 'Merge ▼', 
+            onClick: () => { 
+                const act = this.layers.getActiveLayer();
+                if (!act) return;
+                const idx = this.layers.layers.findIndex(l => l.id === act.id);
+                if (idx <= 0) {
+                    alert("No hay una capa abajo para combinar.");
+                    return;
+                }
+                const bottomLayer = this.layers.layers[idx - 1];
+                const beforeBottom = bottomLayer.getSnapshot();
+
+                this.layers.mergeDown(act.id);
+                this.ajustarCanvasACapaActiva();
+            } 
+        }));
         rTop.append(new UI.Button({
-            text: 'Borrar',
+            text: 'erase',
             variant: 'danger',
             onClick: () => {
                 if (this.layers.layers.length <= 1) return;
@@ -2664,10 +2740,42 @@ rCadOps.append(new UI.Button({ text: 'Clear All', onClick: () => this.cad.clearA
         rMove.append(new UI.Button({ text: 'Flip H', onClick: () => this.layers.flipHoriz(this.layers.activeLayerId) }));
         rMove.append(new UI.Button({ text: 'Flip V', onClick: () => this.layers.flipVert(this.layers.activeLayerId) }));
 
+        // SELECTOR DE MODO DE FUSIÓN (BLEND MODE)
+        const rBlend = itemLayers.addRow(4);
+        const selBlend = new UI.Select({
+            options: [
+                { value: 'normal',      label: 'Fusión: Normal' },
+                { value: 'multiply',    label: 'Fusión: Multiplicar' },
+                { value: 'screen',      label: 'Fusión: Trama (Screen)' },
+                { value: 'overlay',     label: 'Fusión: Superponer (Overlay)' },
+                { value: 'darken',      label: 'Fusión: Oscurecer' },
+                { value: 'lighten',     label: 'Fusión: Aclarar' },
+                { value: 'color-dodge', label: 'Fusión: Color Dodge' },
+                { value: 'color-burn',  label: 'Fusión: Color Burn' },
+                { value: 'hard-light',  label: 'Fusión: Luz Fuerte' },
+                { value: 'soft-light',  label: 'Fusión: Luz Suave' },
+                { value: 'difference',  label: 'Fusión: Diferencia' },
+                { value: 'exclusion',   label: 'Fusión: Exclusión' },
+                { value: 'hue',         label: 'Fusión: Tono' },
+                { value: 'saturation',  label: 'Fusión: Saturación' },
+                { value: 'color',       label: 'Fusión: Color' },
+                { value: 'luminosity',  label: 'Fusión: Luminosidad' }
+            ],
+            value: 'normal'
+        });
+        selBlend.element.addEventListener('change', () => {
+            this.layers.setLayerBlendMode(this.layers.activeLayerId, selBlend.getValue());
+        });
+        rBlend.append(selBlend);
+
         this.reorderList = new UI.ReorderList({
             items: this.layers.getLayerList(),
             onSelect: (item) => {
                 this.layers.setActiveLayer(item.id);
+                const act = this.layers.getActiveLayer();
+                if (act && selBlend.element) {
+                    selBlend.element.value = act.blendMode || 'normal';
+                }
                 this.ajustarCanvasACapaActiva();
             },
             onVisibilityChange: (item, idx, v) => this.layers.setLayerVisibility(item.id, v),
@@ -2712,30 +2820,30 @@ rCadOps.append(new UI.Button({ text: 'Clear All', onClick: () => this.cad.clearA
             label: 'Aspect Ratio', min: -1.0, max: 1.0, step: 0.01, value: this.brush.aspectRatio,
             onChange: (v) => { this.brush.set('aspectRatio', v); }
         }));
-         itemBrush.append(new UI.ConfigurableSlider({
-    label: 'Angle', min: 0, max: 360, step: 1, value: this.brush.angle,
-    onChange: (v) => { this.brush.set('angle', v); }
-}));
-itemBrush.append(new UI.Toggle({
-    label: 'Dynamic / Random Rotation', value: this.brush.randomRotation,
-    onChange: (v) => { this.brush.set('randomRotation', v); }
-}));
-itemBrush.append(new UI.ConfigurableSlider({
-    label: 'Spacing (%)', min: 1, max: 200, step: 1, value: this.brush.spacing,
-    onChange: (v) => { this.brush.set('spacing', v); }
-}));
-itemBrush.append(new UI.ConfigurableSlider({
-    label: 'Hardness', min: 0, max: 1, step: 0.01, value: this.brush.hardness,
-    onChange: (v) => { this.brush.set('hardness', v); }
-}));
-itemBrush.append(new UI.ConfigurableSlider({
-    label: 'Opacity', min: 0.01, max: 1, step: 0.01, value: this.brush.opacity,
-    onChange: (v) => { this.brush.set('opacity', v); }
-}));
-itemBrush.append(new UI.ConfigurableSlider({
-    label: 'Force / Flow (%)', min: 1, max: 100, step: 1, value: this.brush.force,
-    onChange: (v) => { this.brush.set('force', v); }
-}));
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Angle', min: 0, max: 360, step: 1, value: this.brush.angle,
+            onChange: (v) => { this.brush.set('angle', v); }
+        }));
+        itemBrush.append(new UI.Toggle({
+            label: 'Dynamic / Random Rotation', value: this.brush.randomRotation,
+            onChange: (v) => { this.brush.set('randomRotation', v); }
+        }));
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Spacing (%)', min: 1, max: 200, step: 1, value: this.brush.spacing,
+            onChange: (v) => { this.brush.set('spacing', v); }
+        }));
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Hardness', min: 0, max: 1, step: 0.01, value: this.brush.hardness,
+            onChange: (v) => { this.brush.set('hardness', v); }
+        }));
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Opacity', min: 0.01, max: 1, step: 0.01, value: this.brush.opacity,
+            onChange: (v) => { this.brush.set('opacity', v); }
+        }));
+        itemBrush.append(new UI.ConfigurableSlider({
+            label: 'Force / Flow (%)', min: 1, max: 100, step: 1, value: this.brush.force,
+            onChange: (v) => { this.brush.set('force', v); }
+        }));
 
         const itemClip = accordion.addItem({ title: 'Clipboard & Selection', open: false });
         const rClip = itemClip.addRow(4);
@@ -2758,8 +2866,7 @@ itemBrush.append(new UI.ConfigurableSlider({
         this.rightContainer.addPanel(panelRight);
 
         requestAnimationFrame(() => this.updateBrushPreview());
-    }
-    bindEvents() {
+    }  bindEvents() {
         let isSpacePressed = false;
 
         this.stage.addEventListener('contextmenu', (e) => {
