@@ -18,7 +18,7 @@
         left: 76px;
         max-width: 90vw;
         height: 45px;
-        background-color: rgba(0, 0, 0, 0);
+        background-color: rgba(0, 0, 0, 0.57);
         border-radius: 7px;
         overflow-x: auto; 
         padding: 0 16px;
@@ -1590,20 +1590,24 @@ class SelectionManager {
         return true;
     }
     drawMarchingAnts(previewPoints = null) {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        const pts = previewPoints || this.polygon;
-        if (!pts || pts.length < 2) return;
-        this.ctx.save();
-        this.ctx.strokeStyle = '#38bdf8';
-        this.ctx.lineWidth = 1.5;
-        this.ctx.setLineDash([5, 5]);
-        this.ctx.beginPath();
-        this.ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length; i++) this.ctx.lineTo(pts[i].x, pts[i].y);
-        if (!previewPoints) this.ctx.closePath();
-        this.ctx.stroke();
-        this.ctx.restore();
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    const pts = previewPoints || this.polygon;
+    if (!pts || pts.length < 2) return;
+    this.ctx.save();
+    this.ctx.strokeStyle = '#38bdf8';
+    this.ctx.lineWidth = 1.5;
+    this.ctx.setLineDash([5, 5]);
+    this.ctx.beginPath();
+    this.ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+        this.ctx.lineTo(pts[i].x, pts[i].y);
     }
+    if (!previewPoints && pts.length > 2) {
+        this.ctx.closePath();
+    }
+    this.ctx.stroke();
+    this.ctx.restore();
+}
     getBounds() {
         if (!this.hasSelection || this.polygon.length === 0) return { x: 0, y: 0, width: this.canvas.width, height: this.canvas.height };
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -1710,11 +1714,14 @@ class ToolManager {
         this.lastPolyClickTime = 0;
         this.moveSnapshotCanvas = null;
     }
-    setTool(tool) {
-        if (this.currentTool === 'poly' && tool !== 'poly') this.finishPolySelection();
-        this.currentTool = tool;
-        if (this.cad) this.cad.active = (tool === 'cad');
+  setTool(tool) {
+    if (this.currentTool === 'poly' && tool !== 'poly') {
+        this.polyPoints = [];
+        this.selection.clear();
     }
+    this.currentTool = tool;
+    if (this.cad) this.cad.active = (tool === 'cad');
+}
     cancelSelection() {
         this.lassoPoints = [];
         this.polyPoints = [];
@@ -1729,6 +1736,28 @@ class ToolManager {
     pointerDown(x, y, e) {
         if (this.currentTool === 'cad' && this.cad) {
             this.cad.handlePointerDown(x, y, e);
+            return;
+        }
+
+        if (this.currentTool === 'poly') {
+            if (e.button === 2) {
+                this.polyPoints = [];
+                this.selection.clear();
+                return;
+            }
+            const now = performance.now();
+            const isDoubleClick = (now - this.lastPolyClickTime < 320) || e.detail === 2;
+            this.lastPolyClickTime = now;
+
+            if (this.polyPoints.length >= 3) {
+                const d = Math.hypot(x - this.polyPoints[0].x, y - this.polyPoints[0].y);
+                if (d < 15 || isDoubleClick) {
+                    this.finishPolySelection();
+                    return;
+                }
+            }
+            this.polyPoints.push({ x, y });
+            this.selection.drawMarchingAnts(this.polyPoints);
             return;
         }
 
@@ -1764,25 +1793,6 @@ class ToolManager {
                 const hud = document.getElementById('hud');
                 if (hud) hud.textContent = `Punto de origen de clonación fijado en (${Math.round(x)}, ${Math.round(y)})`;
             }
-            return;
-        }
-
-        if (this.currentTool === 'poly') {
-            if (e.button === 2) {
-                this.polyPoints = [];
-                this.selection.clear();
-                return;
-            }
-            const now = performance.now();
-            const isDoubleClick = (now - this.lastPolyClickTime < 320) || e.detail === 2;
-            this.lastPolyClickTime = now;
-
-            if (isDoubleClick || (this.polyPoints.length >= 3 && Math.hypot(x - this.polyPoints[0].x, y - this.polyPoints[0].y) < 15)) {
-                this.finishPolySelection();
-                return;
-            }
-            this.polyPoints.push({ x, y });
-            this.selection.drawMarchingAnts(this.polyPoints);
             return;
         }
 
@@ -1837,9 +1847,11 @@ class ToolManager {
             return;
         }
 
-        if (this.currentTool === 'poly' && this.polyPoints.length > 0) {
-            const temp = [...this.polyPoints, { x, y }];
-            this.selection.drawMarchingAnts(temp);
+        if (this.currentTool === 'poly') {
+            if (this.polyPoints.length > 0) {
+                const preview = this.polyPoints.concat([{ x, y }]);
+                this.selection.drawMarchingAnts(preview);
+            }
             return;
         }
 
@@ -1875,9 +1887,13 @@ class ToolManager {
         this.lastX = x;
         this.lastY = y;
     }
+
     pointerUp(x, y) {
         if (this.currentTool === 'cad' && this.cad) {
             this.cad.handlePointerUp();
+            return;
+        }
+        if (this.currentTool === 'poly') {
             return;
         }
         if (!this.isDrawing) {
@@ -1911,10 +1927,17 @@ class ToolManager {
         }
         this.onStrokeFinished(layer);
     }
+    
     finishPolySelection() {
-        if (this.polyPoints.length >= 3) this.selection.setLasso(this.polyPoints);
+    if (this.polyPoints.length >= 3) {
+        const puntos = this.polyPoints.map(p => ({ x: p.x, y: p.y }));
         this.polyPoints = [];
+        this.selection.setLasso(puntos);
+    } else {
+        this.polyPoints = [];
+        this.selection.clear();
     }
+}
     drawContinuousStroke(ctx, x1, y1, x2, y2) {
         const dist = Math.hypot(x2 - x1, y2 - y1);
         const step = Math.max(1, this.brush.size * (Math.max(1, this.brush.spacing) / 100));
@@ -2144,15 +2167,15 @@ class ApplicationAdapter {
             topBar.appendChild(wrap);
         };
 
-        crearSliderPuro('Tamaño', 1, 800, 1, this.brush.size, (v) => {
+        crearSliderPuro('Size', 1, 800, 1, this.brush.size, (v) => {
             this.brush.set('size', v);
         });
 
-        crearSliderPuro('Ángulo', 0, 360, 1, this.brush.angle, (v) => {
+        crearSliderPuro('Angle', 0, 360, 1, this.brush.angle, (v) => {
             this.brush.set('angle', v);
         });
 
-        crearSliderPuro('Opacidad', 0.01, 1, 0.01, this.brush.opacity, (v) => {
+        crearSliderPuro('Opacity', 0.01, 1, 0.01, this.brush.opacity, (v) => {
             this.brush.set('opacity', v);
         });
     }
