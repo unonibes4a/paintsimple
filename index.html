@@ -585,7 +585,7 @@
     }
 })();
 
-const MathCad = {
+ const MathCad = {
     distanciaPuntoSegmento(p, a, b) {
         const dx = b.x - a.x;
         const dy = b.y - a.y;
@@ -620,7 +620,7 @@ const MathCad = {
         const res = [];
         for (let i = 0; i <= samples; i++) {
             const theta = (i / samples) * Math.PI * 2;
-            res.push({ x: c.x + r * Math.cos(theta), y: cy = c.y + r * Math.sin(theta) });
+            res.push({ x: c.x + r * Math.cos(theta), y: c.y + r * Math.sin(theta) });
         }
         return res;
     },
@@ -634,7 +634,6 @@ const MathCad = {
         ];
     }
 };
-
 class FloodFillTool {
     static hexToRgba(colorStr) {
         if (!colorStr) return { r: 0, g: 0, b: 0, a: 255 };
@@ -1455,16 +1454,15 @@ class ToolManager {
         this.lastPolyClickTime = 0;
         this.moveSnapshotCanvas = null;
     }
-    setTool(tool) {
-        if (this.currentTool === 'poly' && tool !== 'poly') {
-            this.polyPoints = [];
-            this.selection.clear();
-        }
-        this.currentTool = tool;
-        if (this.cad) this.cad.active = (tool === 'cad');
-        const hud = document.getElementById('hud');
-        if (hud) hud.textContent = `Herramienta Activa: ${tool.toUpperCase()}`;
+   setTool(tool) {
+    if (this.currentTool === 'poly' && tool !== 'poly') {
+        this.polyPoints = [];
     }
+    this.currentTool = tool;
+    if (this.cad) this.cad.active = (tool === 'cad');
+    const hud = document.getElementById('hud');
+    if (hud) hud.textContent = `Herramienta Activa: ${tool.toUpperCase()}`;
+}
     cancelSelection() {
         this.lassoPoints = [];
         this.polyPoints = [];
@@ -1472,94 +1470,95 @@ class ToolManager {
         if (this.preview && this.pctx) this.pctx.clearRect(0, 0, this.preview.width, this.preview.height);
         if (this.selection) this.selection.clear();
     }
-    pointerDown(x, y, e) {
-        if (e.button === 2) {
-            // El menú contextual maneja el clic derecho
-            return;
-        }
-
-        if (this.currentTool === 'cad' && this.cad) {
-            this.cad.handlePointerDown(x, y, e);
-            return;
-        }
-
-        if (this.currentTool === 'poly') {
-            const now = performance.now();
-            const isDoubleClick = (now - this.lastPolyClickTime < 320) || e.detail === 2;
-            this.lastPolyClickTime = now;
-
-            if (this.polyPoints.length >= 3) {
-                const d = Math.hypot(x - this.polyPoints[0].x, y - this.polyPoints[0].y);
-                if (d < 15 || isDoubleClick) {
-                    this.finishPolySelection();
-                    return;
-                }
-            }
-            this.polyPoints.push({ x, y });
-            this.selection.drawMarchingAnts(this.polyPoints);
-            return;
-        }
-
-        if (this.currentTool === 'fill') {
-            const layer = this.layers.getActiveLayer();
-            if (layer) { 
-                this.onStrokeStart(layer); 
-                const filled = FloodFillTool.fill(layer, x, y, this.brush.mainColor, this.brush.opacity, 15, this.selection);
-                if (filled) this.onStrokeFinished(layer);
-            }
-            return;
-        }
-
-        if (e.altKey && this.currentTool === 'clone') {
-            this.fijarOrigenClonacion(x, y);
-            return;
-        }
-
-        if (e.button !== 0) return;
-        const layer = this.layers.getActiveLayer();
-        if (!layer) return;
-
-        this.onStrokeStart(layer);
-        this.isDrawing = true;
-        this.startX = x;
-        this.startY = y;
-        this.lastX = x;
-        this.lastY = y;
-        this.distAccum = 0;
-
-        if (this.currentTool === 'move') {
-            this.moveSnapshotCanvas = document.createElement('canvas');
-            this.moveSnapshotCanvas.width = layer.width;
-            this.moveSnapshotCanvas.height = layer.height;
-            this.moveSnapshotCanvas.getContext('2d').drawImage(layer.canvas, 0, 0);
-            return;
-        }
-
-        if (this.currentTool === 'eyedropper') {
-            this.sampleColor(x, y);
-            this.isDrawing = false;
-            return;
-        }
-
-        if (this.currentTool === 'lasso') {
-            this.lassoPoints = [{ x, y }];
-            return;
-        }
-
-        if (this.currentTool === 'rectSelect') {
-            this.selection.clear();
-            return;
-        }
-
-        if (['brush', 'eraser', 'clone', 'stamp'].includes(this.currentTool)) {
-            layer.ctx.save();
-            this.selection.applyClipping(layer.ctx);
-            layer.ctx.globalCompositeOperation = (this.currentTool === 'eraser') ? 'destination-out' : 'source-over';
-            layer.ctx.globalAlpha = this.brush.opacity * (this.brush.force / 100);
-            this.drawInterpolatedStampDirect(layer.ctx, x, y);
-            layer.ctx.restore();
-        }
+   pointerDown(x, y, e) {
+    if (this.currentTool === 'cad' && this.cad) {
+        this.cad.handlePointerDown(x, y, e);
+        return;
     }
+
+    if (e.button === 2) return;
+
+    if (this.currentTool === 'poly') {
+        const now = performance.now();
+        const isDoubleClick = (now - this.lastPolyClickTime < 320) || e.detail === 2;
+        this.lastPolyClickTime = now;
+
+        if (this.polyPoints.length >= 3) {
+            const d = Math.hypot(x - this.polyPoints[0].x, y - this.polyPoints[0].y);
+            if (d < 15 || isDoubleClick) {
+                this.finishPolySelection();
+                return;
+            }
+        }
+        this.polyPoints.push({ x, y });
+        this.selection.drawMarchingAnts(this.polyPoints);
+        return;
+    }
+
+    if (this.currentTool === 'fill') {
+        const layer = this.layers.getActiveLayer();
+        if (layer) { 
+            this.onStrokeStart(layer); 
+            const filled = FloodFillTool.fill(layer, x, y, this.brush.mainColor, this.brush.opacity, 15, this.selection);
+            if (filled) this.onStrokeFinished(layer);
+        }
+        return;
+    }
+
+    if (e.altKey && this.currentTool === 'clone') {
+        this.fijarOrigenClonacion(x, y);
+        return;
+    }
+
+    if (e.button !== 0) return;
+    const layer = this.layers.getActiveLayer();
+    if (!layer) return;
+
+    if (['brush', 'eraser', 'clone', 'stamp', 'move'].includes(this.currentTool)) {
+        this.onStrokeStart(layer);
+    }
+
+    this.isDrawing = true;
+    this.startX = x;
+    this.startY = y;
+    this.lastX = x;
+    this.lastY = y;
+    this.distAccum = 0;
+
+    if (this.currentTool === 'move') {
+        this.moveSnapshotCanvas = document.createElement('canvas');
+        this.moveSnapshotCanvas.width = layer.width;
+        this.moveSnapshotCanvas.height = layer.height;
+        this.moveSnapshotCanvas.getContext('2d').drawImage(layer.canvas, 0, 0);
+        return;
+    }
+
+    if (this.currentTool === 'eyedropper') {
+        this.sampleColor(x, y);
+        this.isDrawing = false;
+        return;
+    }
+
+    if (this.currentTool === 'lasso') {
+        this.lassoPoints = [{ x, y }];
+        return;
+    }
+
+    if (this.currentTool === 'rectSelect') {
+        this.selection.clear();
+        return;
+    }
+
+    if (['brush', 'eraser', 'clone', 'stamp'].includes(this.currentTool)) {
+        layer.ctx.save();
+        this.selection.applyClipping(layer.ctx);
+        layer.ctx.globalCompositeOperation = (this.currentTool === 'eraser') ? 'destination-out' : 'source-over';
+        layer.ctx.globalAlpha = this.brush.opacity * (this.brush.force / 100);
+        this.drawInterpolatedStampDirect(layer.ctx, x, y);
+        layer.ctx.restore();
+    }
+}
+   
     fijarOrigenClonacion(x, y) {
         const active = this.layers.getActiveLayer();
         if (active) {
@@ -1615,26 +1614,33 @@ class ToolManager {
     }
 
     pointerUp(x, y) {
-        if (this.currentTool === 'cad' && this.cad) {
-            this.cad.handlePointerUp();
-            return;
-        }
-        if (this.currentTool === 'poly') return;
-
-        if (!this.isDrawing) return;
-        this.isDrawing = false;
-        this.distAccum = 0;
-        this.moveSnapshotCanvas = null;
-
-        const layer = this.layers.getActiveLayer();
-        if (this.currentTool === 'rectSelect') {
-            if (Math.abs(x - this.startX) <= 2 && Math.abs(y - this.startY) <= 2) {
-                this.selection.clear();
-            }
-        }
-        if (layer) this.onStrokeFinished(layer);
+    if (this.currentTool === 'cad' && this.cad) {
+        this.cad.handlePointerUp();
+        return;
     }
-    
+    if (this.currentTool === 'poly') return;
+
+    if (!this.isDrawing) return;
+    this.isDrawing = false;
+    this.distAccum = 0;
+    this.moveSnapshotCanvas = null;
+
+    const layer = this.layers.getActiveLayer();
+    if (this.currentTool === 'rectSelect') {
+        if (Math.abs(x - this.startX) <= 2 && Math.abs(y - this.startY) <= 2) {
+            this.selection.clear();
+        }
+        return;
+    }
+
+    if (this.currentTool === 'lasso') {
+        return;
+    }
+
+    if (layer) this.onStrokeFinished(layer);
+}
+
+
     finishPolySelection() {
         if (this.polyPoints.length >= 3) {
             const puntos = this.polyPoints.map(p => ({ x: p.x, y: p.y }));
@@ -2294,152 +2300,163 @@ class ApplicationAdapter {
         panelRight.append(accordion);
         this.rightContainer.addPanel(panelRight);
     }
-    bindEvents() {
-        let isSpacePressed = false;
+     bindEvents() {
+    let isSpacePressed = false;
 
-        // MENÚ CONTEXTUAL AL HACER CLIC DERECHO
-        window.addEventListener('contextmenu', (e) => {
-            if (e.target.closest('#canvas-stage')) {
-                e.preventDefault();
-                const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
-                this.contextCoords = coords;
-
-                const cloneOpt = document.getElementById('ctx-clone-origin');
-                if (cloneOpt) {
-                    cloneOpt.style.display = (this.tools.currentTool === 'clone') ? 'flex' : 'none';
-                }
-
-                const menu = this.ctxMenu;
-                menu.style.display = 'block';
-                
-                // Evitar que el menú se salga de los límites de la pantalla
-                const posX = Math.min(e.clientX, window.innerWidth - 230);
-                const posY = Math.min(e.clientY, window.innerHeight - 260);
-
-                menu.style.left = posX + 'px';
-                menu.style.top = posY + 'px';
-            }
-        });
-
-        // Arrastrar y Soltar imágenes
-        window.addEventListener('dragover', (e) => e.preventDefault());
-        window.addEventListener('drop', (e) => {
+    window.addEventListener('contextmenu', (e) => {
+        if (e.target.closest('#canvas-stage')) {
             e.preventDefault();
-            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                const file = e.dataTransfer.files[0];
-                if (file.type.startsWith('image/')) {
-                    const img = new Image();
-                    img.onload = () => this.pegarComoNuevaCapa(img, file.name.replace(/\.[^/.]+$/, ""));
-                    img.src = URL.createObjectURL(file);
-                }
+            if (this.tools.currentTool === 'cad') return;
+
+            const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
+            this.contextCoords = coords;
+
+            const cloneOpt = document.getElementById('ctx-clone-origin');
+            if (cloneOpt) {
+                cloneOpt.style.display = (this.tools.currentTool === 'clone') ? 'flex' : 'none';
             }
-        });
 
-        // Pegar Trozo con Ctrl+V
-        window.addEventListener('paste', async (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
-            let pastedImage = false;
+            const menu = this.ctxMenu;
+            menu.style.display = 'block';
+            
+            const posX = Math.min(e.clientX, window.innerWidth - 230);
+            const posY = Math.min(e.clientY, window.innerHeight - 260);
 
-            if (items) {
-                for (let item of items) {
-                    if (item.type.indexOf('image') !== -1) {
-                        const blob = item.getAsFile();
-                        if (blob) {
-                            pastedImage = true;
-                            e.preventDefault();
-                            const img = new Image();
-                            img.onload = () => this.pegarComoNuevaCapa(img, 'Trozo Pegado');
-                            img.src = URL.createObjectURL(blob);
-                            return;
-                        }
+            menu.style.left = posX + 'px';
+            menu.style.top = posY + 'px';
+        }
+    });
+
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const file = e.dataTransfer.files[0];
+            if (file.type.startsWith('image/')) {
+                const img = new Image();
+                img.onload = () => this.pegarComoNuevaCapa(img, file.name.replace(/\.[^/.]+$/, ""));
+                img.src = URL.createObjectURL(file);
+            }
+        }
+    });
+
+    window.addEventListener('paste', async (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+        let pastedImage = false;
+
+        if (items) {
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    if (blob) {
+                        pastedImage = true;
+                        e.preventDefault();
+                        const img = new Image();
+                        img.onload = () => this.pegarComoNuevaCapa(img, 'Trozo Pegado');
+                        img.src = URL.createObjectURL(blob);
+                        return;
                     }
                 }
             }
-            if (!pastedImage && this.clipboard.buffer) {
-                e.preventDefault();
-                this.pegarComoNuevaCapa(this.clipboard.buffer, 'Trozo Pegado');
-            }
-        });
+        }
+        if (!pastedImage && this.clipboard.buffer) {
+            e.preventDefault();
+            this.pegarComoNuevaCapa(this.clipboard.buffer, 'Trozo Pegado');
+        }
+    });
 
-        // Atajos de Teclado
-        window.addEventListener('keydown', async (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    window.addEventListener('keydown', async (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-            if (e.code === 'Space' && !isSpacePressed) {
-                isSpacePressed = true;
-                this.stage.style.cursor = 'grab';
+        if (e.code === 'Space' && !isSpacePressed) {
+            isSpacePressed = true;
+            this.stage.style.cursor = 'grab';
+        }
+        if (e.code === 'Enter' && this.tools.currentTool === 'cad') {
+            e.preventDefault();
+            const act = this.layers.getActiveLayer();
+            if (act) {
+                this.tools.onStrokeStart(act);
+                this.cad.bakeToLayer(act);
+                this.cad.clearAll();
+                this.tools.onStrokeFinished(act);
             }
-            if (e.ctrlKey && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
-                e.preventDefault();
-                await this.clipboard.copy(this.layers.getActiveLayer(), this.selection);
-            }
-            if (e.ctrlKey && (e.code === 'KeyX' || e.key === 'x' || e.key === 'X')) {
-                e.preventDefault();
-                const act = this.layers.getActiveLayer();
-                if (act) await this.clipboard.cut(act, this.selection);
-            }
-            if (e.ctrlKey && e.code === 'KeyZ') {
-                if (e.shiftKey) this.history.redo();
-                else this.history.undo();
-                e.preventDefault();
-            }
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                this.tools.cancelSelection();
-                this.ctxMenu.style.display = 'none';
-            }
-            if (e.key === 'q' || e.key === 'Q') {
-                e.preventDefault();
-                this.ajustarCanvasACapaActiva();
-            }
-            if (e.key === 'w' || e.key === 'W') {
-                e.preventDefault();
-                this.adaptarCapaActivaAlCanvas();
-            }
-            if (e.key === 'g' || e.key === 'G') this.setActiveTool('fill');
-            if (e.key === 'b' || e.key === 'B') this.setActiveTool('brush');
-            if (e.key === 'e' || e.key === 'E') this.setActiveTool('eraser');
-            if (e.key === 'c' && !e.ctrlKey) this.setActiveTool('clone');
-            if (e.key === 'm' || e.key === 'M') this.setActiveTool('move');
-        });
-
-        window.addEventListener('keyup', (e) => {
-            if (e.code === 'Space') {
-                isSpacePressed = false;
-                this.stage.style.cursor = 'crosshair';
-                this.zoom.endPan();
-            }
-        });
-
-        this.stage.addEventListener('pointerdown', (e) => {
+            return;
+        }
+        if (e.ctrlKey && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
+            e.preventDefault();
+            await this.clipboard.copy(this.layers.getActiveLayer(), this.selection);
+        }
+        if (e.ctrlKey && (e.code === 'KeyX' || e.key === 'x' || e.key === 'X')) {
+            e.preventDefault();
+            const act = this.layers.getActiveLayer();
+            if (act) await this.clipboard.cut(act, this.selection);
+        }
+        if (e.ctrlKey && e.code === 'KeyZ') {
+            if (e.shiftKey) this.history.redo();
+            else this.history.undo();
+            e.preventDefault();
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            this.tools.cancelSelection();
+            if (this.cad) this.cad.clearAll();
             this.ctxMenu.style.display = 'none';
-            if (isSpacePressed || e.button === 1) {
-                this.zoom.startPan(e.clientX, e.clientY);
-                return;
-            }
-            const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
-            this.tools.pointerDown(coords.x, coords.y, e);
-        });
+        }
+        if (e.key === 'q' || e.key === 'Q') {
+            e.preventDefault();
+            this.ajustarCanvasACapaActiva();
+        }
+        if (e.key === 'w' || e.key === 'W') {
+            e.preventDefault();
+            this.adaptarCapaActivaAlCanvas();
+        }
+        if (e.key === 'g' || e.key === 'G') this.setActiveTool('fill');
+        if (e.key === 'b' || e.key === 'B') this.setActiveTool('brush');
+        if (e.key === 'e' || e.key === 'E') this.setActiveTool('eraser');
+        if (e.key === 'c' && !e.ctrlKey) this.setActiveTool('clone');
+        if (e.key === 'm' || e.key === 'M') this.setActiveTool('move');
+    });
 
-        window.addEventListener('pointermove', (e) => {
-            if (this.zoom.isPanning) {
-                this.zoom.pan(e.clientX, e.clientY);
-                return;
-            }
-            const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
-            this.tools.pointerMove(coords.x, coords.y);
-        });
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') {
+            isSpacePressed = false;
+            this.stage.style.cursor = 'crosshair';
+            this.zoom.endPan();
+        }
+    });
 
-        window.addEventListener('pointerup', (e) => {
-            if (this.zoom.isPanning) {
-                this.zoom.endPan();
-                return;
-            }
-            const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
-            this.tools.pointerUp(coords.x, coords.y);
-        });
-    }
+    this.stage.addEventListener('pointerdown', (e) => {
+        this.ctxMenu.style.display = 'none';
+        if (isSpacePressed || e.button === 1) {
+            this.zoom.startPan(e.clientX, e.clientY);
+            return;
+        }
+        const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
+        this.tools.pointerDown(coords.x, coords.y, e);
+    });
+
+    window.addEventListener('pointermove', (e) => {
+        if (this.zoom.isPanning) {
+            this.zoom.pan(e.clientX, e.clientY);
+            return;
+        }
+        const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
+        this.tools.pointerMove(coords.x, coords.y);
+    });
+
+    window.addEventListener('pointerup', (e) => {
+        if (this.zoom.isPanning) {
+            this.zoom.endPan();
+            return;
+        }
+        const coords = this.zoom.screenToWorld(e.clientX, e.clientY);
+        this.tools.pointerUp(coords.x, coords.y);
+    });
+}
+
+
 }
 
 window.addEventListener('DOMContentLoaded', () => {
