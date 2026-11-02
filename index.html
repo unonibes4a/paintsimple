@@ -11,8 +11,1041 @@
         } catch(e) {}
     </script>
     <script src="https://unonibes4a.github.io/pintaresta/a.js"></script> 
-    <script src="https://evanw.github.io/glfx.js/glfx.js"></script>
+    <script s
+    
+    rc="https://evanw.github.io/glfx.js/glfx.js"></script>
  <script>
+ 
+class CurveEngine {
+    constructor(sourceCanvas = null) {
+        this.sourceCanvas = sourceCanvas;
+        this.outputCanvas = document.createElement('canvas');
+        this.ctx = this.outputCanvas.getContext('2d', { willReadFrequently: true });
+        this.onRender = null;
+ 
+        this.curves = {
+            r: [{ x: 0, y: 0 }, { x: 255, y: 255 }],
+            g: [{ x: 0, y: 0 }, { x: 255, y: 255 }],
+            b: [{ x: 0, y: 0 }, { x: 255, y: 255 }],
+            a: [{ x: 0, y: 0 }, { x: 255, y: 255 }]
+        };
+
+        this.luts = {
+            r: new Uint8Array(256),
+            g: new Uint8Array(256),
+            b: new Uint8Array(256),
+            a: new Uint8Array(256)
+        };
+
+        this.updateAllLUTs();
+    }
+
+    setSource(canvasOrImage) {
+        if (!canvasOrImage) return;
+        this.sourceCanvas = canvasOrImage;
+        const w = canvasOrImage.naturalWidth || canvasOrImage.videoWidth || canvasOrImage.width;
+        const h = canvasOrImage.naturalHeight || canvasOrImage.videoHeight || canvasOrImage.height;
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+        this.ctx.drawImage(canvasOrImage, 0, 0);
+        this.render();
+    }
+
+    // Interpolación cúbica monótona (evita oscilaciones extrañas)
+    _buildLUT(points) {
+        const lut = new Uint8Array(256);
+        const sorted = [...points].sort((a, b) => a.x - b.x);
+        const n = sorted.length;
+
+        if (n === 0) {
+            for (let i = 0; i < 256; i++) lut[i] = i;
+            return lut;
+        }
+
+        const dx = [], dy = [], m = [];
+        for (let i = 0; i < n - 1; i++) {
+            const dX = sorted[i + 1].x - sorted[i].x;
+            const dY = sorted[i + 1].y - sorted[i].y;
+            dx.push(dX);
+            dy.push(dY);
+            m.push(dX === 0 ? 0 : dY / dX);
+        }
+
+        // Tangentes interiores
+        const tangents = [m[0]];
+        for (let i = 0; i < n - 2; i++) {
+            tangents.push((m[i] + m[i + 1]) / 2);
+        }
+        tangents.push(m[m.length - 1]);
+
+        // Evaluación de 0 a 255
+        let seg = 0;
+        for (let x = 0; x < 256; x++) {
+            if (x < sorted[0].x) {
+                lut[x] = Math.max(0, Math.min(255, Math.round(sorted[0].y)));
+                continue;
+            }
+            if (x >= sorted[n - 1].x) {
+                lut[x] = Math.max(0, Math.min(255, Math.round(sorted[n - 1].y)));
+                continue;
+            }
+
+            while (seg < n - 1 && x > sorted[seg + 1].x) {
+                seg++;
+            }
+
+            const x0 = sorted[seg].x;
+            const x1 = sorted[seg + 1].x;
+            const y0 = sorted[seg].y;
+            const y1 = sorted[seg + 1].y;
+            const h_seg = x1 - x0;
+
+            if (h_seg === 0) {
+                lut[x] = Math.round(y0);
+            } else {
+                const t = (x - x0) / h_seg;
+                const t2 = t * t;
+                const t3 = t2 * t;
+
+                const h00 = 2 * t3 - 3 * t2 + 1;
+                const h10 = t3 - 2 * t2 + t;
+                const h01 = -2 * t3 + 3 * t2;
+                const h11 = t3 - t2;
+
+                const y = h00 * y0 + h10 * h_seg * tangents[seg] + h01 * y1 + h11 * h_seg * tangents[seg + 1];
+                lut[x] = Math.max(0, Math.min(255, Math.round(y)));
+            }
+        }
+        return lut;
+    }
+
+    updateChannelLUT(ch) {
+        this.luts[ch] = this._buildLUT(this.curves[ch]);
+    }
+
+    updateAllLUTs() {
+        ['r', 'g', 'b', 'a'].forEach(ch => this.updateChannelLUT(ch));
+    }
+
+    resetChannel(ch) {
+        this.curves[ch] = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+        this.updateChannelLUT(ch);
+        this.render();
+    }
+
+    reset() {
+        ['r', 'g', 'b', 'a'].forEach(ch => {
+            this.curves[ch] = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+        });
+        this.updateAllLUTs();
+        if (this.sourceCanvas) {
+            this.ctx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+            this.ctx.drawImage(this.sourceCanvas, 0, 0);
+        }
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    render() {
+        if (!this.sourceCanvas) return;
+        const w = this.sourceCanvas.width;
+        const h = this.sourceCanvas.height;
+
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+
+        const temp = document.createElement('canvas');
+        temp.width = w;
+        temp.height = h;
+        const tctx = temp.getContext('2d');
+        tctx.drawImage(this.sourceCanvas, 0, 0);
+
+        const imgData = tctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        const lutR = this.luts.r;
+        const lutG = this.luts.g;
+        const lutB = this.luts.b;
+        const lutA = this.luts.a;
+
+        for (let i = 0; i < data.length; i += 4) {
+            data[i]     = lutR[data[i]];
+            data[i + 1] = lutG[data[i + 1]];
+            data[i + 2] = lutB[data[i + 2]];
+            data[i + 3] = lutA[data[i + 3]];
+        }
+
+        this.ctx.putImageData(imgData, 0, 0);
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    getCanvas() {
+        return this.outputCanvas;
+    }
+}
+ 
+class CurveUI {
+    constructor(engine, options = {}) {
+        this.engine = engine;
+        this.onApply = options.onApply || null;
+
+        // Checkboxes multi-canal activos
+        this.channelState = {
+            r: true,
+            g: true,
+            b: true,
+            a: false
+        };
+
+        this.selectedPointX = null;
+        this.isDragging = false;
+        this.hoverCoords = null; // Coordenadas para el indicador en tiempo real
+
+        // Márgenes internos para dar espacio a la regla y números
+        this.pad = {
+            left: 28,   // Espacio para números del eje Y (1.00, 0.75...)
+            right: 10,
+            top: 10,
+            bottom: 20  // Espacio para números del eje X (0.00, 0.50...)
+        };
+
+        this.colors = {
+            r: '#ff4d4d',
+            g: '#2ecc71',
+            b: '#3498db',
+            a: '#c56cf0'
+        };
+
+        this.panel = new UI.SmartPanel({
+            id: options.id || 'panel_curve_editor',
+            title: options.title || 'Curvas RGBA',
+            x: options.x ?? 80,
+            y: options.y ?? 80,
+            width: 300,
+            floating: options.floating ?? true
+        });
+
+        this.buildStyles();
+        this.buildEditorDOM();
+        this.bindEvents();
+    }
+
+    buildStyles() {
+        if (document.getElementById('curve-editor-styles')) return;
+        const st = document.createElement('style');
+        st.id = 'curve-editor-styles';
+        st.textContent = `
+            .curve-main-wrapper {
+                width: 284px;
+                height: 315px;
+                background-color: #333333;
+                border: 1px solid #777777;
+                border-radius: 6px;
+                box-sizing: border-box;
+                padding: 6px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                user-select: none;
+                font-family: monospace;
+            }
+            .curve-toolbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .curve-checkbox-group {
+                display: flex;
+                gap: 5px;
+            }
+            .curve-chk-label {
+                position: relative;
+                width: 22px;
+                height: 22px;
+                display: inline-block;
+                cursor: pointer;
+            }
+            .curve-chk-label input[type="checkbox"] {
+                display: none;
+            }
+            .curve-chk-circle {
+                width: 22px;
+                height: 22px;
+                border-radius: 50%;
+                background: #232323;
+                border: 1px solid #777777;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: bold;
+                transition: transform 0.1s, border-color 0.15s, box-shadow 0.15s;
+                color: #888888;
+                box-sizing: border-box;
+            }
+            .curve-chk-label:hover .curve-chk-circle {
+                border-color: #ffffff;
+                transform: scale(1.08);
+            }
+            .curve-chk-label input[type="checkbox"]:checked + .curve-chk-circle {
+                box-shadow: 0 0 0 2px #ffffff;
+            }
+            .btn-round-mini {
+                width: 22px;
+                height: 22px;
+                border-radius: 50%;
+                border: 1px solid #777777;
+                background: #232323;
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: transform 0.1s, border-color 0.15s;
+                padding: 0;
+            }
+            .btn-round-mini:hover {
+                border-color: #ffffff;
+                transform: scale(1.1);
+            }
+            .curve-canvas-box {
+                width: 100%;
+                height: 200px;
+                background-color: #232323;
+                border: 1px solid #777777;
+                border-radius: 4px;
+                position: relative;
+            }
+            .curve-canvas-box canvas {
+                display: block;
+                width: 100%;
+                height: 100%;
+                cursor: crosshair;
+            }
+            .curve-readout {
+                display: flex;
+                justify-content: space-between;
+                font-size: 10px;
+                color: #aaaaaa;
+                padding: 2px 4px;
+                background: #232323;
+                border: 1px solid #444444;
+                border-radius: 3px;
+            }
+            .curve-readout span b {
+                color: #ffffff;
+            }
+            .curve-bottom-bar {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 4px;
+            }
+            .curve-btn-action {
+                height: 22px;
+                padding: 0 10px;
+                border-radius: 11px;
+                border: 1px solid #777777;
+                background: #232323;
+                color: #ffffff;
+                font-size: 10px;
+                cursor: pointer;
+                font-family: sans-serif;
+            }
+            .curve-btn-action:hover {
+                background: #777777;
+            }
+            .curve-btn-action.btn-apply {
+                background: #007acc;
+                border-color: #007acc;
+            }
+            .curve-btn-action.btn-apply:hover {
+                background: #0098ff;
+            }
+        `;
+        document.head.appendChild(st);
+    }
+
+    buildEditorDOM() {
+        const root = document.createElement('div');
+        root.className = 'curve-main-wrapper';
+
+        // 1. Barra superior de canales (Checkboxes redondos)
+        const bar = document.createElement('div');
+        bar.className = 'curve-toolbar';
+
+        const chGroup = document.createElement('div');
+        chGroup.className = 'curve-checkbox-group';
+
+        ['r', 'g', 'b', 'a'].forEach(ch => {
+            const lbl = document.createElement('label');
+            lbl.className = 'curve-chk-label';
+            lbl.title = `Canal ${ch.toUpperCase()}`;
+
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.checked = this.channelState[ch];
+            chk.addEventListener('change', () => {
+                this.channelState[ch] = chk.checked;
+                this.drawGraph();
+            });
+
+            const circle = document.createElement('div');
+            circle.className = 'curve-chk-circle';
+            circle.textContent = ch.toUpperCase();
+            circle.style.color = this.colors[ch];
+
+            lbl.appendChild(chk);
+            lbl.appendChild(circle);
+            chGroup.appendChild(lbl);
+        });
+
+        const rightGroup = document.createElement('div');
+        rightGroup.className = 'curve-checkbox-group';
+
+        const btnDelNode = document.createElement('button');
+        btnDelNode.className = 'btn-round-mini';
+        btnDelNode.title = 'Eliminar nodo seleccionado';
+        btnDelNode.innerHTML = '✕';
+        btnDelNode.onclick = () => this.deleteSelectedNode();
+
+        const btnResetActive = document.createElement('button');
+        btnResetActive.className = 'btn-round-mini';
+        btnResetActive.title = 'Restablecer canales marcados';
+        btnResetActive.innerHTML = '↺';
+        btnResetActive.onclick = () => {
+            this.engine.resetChannels(this.getActiveChannels());
+            this.selectedPointX = null;
+            this.drawGraph();
+        };
+
+        rightGroup.appendChild(btnDelNode);
+        rightGroup.appendChild(btnResetActive);
+
+        bar.appendChild(chGroup);
+        bar.appendChild(rightGroup);
+        root.appendChild(bar);
+
+        // 2. Gráfico con Reglas graduadas
+        const canvasBox = document.createElement('div');
+        canvasBox.className = 'curve-canvas-box';
+        this.graphCanvas = document.createElement('canvas');
+        this.graphCanvas.width = 270;
+        this.graphCanvas.height = 200;
+        this.gctx = this.graphCanvas.getContext('2d');
+        canvasBox.appendChild(this.graphCanvas);
+        root.appendChild(canvasBox);
+
+        // 3. Indicador numérico (Readout) de coordenadas normalizadas
+        this.readout = document.createElement('div');
+        this.readout.className = 'curve-readout';
+        this.readout.innerHTML = `<span>IN: <b>0.00</b> (0)</span><span>OUT: <b>0.00</b> (0)</span>`;
+        root.appendChild(this.readout);
+
+        // 4. Barra inferior de botones
+        const foot = document.createElement('div');
+        foot.className = 'curve-bottom-bar';
+
+        const btnResetAll = document.createElement('button');
+        btnResetAll.className = 'curve-btn-action';
+        btnResetAll.textContent = 'Restablecer Todo';
+        btnResetAll.onclick = () => {
+            this.engine.reset();
+            this.selectedPointX = null;
+            this.drawGraph();
+        };
+
+        const btnApply = document.createElement('button');
+        btnApply.className = 'curve-btn-action btn-apply';
+        btnApply.textContent = 'Aplicar';
+        btnApply.onclick = () => {
+            if (this.onApply) this.onApply(this.engine.getCanvas());
+        };
+
+        foot.appendChild(btnResetAll);
+        foot.appendChild(btnApply);
+        root.appendChild(foot);
+
+        this.panel.body.appendChild(root);
+        this.drawGraph();
+    }
+
+    getActiveChannels() {
+        return Object.keys(this.channelState).filter(ch => this.channelState[ch]);
+    }
+
+    // Convierte coordenadas de canvas a escala 0-255 respetando márgenes de regla
+    canvasToValue(rawX, rawY) {
+        const { left, right, top, bottom } = this.pad;
+        const pw = this.graphCanvas.width - left - right;
+        const ph = this.graphCanvas.height - top - bottom;
+
+        const xNorm = Math.max(0, Math.min(1, (rawX - left) / pw));
+        const yNorm = Math.max(0, Math.min(1, 1 - (rawY - top) / ph));
+
+        return {
+            x: Math.round(xNorm * 255),
+            y: Math.round(yNorm * 255),
+            nx: xNorm,
+            ny: yNorm
+        };
+    }
+
+    // Convierte escala 0-255 a píxeles de canvas
+    valueToCanvas(x, y) {
+        const { left, right, top, bottom } = this.pad;
+        const pw = this.graphCanvas.width - left - right;
+        const ph = this.graphCanvas.height - top - bottom;
+
+        return {
+            cx: left + (x / 255) * pw,
+            cy: top + (1 - y / 255) * ph
+        };
+    }
+
+    updateReadout(x, y) {
+        const normX = (x / 255).toFixed(2);
+        const normY = (y / 255).toFixed(2);
+        this.readout.innerHTML = `<span>IN: <b>${normX}</b> (${x})</span><span>OUT: <b>${normY}</b> (${y})</span>`;
+    }
+
+    deleteSelectedNode() {
+        if (this.selectedPointX === null) return;
+        const active = this.getActiveChannels();
+        if (active.length === 0) return;
+
+        if (this.selectedPointX <= 3 || this.selectedPointX >= 252) return;
+
+        active.forEach(ch => {
+            const pts = this.engine.curves[ch];
+            if (pts.length > 2) {
+                const idx = pts.findIndex(p => Math.abs(p.x - this.selectedPointX) <= 6);
+                if (idx > 0 && idx < pts.length - 1) {
+                    pts.splice(idx, 1);
+                }
+            }
+            this.engine.updateChannelLUT(ch);
+        });
+
+        this.selectedPointX = null;
+        this.engine.render();
+        this.drawGraph();
+    }
+
+    bindEvents() {
+        const c = this.graphCanvas;
+
+        const getRaw = (e) => {
+            const rect = c.getBoundingClientRect();
+            return {
+                rawX: (e.clientX - rect.left) * (c.width / rect.width),
+                rawY: (e.clientY - rect.top) * (c.height / rect.height)
+            };
+        };
+
+        c.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            const active = this.getActiveChannels();
+            if (active.length === 0) return;
+
+            const { rawX, rawY } = getRaw(e);
+            const val = this.canvasToValue(rawX, rawY);
+
+            // Buscar si clicamos en un nodo existente
+            let foundX = null;
+            let foundY = null;
+            for (let ch of active) {
+                const pts = this.engine.curves[ch];
+                for (let p of pts) {
+                    const ptPos = this.valueToCanvas(p.x, p.y);
+                    if (Math.hypot(rawX - ptPos.cx, rawY - ptPos.cy) < 9) {
+                        foundX = p.x;
+                        foundY = p.y;
+                        break;
+                    }
+                }
+                if (foundX !== null) break;
+            }
+
+            // Click derecho: borrar
+            if (e.button === 2) {
+                if (foundX !== null && foundX > 3 && foundX < 252) {
+                    this.selectedPointX = foundX;
+                    this.deleteSelectedNode();
+                }
+                return;
+            }
+
+            if (foundX !== null) {
+                this.selectedPointX = foundX;
+                this.isDragging = true;
+                this.updateReadout(foundX, foundY);
+            } else {
+                // Crear nodo en canales seleccionados
+                active.forEach(ch => {
+                    const pts = this.engine.curves[ch];
+                    const existIdx = pts.findIndex(p => Math.abs(p.x - val.x) <= 2);
+                    if (existIdx === -1) {
+                        pts.push({ x: val.x, y: val.y });
+                        pts.sort((a, b) => a.x - b.x);
+                    }
+                    this.engine.updateChannelLUT(ch);
+                });
+                this.selectedPointX = val.x;
+                this.isDragging = true;
+                this.engine.render();
+                this.updateReadout(val.x, val.y);
+            }
+            this.drawGraph();
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            const rect = c.getBoundingClientRect();
+            if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                const { rawX, rawY } = getRaw(e);
+                const val = this.canvasToValue(rawX, rawY);
+                if (!this.isDragging) {
+                    this.updateReadout(val.x, val.y);
+                }
+            }
+
+            if (!this.isDragging || this.selectedPointX === null) return;
+            const active = this.getActiveChannels();
+            if (active.length === 0) return;
+
+            const { rawX, rawY } = getRaw(e);
+            const val = this.canvasToValue(rawX, rawY);
+            const targetX = this.selectedPointX;
+
+            active.forEach(ch => {
+                const pts = this.engine.curves[ch];
+                let idx = pts.findIndex(p => Math.abs(p.x - targetX) <= 6);
+                if (idx === -1) {
+                    pts.push({ x: val.x, y: val.y });
+                    pts.sort((a, b) => a.x - b.x);
+                    idx = pts.findIndex(p => p.x === val.x && p.y === val.y);
+                }
+
+                if (idx === 0) {
+                    pts[0].y = val.y;
+                } else if (idx === pts.length - 1) {
+                    pts[pts.length - 1].y = val.y;
+                } else {
+                    const minX = pts[idx - 1].x + 1;
+                    const maxX = pts[idx + 1].x - 1;
+                    pts[idx].x = Math.max(minX, Math.min(maxX, val.x));
+                    pts[idx].y = val.y;
+                }
+                this.engine.updateChannelLUT(ch);
+            });
+
+            this.selectedPointX = val.x;
+            this.updateReadout(val.x, val.y);
+            this.engine.render();
+            this.drawGraph();
+        });
+
+        window.addEventListener('pointerup', () => {
+            this.isDragging = false;
+        });
+
+        c.addEventListener('contextmenu', e => e.preventDefault());
+    }
+
+    drawGraph() {
+        const ctx = this.gctx;
+        const w = this.graphCanvas.width;
+        const h = this.graphCanvas.height;
+        const { left, right, top, bottom } = this.pad;
+        const pw = w - left - right;
+        const ph = h - top - bottom;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Fondo del área de trazado (#232323)
+        ctx.fillStyle = '#232323';
+        ctx.fillRect(left, top, pw, ph);
+
+        // Cuadrícula y Regla (Marcas de 0.00, 0.25, 0.50, 0.75, 1.00)
+        const divisions = [0.0, 0.25, 0.5, 0.75, 1.0];
+
+        ctx.font = '8px monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+
+        divisions.forEach(d => {
+            const gx = left + d * pw;
+            const gy = top + (1 - d) * ph;
+
+            // Líneas de la cuadrícula
+            ctx.strokeStyle = '#333333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(left, gy);
+            ctx.lineTo(left + pw, gy);
+            ctx.moveTo(gx, top);
+            ctx.lineTo(gx, top + ph);
+            ctx.stroke();
+
+            // Marcas / Regla (Ticks)
+            ctx.strokeStyle = '#777777';
+            ctx.beginPath();
+            // Eje Y Ticks
+            ctx.moveTo(left - 3, gy);
+            ctx.lineTo(left, gy);
+            // Eje X Ticks
+            ctx.moveTo(gx, top + ph);
+            ctx.lineTo(gx, top + ph + 3);
+            ctx.stroke();
+
+            // Números eje Y (Salida)
+            ctx.fillStyle = '#888888';
+            ctx.textAlign = 'right';
+            ctx.fillText(d.toFixed(2), left - 5, gy);
+
+            // Números eje X (Entrada)
+            ctx.textAlign = 'center';
+            ctx.fillText(d.toFixed(2), gx, top + ph + 11);
+        });
+
+        // Borde exterior del área útil (#777777)
+        ctx.strokeStyle = '#777777';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(left, top, pw, ph);
+
+        // Diagonal de referencia (Identidad neutra)
+        ctx.strokeStyle = '#444444';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(left, top + ph);
+        ctx.lineTo(left + pw, top);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Trazado de Curvas
+        ['r', 'g', 'b', 'a'].forEach(ch => {
+            const isChecked = this.channelState[ch];
+            const lut = this.engine.luts[ch];
+
+            ctx.save();
+            ctx.strokeStyle = this.colors[ch];
+            ctx.lineWidth = isChecked ? 2 : 1;
+            ctx.globalAlpha = isChecked ? 1.0 : 0.2;
+
+            ctx.beginPath();
+            for (let x = 0; x < 256; x++) {
+                const pt = this.valueToCanvas(x, lut[x]);
+                if (x === 0) ctx.moveTo(pt.cx, pt.cy);
+                else ctx.lineTo(pt.cx, pt.cy);
+            }
+            ctx.stroke();
+
+            // Nodos visibles
+            if (isChecked) {
+                const pts = this.engine.curves[ch];
+                pts.forEach(p => {
+                    const pt = this.valueToCanvas(p.x, p.y);
+                    const isSelected = (this.selectedPointX !== null && Math.abs(p.x - this.selectedPointX) <= 4);
+
+                    ctx.fillStyle = isSelected ? '#ffffff' : this.colors[ch];
+                    ctx.strokeStyle = '#181818';
+                    ctx.lineWidth = 1.5;
+
+                    ctx.beginPath();
+                    ctx.arc(pt.cx, pt.cy, isSelected ? 5 : 3.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                });
+            }
+            ctx.restore();
+        });
+    }
+}
+
+/*  */
+
+
+
+class PixelArtEngine {
+    constructor(sourceCanvas = null) {
+        this.sourceCanvas = sourceCanvas;
+        this.outputCanvas = document.createElement('canvas');
+        this.ctx = this.outputCanvas.getContext('2d', { willReadFrequently: true });
+        this.blockSize = 7;
+        this.strength = 8;
+        this.style = 'solid';
+        this.onRender = null;
+    }
+
+    setSource(canvasOrImage) {
+        if (!canvasOrImage) return;
+        this.sourceCanvas = canvasOrImage;
+        const w = canvasOrImage.naturalWidth || canvasOrImage.videoWidth || canvasOrImage.width;
+        const h = canvasOrImage.naturalHeight || canvasOrImage.videoHeight || canvasOrImage.height;
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+        this.ctx.drawImage(canvasOrImage, 0, 0);
+        this.render();
+    }
+
+    setParams(params = {}) {
+        if (params.blockSize !== undefined) this.blockSize = Math.max(2, Math.min(64, parseInt(params.blockSize, 10)));
+        if (params.strength !== undefined) this.strength = Math.max(2, Math.min(32, parseInt(params.strength, 10)));
+        if (params.style !== undefined) this.style = params.style;
+        this.render();
+    }
+
+    reset() {
+        if (!this.sourceCanvas) return;
+        const w = this.sourceCanvas.width;
+        const h = this.sourceCanvas.height;
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+        this.ctx.clearRect(0, 0, w, h);
+        this.ctx.drawImage(this.sourceCanvas, 0, 0);
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    _posterize(r, g, b, strength) {
+        let levels = Math.floor(2 + (strength - 2) * (254 / 30));
+        levels = Math.min(256, Math.max(2, levels));
+        const step = 255 / (levels - 1);
+        return {
+            r: Math.min(255, Math.max(0, Math.round(r / step) * step)),
+            g: Math.min(255, Math.max(0, Math.round(g / step) * step)),
+            b: Math.min(255, Math.max(0, Math.round(b / step) * step))
+        };
+    }
+
+    _getSolid(src, w, h, bx, by, bs, str) {
+        const cx = Math.min(bx * bs + Math.floor(bs / 2), w - 1);
+        const cy = Math.min(by * bs + Math.floor(bs / 2), h - 1);
+        const idx = (cy * w + cx) * 4;
+        const a = src[idx + 3];
+        if (a < 10) return { r: 0, g: 0, b: 0, a: 0 };
+        const c = this._posterize(src[idx], src[idx + 1], src[idx + 2], str);
+        c.a = a;
+        return c;
+    }
+
+    _getAverage(src, w, h, bx, by, bs, str) {
+        const sx = bx * bs;
+        const sy = by * bs;
+        const ex = Math.min(sx + bs, w);
+        const ey = Math.min(sy + bs, h);
+        let r = 0, g = 0, b = 0, a = 0, count = 0, valid = 0;
+
+        for (let y = sy; y < ey; y++) {
+            for (let x = sx; x < ex; x++) {
+                const idx = (y * w + x) * 4;
+                const alpha = src[idx + 3];
+                if (alpha > 10) {
+                    r += src[idx];
+                    g += src[idx + 1];
+                    b += src[idx + 2];
+                    valid++;
+                }
+                a += alpha;
+                count++;
+            }
+        }
+
+        if (count === 0 || valid === 0) return { r: 0, g: 0, b: 0, a: 0 };
+        const c = this._posterize(r / valid, g / valid, b / valid, str);
+        c.a = Math.round(a / count);
+        return c;
+    }
+
+    _detectEdge(src, w, h, x, y) {
+        if (x <= 0 || y <= 0 || x >= w - 1 || y >= h - 1) return true;
+        const idx = (y * w + x) * 4;
+        const r = src[idx], g = src[idx + 1], b = src[idx + 2];
+        let maxDiff = 0;
+
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                const nIdx = ((y + dy) * w + (x + dx)) * 4;
+                const diff = Math.abs(r - src[nIdx]) + Math.abs(g - src[nIdx + 1]) + Math.abs(b - src[nIdx + 2]);
+                if (diff > maxDiff) maxDiff = diff;
+            }
+        }
+        return maxDiff > 60;
+    }
+
+    _getEdge(src, w, h, bx, by, bs, str) {
+        const base = this._getAverage(src, w, h, bx, by, bs, str);
+        if (base.a === 0) return base;
+
+        const sx = bx * bs;
+        const sy = by * bs;
+        const ex = Math.min(sx + bs, w);
+        const ey = Math.min(sy + bs, h);
+        let hasEdge = false;
+        const step = Math.max(1, Math.floor(bs / 3));
+
+        for (let y = sy; y < ey && !hasEdge; y += step) {
+            for (let x = sx; x < ex && !hasEdge; x += step) {
+                if (this._detectEdge(src, w, h, x, y)) {
+                    hasEdge = true;
+                }
+            }
+        }
+
+        if (hasEdge) {
+            const edgeC = this._posterize(
+                Math.max(0, base.r - 80),
+                Math.max(0, base.g - 80),
+                Math.max(0, base.b - 80),
+                str
+            );
+            edgeC.a = base.a;
+            return edgeC;
+        }
+        return base;
+    }
+
+    render() {
+        if (!this.sourceCanvas) return;
+        const w = this.sourceCanvas.width;
+        const h = this.sourceCanvas.height;
+
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+
+        const temp = document.createElement('canvas');
+        temp.width = w;
+        temp.height = h;
+        const tctx = temp.getContext('2d');
+        tctx.drawImage(this.sourceCanvas, 0, 0);
+
+        const srcData = tctx.getImageData(0, 0, w, h).data;
+        const outImg = this.ctx.createImageData(w, h);
+        const outData = outImg.data;
+
+        const bs = this.blockSize;
+        const str = this.strength;
+        const bxCount = Math.ceil(w / bs);
+        const byCount = Math.ceil(h / bs);
+
+        let getColorFn;
+        if (this.style === 'average') getColorFn = this._getAverage.bind(this);
+        else if (this.style === 'edge') getColorFn = this._getEdge.bind(this);
+        else getColorFn = this._getSolid.bind(this);
+
+        for (let by = 0; by < byCount; by++) {
+            for (let bx = 0; bx < bxCount; bx++) {
+                const c = getColorFn(srcData, w, h, bx, by, bs, str);
+                const sx = bx * bs;
+                const sy = by * bs;
+                const ex = Math.min(sx + bs, w);
+                const ey = Math.min(sy + bs, h);
+
+                for (let y = sy; y < ey; y++) {
+                    for (let x = sx; x < ex; x++) {
+                        const idx = (y * w + x) * 4;
+                        outData[idx] = c.r;
+                        outData[idx + 1] = c.g;
+                        outData[idx + 2] = c.b;
+                        outData[idx + 3] = c.a;
+                    }
+                }
+            }
+        }
+
+        this.ctx.putImageData(outImg, 0, 0);
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    getCanvas() {
+        return this.outputCanvas;
+    }
+}
+
+class PixelArtUI {
+    constructor(engine, options = {}) {
+        this.engine = engine;
+        this.onApply = options.onApply || null;
+
+        this.panel = new UI.SmartPanel({
+            id: options.id || 'panel_pixelart_filter',
+            title: options.title || 'Filtro Pixel Art',
+            x: options.x ?? 80,
+            y: options.y ?? 80,
+            width: 300,
+            floating: options.floating ?? true
+        });
+
+        this.accordion = new UI.Accordion({ exclusive: false });
+        this.panel.append(this.accordion);
+
+        this.buildSettingsSection();
+        this.buildActionButtons();
+    }
+
+    buildSettingsSection() {
+        const it = this.accordion.addItem({ title: 'Configuración Pixel Art', open: true });
+
+        const selStyle = new UI.Select({
+            options: [
+                { value: 'solid', label: 'Bloques Sólidos (Centro)' },
+                { value: 'average', label: 'Promedio de Bloque' },
+                { value: 'edge', label: 'Detección Bordes + Pixel' }
+            ],
+            value: this.engine.style
+        });
+
+        selStyle.element.addEventListener('change', () => {
+            this.engine.setParams({ style: selStyle.getValue() });
+        });
+        it.addRow(selStyle);
+
+        const slSize = new UI.ConfigurableSlider({
+            label: 'Tamaño Píxel',
+            min: 2,
+            max: 32,
+            step: 1,
+            value: this.engine.blockSize
+        });
+        slSize.onChange = (v) => {
+            this.engine.setParams({ blockSize: v });
+        };
+        it.addRow(slSize);
+
+        const slColors = new UI.ConfigurableSlider({
+            label: 'Nivel Colores (Strength)',
+            min: 2,
+            max: 32,
+            step: 1,
+            value: this.engine.strength
+        });
+        slColors.onChange = (v) => {
+            this.engine.setParams({ strength: v });
+        };
+        it.addRow(slColors);
+    }
+
+    buildActionButtons() {
+        const r = this.panel.addRow(4);
+        const btnReset = new UI.Button({
+            text: 'Restablecer',
+            variant: 'danger',
+            onClick: () => this.engine.reset()
+        });
+        const btnApply = new UI.Button({
+            text: 'Aplicar',
+            variant: 'primary',
+            onClick: () => {
+                if (this.onApply) this.onApply(this.engine.getCanvas());
+            }
+        });
+        r.append(btnReset);
+        r.append(btnApply);
+    }
+}
+
+/*  */
 
    class GLFXEngine {
     constructor(sourceCanvas = null) {
@@ -2453,6 +3486,45 @@ class ApplicationAdapter {
         this.initContextMenu();
         this.bindEvents();
     }
+    abrirCurvasRGBA() {
+    const act = this.layers.getActiveLayer();
+    if (!act) return alert('No hay capa activa');
+
+    this.curveOriginalSnapshot = act.getSnapshot();
+    this.curveActive = true;
+
+    if (!this.curveSourceCanvas) {
+        this.curveSourceCanvas = document.createElement('canvas');
+    }
+    this.curveSourceCanvas.width = act.width;
+    this.curveSourceCanvas.height = act.height;
+    const sctx = this.curveSourceCanvas.getContext('2d');
+    sctx.clearRect(0, 0, act.width, act.height);
+    sctx.drawImage(act.canvas, 0, 0);
+
+    this.curveEngine.setSource(this.curveSourceCanvas);
+    this.curveUI.panel.open();
+}
+
+    abrirPixelArt() {
+        const act = this.layers.getActiveLayer();
+        if (!act) return alert('No hay capa activa');
+
+        this.pixelArtOriginalSnapshot = act.getSnapshot();
+        this.pixelArtActive = true;
+
+        if (!this.pixelArtSourceCanvas) {
+            this.pixelArtSourceCanvas = document.createElement('canvas');
+        }
+        this.pixelArtSourceCanvas.width = act.width;
+        this.pixelArtSourceCanvas.height = act.height;
+        const sctx = this.pixelArtSourceCanvas.getContext('2d');
+        sctx.clearRect(0, 0, act.width, act.height);
+        sctx.drawImage(act.canvas, 0, 0);
+
+        this.pixelArtEngine.setSource(this.pixelArtSourceCanvas);
+        this.pixelArtUI.panel.open();
+    }
     ejecutarRemoverFondo() {
         const act = this.layers.getActiveLayer();
         if (!act) return alert('No hay capa activa');
@@ -2738,6 +3810,111 @@ class ApplicationAdapter {
 
         this.layers.createLayer('Fondo', this.defaultWidth, this.defaultHeight);
         requestAnimationFrame(() => this.ajustarCanvasACapaActiva());
+
+
+        /*  */
+        this.pixelArtEngine = new PixelArtEngine();
+        this.pixelArtActive = false;
+        this.pixelArtOriginalSnapshot = null;
+
+        this.pixelArtEngine.onRender = (filteredCanvas) => {
+            const act = this.layers.getActiveLayer();
+            if (!act || !this.pixelArtActive) return;
+            act.ctx.clearRect(0, 0, act.width, act.height);
+            act.ctx.drawImage(filteredCanvas, 0, 0);
+        };
+
+        this.pixelArtUI = new PixelArtUI(this.pixelArtEngine, {
+            title: 'Filtro Pixel Art',
+            x: 80,
+            y: 80,
+            floating: true,
+            onApply: (filteredCanvas) => {
+                const act = this.layers.getActiveLayer();
+                if (!act || !this.pixelArtOriginalSnapshot) return;
+
+                const before = this.pixelArtOriginalSnapshot;
+                const after = act.getSnapshot();
+
+                this.history.push({
+                    undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
+                    redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
+                });
+
+                this.pixelArtOriginalSnapshot = after;
+                this.pixelArtActive = false;
+                this.pixelArtUI.panel.close();
+                this.ajustarCanvasACapaActiva();
+            }
+        });
+
+        const prevClosePixel = this.pixelArtUI.panel.onCloseCallback;
+        this.pixelArtUI.panel.onCloseCallback = (p) => {
+            if (prevClosePixel) prevClosePixel(p);
+            if (this.pixelArtActive && this.pixelArtOriginalSnapshot) {
+                const act = this.layers.getActiveLayer();
+                if (act) act.restoreSnapshot(this.pixelArtOriginalSnapshot);
+                this.pixelArtActive = false;
+                this.ajustarCanvasACapaActiva();
+            }
+        };
+
+        this.pixelArtUI.panel.close();
+
+        /*  */
+
+        /*  */
+// ================= CONEXIÓN CURVAS RGBA =================
+this.curveEngine = new CurveEngine();
+this.curveActive = false;
+this.curveOriginalSnapshot = null;
+
+// Vista previa en vivo en la capa activa
+this.curveEngine.onRender = (filteredCanvas) => {
+    const act = this.layers.getActiveLayer();
+    if (!act || !this.curveActive) return;
+    act.ctx.clearRect(0, 0, act.width, act.height);
+    act.ctx.drawImage(filteredCanvas, 0, 0);
+};
+
+this.curveUI = new CurveUI(this.curveEngine, {
+    title: 'Curvas RGBA',
+    x: 80,
+    y: 80,
+    floating: true,
+    onApply: (filteredCanvas) => {
+        const act = this.layers.getActiveLayer();
+        if (!act || !this.curveOriginalSnapshot) return;
+
+        const before = this.curveOriginalSnapshot;
+        const after = act.getSnapshot();
+
+        this.history.push({
+            undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
+            redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
+        });
+
+        this.curveOriginalSnapshot = after;
+        this.curveActive = false;
+        this.curveUI.panel.close();
+        this.ajustarCanvasACapaActiva();
+    }
+});
+
+const prevCloseCurve = this.curveUI.panel.onCloseCallback;
+this.curveUI.panel.onCloseCallback = (p) => {
+    if (prevCloseCurve) prevCloseCurve(p);
+    if (this.curveActive && this.curveOriginalSnapshot) {
+        const act = this.layers.getActiveLayer();
+        if (act) act.restoreSnapshot(this.curveOriginalSnapshot);
+        this.curveActive = false;
+        this.ajustarCanvasACapaActiva();
+    }
+};
+
+this.curveUI.panel.close();
+
+        /*  */
     }
    
     centerView(w = null, h = null) {
@@ -3014,6 +4191,7 @@ class ApplicationAdapter {
             id: 'panel_layers_tools',
             title: 'Capas y Opciones'
         });
+        
 
         const accordion = new UI.Accordion({ exclusive: false });
 
@@ -3025,25 +4203,31 @@ class ApplicationAdapter {
 
         // ... Dentro de buildRightUI() -> itemLayers ...
        
-        // BOTONES DE FILTROS Y QUITAR FONDO AÑADIDOS AQUÍ:
+       
         const rEfectos = itemLayers.addRow(4);
         rEfectos.append(new UI.Button({ 
-            text: '✨ Filtros FX', 
+            text: 'Filtros FX', 
             onClick: () => this.abrirFiltrosGLFX() 
         }));
         rEfectos.append(new UI.Button({ 
-            text: '✂ Quitar Fondo', 
+            text: 'Remove bg', 
             variant: 'primary',
             onClick: () => this.ejecutarRemoverFondo() 
         }));
 
-        
-
+         rEfectos.append(new UI.Button({ 
+            text: 'Pixel Art', 
+            onClick: () => this.abrirPixelArt() 
+        }));
+rEfectos.append(new UI.Button({ 
+    text: '📈 Curvas', 
+    onClick: () => this.abrirCurvasRGBA() 
+}));
         rCanvasAdjust.append(new UI.Button({ text: 'Ver Solo este Trozo (Q)', variant: 'primary', onClick: () => this.ajustarCanvasACapaActiva() }));
         rCanvasAdjust.append(new UI.Button({ text: 'Adaptar a Lienzo (W)', onClick: () => this.adaptarCapaActivaAlCanvas() }));
 
         const rTop = itemLayers.addRow(4);
-        rTop.append(new UI.Button({ text: '+ Nueva', variant: 'primary', onClick: () => { this.layers.createLayer(); this.ajustarCanvasACapaActiva(); } }));
+        rTop.append(new UI.Button({ text: 'new', variant: 'primary', onClick: () => { this.layers.createLayer(); this.ajustarCanvasACapaActiva(); } }));
         rTop.append(new UI.Button({ text: 'Duplicar', onClick: () => { this.layers.duplicateLayer(this.layers.activeLayerId); this.ajustarCanvasACapaActiva(); } }));
         rTop.append(new UI.Button({ 
             text: 'Combine ▼', 
