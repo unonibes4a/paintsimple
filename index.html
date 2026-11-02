@@ -11,6 +11,688 @@
         } catch(e) {}
     </script>
     <script src="https://unonibes4a.github.io/pintaresta/a.js"></script> 
+    <script src="https://evanw.github.io/glfx.js/glfx.js"></script>
+ <script>
+
+   class GLFXEngine {
+    constructor(sourceCanvas = null) {
+        this.sourceCanvas = sourceCanvas;
+        this.fxCanvas = null;
+        this.texture = null;
+        this.outputCanvas = document.createElement('canvas');
+        this.ctx = this.outputCanvas.getContext('2d', { willReadFrequently: true });
+        this.activeFilter = null;
+        this.params = {};
+        this.onRender = null;
+        this.initGL();
+    }
+
+    initGL() {
+        if (typeof fx === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://evanw.github.io/glfx.js/glfx.js';
+            script.onload = () => this.initGL();
+            document.head.appendChild(script);
+            return;
+        }
+        try {
+            this.fxCanvas = fx.canvas();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    setSource(canvasOrImage) {
+        if (!canvasOrImage) return;
+        this.sourceCanvas = canvasOrImage;
+        const w = canvasOrImage.videoWidth || canvasOrImage.naturalWidth || canvasOrImage.width;
+        const h = canvasOrImage.videoHeight || canvasOrImage.naturalHeight || canvasOrImage.height;
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+        this.ctx.drawImage(canvasOrImage, 0, 0);
+
+        if (this.fxCanvas) {
+            if (this.texture) {
+                try { this.texture.destroy(); } catch (e) {}
+            }
+            this.texture = this.fxCanvas.texture(this.outputCanvas);
+        }
+        this.render();
+    }
+
+    setFilter(name, params = {}) {
+        this.activeFilter = name;
+        this.params = { ...this.params, ...params };
+        this.render();
+    }
+
+    reset() {
+        this.activeFilter = null;
+        this.params = {};
+        if (this.sourceCanvas) {
+            this.ctx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+            this.ctx.drawImage(this.sourceCanvas, 0, 0);
+            if (this.onRender) this.onRender(this.outputCanvas);
+        }
+    }
+
+    render() {
+        if (!this.sourceCanvas || !this.fxCanvas) return;
+        if (!this.texture) {
+            this.texture = this.fxCanvas.texture(this.sourceCanvas);
+        } else {
+            this.texture.loadContentsOf(this.sourceCanvas);
+        }
+
+        const w = this.outputCanvas.width;
+        const h = this.outputCanvas.height;
+        const p = this.params;
+
+        if (this.activeFilter === 'normalmap') {
+            this.renderNormalMap();
+            return;
+        }
+
+        if (this.activeFilter === 'carbon') {
+            this.renderCarbon();
+            return;
+        }
+
+        this.fxCanvas.draw(this.texture);
+
+        switch (this.activeFilter) {
+            case 'brightnessContrast':
+                this.fxCanvas.brightnessContrast(p.brightness ?? 0, p.contrast ?? 0);
+                break;
+            case 'hueSaturation':
+                this.fxCanvas.hueSaturation(p.hue ?? 0, p.saturation ?? 0);
+                break;
+            case 'vibrance':
+                this.fxCanvas.vibrance(p.amount ?? 0);
+                break;
+            case 'denoise':
+                this.fxCanvas.denoise(p.exponent ?? 20);
+                break;
+            case 'unsharpMask':
+                this.fxCanvas.unsharpMask(p.radius ?? 20, p.strength ?? 2);
+                break;
+            case 'noise':
+                this.fxCanvas.noise(p.amount ?? 0.5);
+                break;
+            case 'sepia':
+                this.fxCanvas.sepia(p.amount ?? 1);
+                break;
+            case 'vignette':
+                this.fxCanvas.vignette(p.size ?? 0.5, p.amount ?? 0.5);
+                break;
+            case 'zoomBlur':
+                this.fxCanvas.zoomBlur(w * (p.x ?? 0.5), h * (p.y ?? 0.5), p.amount ?? 0.3);
+                break;
+            case 'triangleBlur':
+                this.fxCanvas.triangleBlur(p.radius ?? 15);
+                break;
+            case 'tiltShift': {
+                const posX = w * (p.x ?? 0.5);
+                const posY = h * (p.y ?? 0.5);
+                const rad = ((p.angle ?? 0) * Math.PI) / 180;
+                const dist = Math.max(w, h);
+                const dx = Math.cos(rad) * dist;
+                const dy = Math.sin(rad) * dist;
+                const x1 = posX - dx;
+                const y1 = posY - dy;
+                const x2 = posX + dx;
+                const y2 = posY + dy;
+                const bR = p.blurRadius ?? 25;
+                const gR = p.gradientRadius ?? 200;
+                this.fxCanvas.tiltShift(x1, y1, x2, y2, bR, gR);
+                break;
+            }
+            case 'lensBlur': {
+                const r = p.radius ?? 15;
+                const b = p.brightness ?? 0.5;
+                const a = ((p.angle ?? 0) * Math.PI) / 180;
+                this.fxCanvas.lensBlur(r, b, a);
+                break;
+            }
+            case 'swirl':
+                this.fxCanvas.swirl(w * (p.x ?? 0.5), h * (p.y ?? 0.5), p.radius ?? (Math.min(w, h) / 2), p.angle ?? 3);
+                break;
+            case 'bulgePinch':
+                this.fxCanvas.bulgePinch(w * (p.x ?? 0.5), h * (p.y ?? 0.5), p.radius ?? (Math.min(w, h) / 2), p.strength ?? 0.5);
+                break;
+            case 'perspective': {
+                const b = [0, 0, w, 0, 0, h, w, h];
+                const dx = (p.dx ?? 0.2) * w;
+                const a = [dx, 0, w - dx, 0, 0, h, w, h];
+                this.fxCanvas.perspective(b, a);
+                break;
+            }
+            case 'ink':
+                this.fxCanvas.ink(p.strength ?? 0.25);
+                break;
+            case 'edgeWork':
+                this.fxCanvas.edgeWork(p.radius ?? 2);
+                break;
+            case 'hexagonalPixelate':
+                this.fxCanvas.hexagonalPixelate(w * (p.x ?? 0.5), h * (p.y ?? 0.5), p.scale ?? 10);
+                break;
+            case 'dotScreen':
+                this.fxCanvas.dotScreen(w * (p.x ?? 0.5), h * (p.y ?? 0.5), p.angle ?? 1.1, p.size ?? 3);
+                break;
+            case 'colorHalftone':
+                this.fxCanvas.colorHalftone(w * (p.x ?? 0.5), h * (p.y ?? 0.5), p.angle ?? 0.25, p.size ?? 4);
+                break;
+        }
+
+        this.fxCanvas.update();
+        this.ctx.clearRect(0, 0, w, h);
+        this.ctx.drawImage(this.fxCanvas, 0, 0);
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    renderCarbon() {
+        const w = this.outputCanvas.width;
+        const h = this.outputCanvas.height;
+        const p = this.params;
+        this.fxCanvas.draw(this.texture);
+        this.fxCanvas.hueSaturation(0, -1);
+        this.fxCanvas.edgeWork(p.radius ?? 2);
+        this.fxCanvas.ink(p.strength ?? 0.5);
+        this.fxCanvas.brightnessContrast(p.brightness ?? 0.1, p.contrast ?? 0.3);
+        this.fxCanvas.update();
+        this.ctx.clearRect(0, 0, w, h);
+        this.ctx.drawImage(this.fxCanvas, 0, 0);
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    renderNormalMap() {
+        const w = this.outputCanvas.width;
+        const h = this.outputCanvas.height;
+        const p = this.params;
+        this.ctx.drawImage(this.sourceCanvas, 0, 0);
+        const imgData = this.ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+        const out = this.ctx.createImageData(w, h);
+        const odata = out.data;
+
+        const strength = p.strength ?? 2.5;
+        const invR = p.invertR ? -1.0 : 1.0;
+        const invG = p.invertG ? -1.0 : 1.0;
+
+        const getLum = (x, y) => {
+            const px = Math.max(0, Math.min(w - 1, x));
+            const py = Math.max(0, Math.min(h - 1, y));
+            const i = (py * w + px) * 4;
+            return (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255.0;
+        };
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const i = (y * w + x) * 4;
+                const tl = getLum(x - 1, y - 1);
+                const t  = getLum(x, y - 1);
+                const tr = getLum(x + 1, y - 1);
+                const l  = getLum(x - 1, y);
+                const r  = getLum(x + 1, y);
+                const bl = getLum(x - 1, y + 1);
+                const b  = getLum(x, y + 1);
+                const br = getLum(x + 1, y + 1);
+
+                const dX = ((tr + 2.0 * r + br) - (tl + 2.0 * l + bl)) * strength * invR;
+                const dY = ((bl + 2.0 * b + br) - (tl + 2.0 * t + tr)) * strength * invG;
+                const dZ = 1.0;
+
+                const len = Math.sqrt(dX * dX + dY * dY + dZ * dZ);
+                const nx = dX / len;
+                const ny = dY / len;
+                const nz = dZ / len;
+
+                odata[i]     = Math.floor((nx * 0.5 + 0.5) * 255);
+                odata[i + 1] = Math.floor((ny * 0.5 + 0.5) * 255);
+                odata[i + 2] = Math.floor((nz * 0.5 + 0.5) * 255);
+                odata[i + 3] = data[i + 3];
+            }
+        }
+        this.ctx.putImageData(out, 0, 0);
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    getCanvas() {
+        return this.outputCanvas;
+    }
+}
+
+class GLFXUI {
+    constructor(engine, options = {}) {
+        this.engine = engine;
+        this.onApply = options.onApply || null;
+        this.panel = new UI.SmartPanel({
+            id: options.id || 'panel_glfx_filters',
+            title: options.title || 'Filtros WebGL (glfx)',
+            x: options.x ?? 60,
+            y: options.y ?? 60,
+            width: 320,
+            floating: options.floating ?? true
+        });
+
+        this.accordion = new UI.Accordion({ exclusive: true });
+        this.panel.append(this.accordion);
+
+        this.buildAdjustSection();
+        this.buildBlurSection();
+        this.buildWarpSection();
+        this.buildFunSection();
+        this.buildCustomSection();
+        this.buildActionButtons();
+    }
+
+    buildAdjustSection() {
+        const it = this.accordion.addItem({ title: 'Ajustes', open: true });
+
+        const slBri = new UI.ConfigurableSlider({ label: 'Brillo', min: -1, max: 1, step: 0.05, value: 0 });
+        const slCon = new UI.ConfigurableSlider({ label: 'Contraste', min: -1, max: 1, step: 0.05, value: 0 });
+        slBri.onChange = v => this.engine.setFilter('brightnessContrast', { brightness: v, contrast: slCon.getValue() });
+        slCon.onChange = v => this.engine.setFilter('brightnessContrast', { brightness: slBri.getValue(), contrast: v });
+        it.addRow(slBri);
+        it.addRow(slCon);
+
+        const slHue = new UI.ConfigurableSlider({ label: 'Tono (Hue)', min: -1, max: 1, step: 0.05, value: 0 });
+        const slSat = new UI.ConfigurableSlider({ label: 'Saturación', min: -1, max: 1, step: 0.05, value: 0 });
+        slHue.onChange = v => this.engine.setFilter('hueSaturation', { hue: v, saturation: slSat.getValue() });
+        slSat.onChange = v => this.engine.setFilter('hueSaturation', { hue: slHue.getValue(), saturation: v });
+        it.addRow(slHue);
+        it.addRow(slSat);
+
+        const slVib = new UI.ConfigurableSlider({ label: 'Intensidad (Vibrance)', min: -1, max: 1, step: 0.05, value: 0 });
+        slVib.onChange = v => this.engine.setFilter('vibrance', { amount: v });
+        it.addRow(slVib);
+
+        const slDen = new UI.ConfigurableSlider({ label: 'Reducir Ruido', min: 0, max: 50, step: 1, value: 20 });
+        slDen.onChange = v => this.engine.setFilter('denoise', { exponent: v });
+        it.addRow(slDen);
+
+        const slUnsR = new UI.ConfigurableSlider({ label: 'Máscara Enfoque (R)', min: 0, max: 100, step: 1, value: 20 });
+        const slUnsS = new UI.ConfigurableSlider({ label: 'Máscara Enfoque (F)', min: 0, max: 5, step: 0.1, value: 2 });
+        slUnsR.onChange = v => this.engine.setFilter('unsharpMask', { radius: v, strength: slUnsS.getValue() });
+        slUnsS.onChange = v => this.engine.setFilter('unsharpMask', { radius: slUnsR.getValue(), strength: v });
+        it.addRow(slUnsR);
+        it.addRow(slUnsS);
+
+        const slNoi = new UI.ConfigurableSlider({ label: 'Ruido', min: 0, max: 1, step: 0.02, value: 0.2 });
+        slNoi.onChange = v => this.engine.setFilter('noise', { amount: v });
+        it.addRow(slNoi);
+
+        const slSep = new UI.ConfigurableSlider({ label: 'Sepia', min: 0, max: 1, step: 0.05, value: 1 });
+        slSep.onChange = v => this.engine.setFilter('sepia', { amount: v });
+        it.addRow(slSep);
+
+        const slVigS = new UI.ConfigurableSlider({ label: 'Viñeta Tamaño', min: 0, max: 1, step: 0.05, value: 0.5 });
+        const slVigA = new UI.ConfigurableSlider({ label: 'Viñeta Cantidad', min: 0, max: 1, step: 0.05, value: 0.5 });
+        slVigS.onChange = v => this.engine.setFilter('vignette', { size: v, amount: slVigA.getValue() });
+        slVigA.onChange = v => this.engine.setFilter('vignette', { size: slVigS.getValue(), amount: v });
+        it.addRow(slVigS);
+        it.addRow(slVigA);
+    }
+
+    buildBlurSection() {
+        const it = this.accordion.addItem({ title: 'Desenfoques (Blur)', open: false });
+
+        it.addRow(new UI.Label({ text: 'TILT SHIFT' }));
+        const slTiltBlur = new UI.ConfigurableSlider({ label: 'Radio Desenfoque', min: 0, max: 100, step: 1, value: 25 });
+        const slTiltGrad = new UI.ConfigurableSlider({ label: 'Área Transición', min: 10, max: 600, step: 5, value: 200 });
+        const slTiltY = new UI.ConfigurableSlider({ label: 'Posición Centro Y', min: 0, max: 1, step: 0.02, value: 0.5 });
+        const slTiltX = new UI.ConfigurableSlider({ label: 'Posición Centro X', min: 0, max: 1, step: 0.02, value: 0.5 });
+        const slTiltAng = new UI.ConfigurableSlider({ label: 'Ángulo Orientación', min: 0, max: 360, step: 2, value: 0 });
+
+        const updateTilt = () => {
+            this.engine.setFilter('tiltShift', {
+                blurRadius: slTiltBlur.getValue(),
+                gradientRadius: slTiltGrad.getValue(),
+                y: slTiltY.getValue(),
+                x: slTiltX.getValue(),
+                angle: slTiltAng.getValue()
+            });
+        };
+        slTiltBlur.onChange = updateTilt;
+        slTiltGrad.onChange = updateTilt;
+        slTiltY.onChange = updateTilt;
+        slTiltX.onChange = updateTilt;
+        slTiltAng.onChange = updateTilt;
+
+        it.addRow(slTiltBlur);
+        it.addRow(slTiltGrad);
+        it.addRow(slTiltY);
+        it.addRow(slTiltX);
+        it.addRow(slTiltAng);
+
+        it.addRow(new UI.Label({ text: 'LENS BLUR' }));
+        const slLensR = new UI.ConfigurableSlider({ label: 'Radio Lente', min: 0, max: 80, step: 1, value: 15 });
+        const slLensB = new UI.ConfigurableSlider({ label: 'Brillo / Bokeh', min: -1, max: 1, step: 0.05, value: 0.5 });
+        const slLensA = new UI.ConfigurableSlider({ label: 'Ángulo Bokeh', min: 0, max: 360, step: 2, value: 0 });
+
+        const updateLens = () => {
+            this.engine.setFilter('lensBlur', {
+                radius: slLensR.getValue(),
+                brightness: slLensB.getValue(),
+                angle: slLensA.getValue()
+            });
+        };
+        slLensR.onChange = updateLens;
+        slLensB.onChange = updateLens;
+        slLensA.onChange = updateLens;
+
+        it.addRow(slLensR);
+        it.addRow(slLensB);
+        it.addRow(slLensA);
+
+        it.addRow(new UI.Label({ text: 'OTROS BLURS' }));
+        const slTri = new UI.ConfigurableSlider({ label: 'Desenfoque Triangular', min: 0, max: 80, step: 1, value: 10 });
+        slTri.onChange = v => this.engine.setFilter('triangleBlur', { radius: v });
+        it.addRow(slTri);
+
+        const slZm = new UI.ConfigurableSlider({ label: 'Zoom Blur', min: 0, max: 1, step: 0.02, value: 0.2 });
+        slZm.onChange = v => this.engine.setFilter('zoomBlur', { amount: v });
+        it.addRow(slZm);
+    }
+
+    buildWarpSection() {
+        const it = this.accordion.addItem({ title: 'Deformaciones (Warp)', open: false });
+
+        const slSwirl = new UI.ConfigurableSlider({ label: 'Remolino (Ángulo)', min: -10, max: 10, step: 0.2, value: 3 });
+        slSwirl.onChange = v => this.engine.setFilter('swirl', { angle: v });
+        it.addRow(slSwirl);
+
+        const slBulge = new UI.ConfigurableSlider({ label: 'Inflar / Pellizcar', min: -1, max: 1, step: 0.05, value: 0.5 });
+        slBulge.onChange = v => this.engine.setFilter('bulgePinch', { strength: v });
+        it.addRow(slBulge);
+
+        const slPersp = new UI.ConfigurableSlider({ label: 'Perspectiva', min: 0, max: 0.45, step: 0.02, value: 0.15 });
+        slPersp.onChange = v => this.engine.setFilter('perspective', { dx: v });
+        it.addRow(slPersp);
+    }
+
+    buildFunSection() {
+        const it = this.accordion.addItem({ title: 'Efectos Divertidos', open: false });
+
+        const slInk = new UI.ConfigurableSlider({ label: 'Tinta (Ink)', min: 0, max: 1, step: 0.05, value: 0.25 });
+        slInk.onChange = v => this.engine.setFilter('ink', { strength: v });
+        it.addRow(slInk);
+
+        const slEdge = new UI.ConfigurableSlider({ label: 'Bordes (EdgeWork)', min: 0, max: 10, step: 0.5, value: 2 });
+        slEdge.onChange = v => this.engine.setFilter('edgeWork', { radius: v });
+        it.addRow(slEdge);
+
+        const slHex = new UI.ConfigurableSlider({ label: 'Hex Pixelate', min: 2, max: 50, step: 1, value: 10 });
+        slHex.onChange = v => this.engine.setFilter('hexagonalPixelate', { scale: v });
+        it.addRow(slHex);
+
+        const slDot = new UI.ConfigurableSlider({ label: 'Pantalla de Puntos', min: 1, max: 20, step: 1, value: 4 });
+        slDot.onChange = v => this.engine.setFilter('dotScreen', { size: v });
+        it.addRow(slDot);
+
+        const slHalf = new UI.ConfigurableSlider({ label: 'Color Halftone', min: 1, max: 25, step: 1, value: 4 });
+        slHalf.onChange = v => this.engine.setFilter('colorHalftone', { size: v });
+        it.addRow(slHalf);
+    }
+
+    buildCustomSection() {
+        const it = this.accordion.addItem({ title: 'Normal Map y Carbón', open: false });
+
+        it.addRow(new UI.Label({ text: 'DIBUJO CARBÓN' }));
+        const slCarbS = new UI.ConfigurableSlider({ label: 'Trazo Tinta', min: 0.1, max: 1, step: 0.05, value: 0.5 });
+        const slCarbC = new UI.ConfigurableSlider({ label: 'Contraste', min: 0, max: 1, step: 0.05, value: 0.3 });
+        const updateCarbon = () => this.engine.setFilter('carbon', { strength: slCarbS.getValue(), contrast: slCarbC.getValue() });
+        slCarbS.onChange = updateCarbon;
+        slCarbC.onChange = updateCarbon;
+        it.addRow(slCarbS);
+        it.addRow(slCarbC);
+
+        it.addRow(new UI.Label({ text: 'NORMAL MAP' }));
+        const slNormStr = new UI.ConfigurableSlider({ label: 'Fuerza / Altura', min: 0.1, max: 10, step: 0.1, value: 2.5 });
+        const chkInvR = new UI.Checkbox({ label: 'Invertir R', checked: false });
+        const chkInvG = new UI.Checkbox({ label: 'DirectX (-Y / Invert G)', checked: false });
+
+        const updateNormal = () => {
+            this.engine.setFilter('normalmap', {
+                strength: slNormStr.getValue(),
+                invertR: chkInvR.getValue(),
+                invertG: chkInvG.getValue()
+            });
+        };
+
+        slNormStr.onChange = updateNormal;
+        chkInvR.handleClick = () => {
+            chkInvR.checked = !chkInvR.checked;
+            chkInvR.element.classList.toggle('checked', chkInvR.checked);
+            updateNormal();
+        };
+        chkInvG.handleClick = () => {
+            chkInvG.checked = !chkInvG.checked;
+            chkInvG.element.classList.toggle('checked', chkInvG.checked);
+            updateNormal();
+        };
+
+        it.addRow(slNormStr);
+        it.addRow(chkInvR, chkInvG);
+    }
+
+    buildActionButtons() {
+        const r = this.panel.addRow(4);
+        const btnReset = new UI.Button({
+            text: 'Restablecer',
+            variant: 'danger',
+            onClick: () => this.engine.reset()
+        });
+        const btnApply = new UI.Button({
+            text: 'Aplicar',
+            variant: 'primary',
+            onClick: () => {
+                if (this.onApply) this.onApply(this.engine.getCanvas());
+            }
+        });
+        r.append(btnReset);
+        r.append(btnApply);
+    }
+}
+
+class BackgroundRemover {
+    /**
+     * @param {Object} options
+     * @param {HTMLCanvasElement} [options.canvas] - Canvas inicial (opcional).
+     * @param {HTMLElement|Object} [options.button] - Botón HTML o UI.Button para disparar el proceso.
+     * @param {boolean} [options.keepTransparency=true] - Mantener transparencias previas.
+     * @param {Function} [options.onFinish] - Callback al terminar: ({ canvas, image, imageData }) => {}
+     * @param {Function} [options.onProgress] - Callback: (porcentaje, key) => {}
+     * @param {Function} [options.onStart] - Callback al iniciar.
+     * @param {Function} [options.onError] - Callback en caso de error.
+     */
+    constructor(options = {}) {
+        this.canvas = options.canvas || null;
+        this.button = options.button ? (options.button.element || options.button) : null;
+        this.keepTransparency = options.keepTransparency !== false;
+
+        this.onFinish = options.onFinish || null;
+        this.onProgress = options.onProgress || null;
+        this.onStart = options.onStart || null;
+        this.onError = options.onError || null;
+
+        this._removeBgFn = null;
+        this._isProcessing = false;
+
+        if (this.button) {
+            this._boundClick = () => this.process();
+            this.button.addEventListener('click', this._boundClick);
+        }
+    }
+
+    /**
+     * Asigna o cambia el canvas de trabajo.
+     * @param {HTMLCanvasElement} canvas 
+     */
+    setCanvas(canvas) {
+        if (!(canvas instanceof HTMLCanvasElement)) {
+            console.warn('setCanvas: El elemento no es un HTMLCanvasElement válido');
+        }
+        this.canvas = canvas;
+        return this;
+    }
+
+    /**
+     * Carga una imagen (URL, Blob, File o elemento <img>) en el canvas interno.
+     * @param {string|Blob|File|HTMLImageElement} source 
+     */
+    async setImg(source) {
+        let img;
+        if (typeof source === 'string') {
+            img = await this._loadImage(source);
+        } else if (source instanceof Blob || source instanceof File) {
+            const url = URL.createObjectURL(source);
+            img = await this._loadImage(url);
+            URL.revokeObjectURL(url);
+        } else if (source instanceof HTMLImageElement) {
+            if (!source.complete) {
+                await new Promise(r => source.onload = r);
+            }
+            img = source;
+        } else {
+            throw new Error('setImg: Formato de imagen no compatible');
+        }
+
+        if (!this.canvas) {
+            this.canvas = document.createElement('canvas');
+        }
+
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        this.canvas.width = w;
+        this.canvas.height = h;
+
+        const ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0);
+
+        return this;
+    }
+
+    async _loadLibrary() {
+        if (!this._removeBgFn) {
+            const mod = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.6.0/+esm');
+            this._removeBgFn = mod.removeBackground;
+        }
+        return this._removeBgFn;
+    }
+
+    _loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
+    }
+
+    /**
+     * Ejecuta el proceso de remover fondo.
+     */
+    async process() {
+        if (!this.canvas) {
+            console.error('BackgroundRemover: Asigna un canvas con setCanvas() o setImg() antes de procesar.');
+            return;
+        }
+        if (this._isProcessing) return;
+
+        this._isProcessing = true;
+        if (this.onStart) this.onStart();
+
+        try {
+            const removeBg = await this._loadLibrary();
+            const targetCanvas = this.canvas;
+            const ctx = targetCanvas.getContext('2d', { willReadFrequently: true });
+            const w = targetCanvas.width;
+            const h = targetCanvas.height;
+
+            // 1. Guardar ImageData original para preservar transparencias previas
+            let origImageData = null;
+            if (this.keepTransparency) {
+                origImageData = ctx.getImageData(0, 0, w, h);
+            }
+
+            // 2. Exportar canvas a blob
+            const blob = await new Promise(res => targetCanvas.toBlob(res, 'image/png'));
+
+            // 3. Procesar con IA
+            const resultBlob = await removeBg(blob, {
+                progress: (key, current, total) => {
+                    if (this.onProgress && total > 0) {
+                        const pct = Math.round((current / total) * 100);
+                        this.onProgress(pct, key);
+                    }
+                }
+            });
+
+            // 4. Crear imagen resultante
+            const blobUrl = URL.createObjectURL(resultBlob);
+            const imgResult = await this._loadImage(blobUrl);
+
+            // 5. Preservar transparencias previas si existían
+            if (this.keepTransparency && origImageData) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = w;
+                tempCanvas.height = h;
+                const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+                tempCtx.drawImage(imgResult, 0, 0, w, h);
+
+                const newImageData = tempCtx.getImageData(0, 0, w, h);
+                const dOrig = origImageData.data;
+                const dNew = newImageData.data;
+
+                // Si un píxel ya era transparente en el original, se conserva transparente
+                for (let i = 3; i < dNew.length; i += 4) {
+                    dNew[i] = Math.min(dOrig[i], dNew[i]);
+                }
+
+                ctx.clearRect(0, 0, w, h);
+                ctx.putImageData(newImageData, 0, 0);
+            } else {
+                ctx.clearRect(0, 0, w, h);
+                ctx.drawImage(imgResult, 0, 0, w, h);
+            }
+
+            // 6. Preparar los 3 datos de salida (Canvas, Image, ImageData)
+            const finalImageData = ctx.getImageData(0, 0, w, h);
+            const finalImg = new Image();
+            finalImg.src = targetCanvas.toDataURL('image/png');
+            await new Promise(r => finalImg.onload = r);
+
+            // 7. Notificar finalización mediante el callback
+            if (this.onFinish) {
+                this.onFinish({
+                    canvas: targetCanvas,
+                    image: finalImg,
+                    imageData: finalImageData
+                });
+            }
+
+            URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error('Error removing background:', err);
+            if (this.onError) this.onError(err);
+        } finally {
+            this._isProcessing = false;
+        }
+    }
+
+    destroy() {
+        if (this.button && this._boundClick) {
+            this.button.removeEventListener('click', this._boundClick);
+        }
+    }
+}
+ </script>
+
+
+
     <style>
         #custom-context-menu {
     /* Fondo #121212 con 0.7 de opacidad */
@@ -1771,6 +2453,38 @@ class ApplicationAdapter {
         this.initContextMenu();
         this.bindEvents();
     }
+    ejecutarRemoverFondo() {
+        const act = this.layers.getActiveLayer();
+        if (!act) return alert('No hay capa activa');
+        this.bgRemover.setCanvas(act.canvas);
+        this.bgRemover.process();
+    }
+ 
+    abrirFiltrosGLFX() {
+        const act = this.layers.getActiveLayer();
+        if (!act) return alert('No hay capa activa');
+
+    
+        this.glfxOriginalSnapshot = act.getSnapshot();
+        this.glfxActive = true;
+
+        
+        if (!this.glfxSourceCanvas) {
+            this.glfxSourceCanvas = document.createElement('canvas');
+        }
+        this.glfxSourceCanvas.width = act.width;
+        this.glfxSourceCanvas.height = act.height;
+        const sctx = this.glfxSourceCanvas.getContext('2d');
+        sctx.clearRect(0, 0, act.width, act.height);
+        sctx.drawImage(act.canvas, 0, 0); 
+        this.glfxEngine.setSource(this.glfxSourceCanvas);
+        this.glfxUI.panel.open();
+
+        const hud = document.getElementById('hud');
+        if (hud) hud.textContent = 'Modo Filtros: Vista previa en tiempo real activa';
+    }
+
+    
     initDOM() {
         this.stage = document.getElementById('canvas-stage');
         this.target = document.getElementById('viewport-transform');
@@ -1859,15 +2573,14 @@ class ApplicationAdapter {
         if (this.cad) this.cad.setSize(w, h);
         if (this.selection) this.selection.setSize(w, h);
     }
-    initEngines() {
+   
+   initEngines() {
         this.zoom = new CanvasZoomManager({
             container: this.stage,
             target: this.target,
             onTransformChange: (scale) => {
                 const hud = document.getElementById('hud');
-                if (hud) {
-                    hud.textContent = `Zoom: ${(scale * 100).toFixed(0)}% | Q: Adaptar Trozo`;
-                }
+                if (hud) hud.textContent = `Zoom: ${(scale * 100).toFixed(0)}% | Q: Adaptar Trozo`;
             }
         });
 
@@ -1926,9 +2639,107 @@ class ApplicationAdapter {
             }
         });
 
+        // ================= CONEXIÓN REMOVER FONDO =================
+        this.bgRemover = new BackgroundRemover({
+            keepTransparency: true,
+            onStart: () => {
+                const hud = document.getElementById('hud');
+                if (hud) hud.textContent = '⏳ Removiendo fondo con IA...';
+            },
+            onProgress: (pct) => {
+                const hud = document.getElementById('hud');
+                if (hud) hud.textContent = `⏳ Modelo IA: ${pct}%`;
+            },
+            onFinish: ({ canvas }) => {
+                const act = this.layers.getActiveLayer();
+                if (!act) return;
+                const before = act.getSnapshot();
+                act.ctx.clearRect(0, 0, act.width, act.height);
+                act.ctx.drawImage(canvas, 0, 0);
+                const after = act.getSnapshot();
+
+                this.history.push({
+                    undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
+                    redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
+                });
+
+                this.ajustarCanvasACapaActiva();
+                const hud = document.getElementById('hud');
+                if (hud) hud.textContent = '✓ Fondo removido con éxito';
+            },
+            onError: (err) => {
+                alert('Error al remover fondo: ' + err.message);
+                const hud = document.getElementById('hud');
+                if (hud) hud.textContent = '✕ Error al remover fondo';
+            }
+        });
+
+        // ================= CONEXIÓN FILTROS GLFX =================
+        this.glfxEngine = new GLFXEngine();
+    this.glfxActive = false;
+    this.glfxOriginalSnapshot = null;
+
+    // CADA VEZ QUE UN SLIDER SE MUEVA, PINTA DIRECTO EN LA CAPA ACTIVA EN VIVO:
+    this.glfxEngine.onRender = (filteredCanvas) => {
+        const act = this.layers.getActiveLayer();
+        if (!act || !this.glfxActive) return;
+        act.ctx.clearRect(0, 0, act.width, act.height);
+        act.ctx.drawImage(filteredCanvas, 0, 0);
+    };
+
+    this.glfxUI = new GLFXUI(this.glfxEngine, {
+        title: 'Filtros WebGL & Efectos',
+        x: 76,
+        y: 60,
+        floating: true,
+        onApply: (filteredCanvas) => {
+            const act = this.layers.getActiveLayer();
+            if (!act || !this.glfxOriginalSnapshot) return;
+
+            const before = this.glfxOriginalSnapshot;
+            const after = act.getSnapshot();
+
+            this.history.push({
+                undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
+                redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
+            });
+
+            // Actualizamos la nueva base limpia
+            this.glfxOriginalSnapshot = after;
+            this.glfxActive = false;
+            this.glfxUI.panel.close();
+
+            const hud = document.getElementById('hud');
+            if (hud) hud.textContent = '✓ Filtro aplicado definitivamente';
+        }
+    });
+        // Inicia cerrado
+
+          const prevClose = this.glfxUI.panel.onCloseCallback;
+    this.glfxUI.panel.onCloseCallback = (p) => {
+        if (prevClose) prevClose(p);
+        if (this.glfxActive && this.glfxOriginalSnapshot) {
+            const act = this.layers.getActiveLayer();
+            if (act) act.restoreSnapshot(this.glfxOriginalSnapshot);
+            this.glfxActive = false;
+        }
+    };
+
+    // BOTÓN RESTABLECER DEL PANEL:
+    this.glfxUI.panel.element.querySelector('.ui-btn-danger').onclick = () => {
+        if (this.glfxOriginalSnapshot) {
+            const act = this.layers.getActiveLayer();
+            if (act) act.restoreSnapshot(this.glfxOriginalSnapshot);
+            this.glfxEngine.reset();
+        }
+    };
+    
+        this.glfxUI.panel.close();
+
         this.layers.createLayer('Fondo', this.defaultWidth, this.defaultHeight);
         requestAnimationFrame(() => this.ajustarCanvasACapaActiva());
     }
+   
     centerView(w = null, h = null) {
         const act = this.layers.getActiveLayer();
         const width = w || (act ? act.width : this.defaultWidth);
@@ -2118,6 +2929,8 @@ class ApplicationAdapter {
         const bar = document.getElementById('left-toolbar-strip');
         bar.innerHTML = '';
 
+        
+
         const toolsConfig = [
             { id: 'brush',      label: 'BRS', title: 'Pincel (B)',              icon: '<path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.71a.996.996 0 0 0-1.41 0l-9.3 9.3 2.83 2.83 9.3-9.3a.996.996 0 0 0 0-1.41l-1.42-1.42z"/>' },
             { id: 'cad',        label: 'CAD', title: 'Vector / CAD',             icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>' },
@@ -2150,7 +2963,11 @@ class ApplicationAdapter {
             { label: 'W',   title: 'Adaptar a Lienzo (W)',   action: () => this.adaptarCapaActivaAlCanvas(),   icon: '<path d="M4 4h16v16H4V4zm2 2v12h12V6H6z"/>' },
             { label: 'Z+',  title: 'Zoom Acercar',           action: () => this.zoom.zoomDelta(1),             icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
             { label: 'Z-',  title: 'Zoom Alejar',            action: () => this.zoom.zoomDelta(-1),            icon: '<path d="M19 13H5v-2h14v2z"/>' },
-            { label: 'UND', title: 'Deshacer (Ctrl+Z)',      action: () => this.history.undo(),                icon: '<path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>' }
+            { label: 'UND', title: 'Deshacer (Ctrl+Z)',      action: () => this.history.undo(),                icon: '<path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>' },
+            { label: 'FX',  title: 'Filtros WebGL (glfx)',   action: () => this.abrirFiltrosGLFX(),            icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>' },
+            { label: 'BG',  title: 'Quitar Fondo (IA)',       action: () => this.ejecutarRemoverFondo(),        icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
+            
+       
         ];
 
         actions.forEach(a => {
@@ -2203,7 +3020,25 @@ class ApplicationAdapter {
         // SECCIÓN CAPAS
         const itemLayers = accordion.addItem({ title: 'Capas (Layers)', open: true });
         
+        
         const rCanvasAdjust = itemLayers.addRow(4);
+
+        // ... Dentro de buildRightUI() -> itemLayers ...
+       
+        // BOTONES DE FILTROS Y QUITAR FONDO AÑADIDOS AQUÍ:
+        const rEfectos = itemLayers.addRow(4);
+        rEfectos.append(new UI.Button({ 
+            text: '✨ Filtros FX', 
+            onClick: () => this.abrirFiltrosGLFX() 
+        }));
+        rEfectos.append(new UI.Button({ 
+            text: '✂ Quitar Fondo', 
+            variant: 'primary',
+            onClick: () => this.ejecutarRemoverFondo() 
+        }));
+
+        
+
         rCanvasAdjust.append(new UI.Button({ text: 'Ver Solo este Trozo (Q)', variant: 'primary', onClick: () => this.ajustarCanvasACapaActiva() }));
         rCanvasAdjust.append(new UI.Button({ text: 'Adaptar a Lienzo (W)', onClick: () => this.adaptarCapaActivaAlCanvas() }));
 
@@ -2458,6 +3293,8 @@ class ApplicationAdapter {
 
 
 }
+
+
 
 window.addEventListener('DOMContentLoaded', () => {
     window.AppInstance = new ApplicationAdapter();
