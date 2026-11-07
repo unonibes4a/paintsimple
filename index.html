@@ -6207,6 +6207,124 @@ class ClipboardManager {
         return res;
     }
 }
+class ToolMathCanvas{
+     getImageDataFromCanvas(canvas) {
+        const ctx = canvas.getContext('2d');
+        return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }
+    radialPixelesGio(imageData, f) {
+        const data = imageData.data;
+        const width = imageData.width;
+        const height = imageData.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+        const rgba = { r: 0, g: 0, b: 0 ,a:1};     
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const index = (y * width + x) * 4;
+                const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                let gradientValue = 1 - (distance / maxDistance);
+                gradientValue = Math.max(0, Math.min(1, gradientValue));
+                rgba.r = data[index] / 255;
+                rgba.g = data[index + 1] / 255;
+                rgba.b = data[index + 2] / 255;
+                if (f) f(rgba, gradientValue);
+                data[index] = rgba.r * 255;
+                data[index + 1] = rgba.g * 255;
+                data[index + 2] = rgba.b * 255;
+                data[index + 3] = rgba.a*255;
+            }
+        }
+        return imageData;
+    }
+
+    putImageDataOnCanvas(canvas, imageData) {
+        canvas.width = imageData.width;
+        canvas.height = imageData.height;
+        const ctx = canvas.getContext('2d');
+        ctx.putImageData(imageData, 0, 0);
+    }
+    limite = (v,a=0,b=1) => {
+    if(v<a){return a; }
+    if(v>b){return b; }
+    return v;
+    } 
+    operacionMatematica(rgba, val, operacion) {
+        const lim = (v) => v < 0 ? 0 : (v > 1 ? 1 : v);
+        if (operacion === 'multiplicar' || operacion === '*') {
+            rgba.r = lim(rgba.r * val);
+            rgba.g = lim(rgba.g * val);
+            rgba.b = lim(rgba.b * val);
+            return rgba;
+        }
+        if (operacion === '+') {
+            rgba.r = lim(rgba.r + val);
+            rgba.g = lim(rgba.g + val);
+            rgba.b = lim(rgba.b + val);
+            return rgba;
+        }
+        if (operacion === 'potencia' || operacion === 'pow') {
+            rgba.r = lim(Math.pow(rgba.r, val));
+            rgba.g = lim(Math.pow(rgba.g, val));
+            rgba.b = lim(Math.pow(rgba.b, val));
+            return rgba;
+        }
+        return rgba;
+    }
+
+    saturationGio(tex_color, ec5) {
+        const lim = (x) => x > 1.0 ? 1.0 : (x < 0.0 ? 0.0 : x);
+        const maxx = Math.max(tex_color.r, tex_color.g, tex_color.b);
+        if (tex_color.r !== maxx) tex_color.r += (maxx - tex_color.r) * ec5;
+        if (tex_color.g !== maxx) tex_color.g += (maxx - tex_color.g) * ec5;
+        if (tex_color.b !== maxx) tex_color.b += (maxx - tex_color.b) * ec5;
+        tex_color.r = lim(tex_color.r);
+        tex_color.g = lim(tex_color.g);
+        tex_color.b = lim(tex_color.b);
+        return tex_color;
+    }
+
+    mixerHtmlPasaColor(rgbax, rgba2 = { r: 0.5, g: 0.45, b: 0.36 }, porcent, bool = false) {
+        const maxx0 = Math.max(rgbax.r, rgbax.g, rgbax.b);
+        const clmd = 1.0 - porcent;
+        rgbax.r = rgbax.r * clmd + rgba2.r * porcent;
+        rgbax.g = rgbax.g * clmd + rgba2.g * porcent;
+        rgbax.b = rgbax.b * clmd + rgba2.b * porcent;
+        if (bool) {
+            const max2 = Math.max(rgbax.r, rgbax.g, rgbax.b);
+            this.operacionMatematica(rgbax, maxx0 / (max2 + 0.00001), '*');
+        }
+        return rgbax;
+    }
+
+    colorDivide(color1) {
+        var maxx0 = Math.max(color1.r, color1.g, color1.b) + 0.00001;
+        var minx = Math.min(color1.r, color1.g, color1.b);
+        return minx / (maxx0 + 0.0000001);
+    }
+
+    refreshButtons() {
+        this.buttonContainer.innerHTML = '';
+        this.buttonRefs = [];
+        this.creacionBotones.forEach((cfg, idx) => {
+            const btn = new UI.Button({
+                text: cfg.info || ('Btn ' + idx),
+                variant: 'primary',
+                onClick: () => this.ejecutarBoton(cfg)
+            });
+            btn.mount(this.buttonContainer);
+            this.buttonRefs.push({ cfg, btn });
+        });
+    }
+    maxRgba(rgba){
+      return  Math.max(rgba.r, rgba.g, rgba.b);
+    }
+    minRgba(rgba){
+      return  Math.min(rgba.r, rgba.g, rgba.b);
+    }
+ 
+}
 
 class ToolManager {
     constructor({ previewCanvas, layerStackEngine, brushSettingsEngine, selectionManager, cadEngine, onColorSampled = () => {}, onStrokeStart = () => {}, onStrokeFinished = () => {} } = {}) {
@@ -6219,6 +6337,7 @@ class ToolManager {
         this.onColorSampled = onColorSampled;
         this.onStrokeStart = onStrokeStart;
         this.onStrokeFinished = onStrokeFinished;
+        this.toolMathCanvas=new ToolMathCanvas();
 
         this.currentTool = 'brush';
         this.isDrawing = false;
@@ -6234,6 +6353,60 @@ class ToolManager {
         this.lastPolyClickTime = 0;
         this.moveSnapshotCanvas = null;
     }
+    miCombinacionPersonalizada(layerData, stampData, w, h,outImagendata) {
+ 
+    const salida = new ImageData(w, h);
+    const dLayer = layerData.data;  
+    var dStamp = stampData.data;  
+    var data=outImagendata.data;
+    const dOut = salida.data;      
+  let rgbaLayer ={r:0,g:0,b:0,a:1  };
+   let rgbadStamp ={r:0,g:0,b:0,a:1  };
+  let rgbaOut ={r:0,g:0,b:0,a:1  };
+    for (let i = 0; i < dLayer.length; i += 4) {
+ 
+        const lR = dLayer[i];
+        const lG = dLayer[i + 1];
+        const lB = dLayer[i + 2];
+        const lA = dLayer[i + 3];
+        rgbaLayer.r = dLayer[i] / 255;
+        rgbaLayer.g = dLayer[i + 1] / 255;
+        rgbaLayer.b = dLayer[i + 2] / 255;
+        rgbaLayer.a=dLayer[i + 3] / 255;
+        let maxRgbaLayer=this.toolMathCanvas.maxRgba(rgbaLayer )+0.2;
+       maxRgbaLayer= this.toolMathCanvas.limite(maxRgbaLayer,0.2,1.1);
+ 
+        const sR = dStamp[i];
+        const sG = dStamp[i + 1];
+        const sB = dStamp[i + 2];
+        const sA = dStamp[i + 3];
+        rgbadStamp.r = dStamp[i] / 255;
+        rgbadStamp.g = dStamp[i + 1] / 255;
+        rgbadStamp.b = dStamp[i + 2] / 255;
+        rgbadStamp.a=dStamp[i + 3] / 255;
+
+      rgbaOut= this.toolMathCanvas.operacionMatematica(rgbadStamp, maxRgbaLayer, '*');
+     
+ 
+  
+        const factorAlfaBrocha = sA / 255;
+          if (sA === 0) {
+            data[i]     = dLayer[i];
+            data[i + 1] = dLayer[i + 1];
+            data[i + 2] = dLayer[i + 2];
+            data[i + 3] = dLayer[i + 3];
+            continue;
+        }
+
+   
+        data[i]     =rgbaOut.r*255;  
+        data[i + 1] =rgbaOut.g*255; 
+        data[i + 2] =rgbaOut.b*255; 
+       data[i + 3] =  ( rgbadStamp.a + rgbaLayer.a * (1 - rgbadStamp.a))*255;                                 
+    }  
+
+    return outImagendata;
+}
    setTool(tool) {
     if (this.currentTool === 'poly' && tool !== 'poly') {
         this.polyPoints = [];
@@ -6553,6 +6726,57 @@ class ToolManager {
     }
 
     ctx.putImageData(layerImgData, clipX0, clipY0);
+}
+drawInterpolatedStampDirectCombiando(ctx, x, y) {
+    const dims = this.brush.getStampDimensions();
+    
+    
+    const w = Math.round(dims.w);
+    const h = Math.round(dims.h);
+    const radio = w / 2;
+
+ 
+    const x0 = Math.round(x - radio);
+    const y0 = Math.round(y - radio);
+
+ 
+    const tipCanvas = this.brush.getTipCanvas();  
+    
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = w;
+    tempCanvas.height = h;
+    const tctx = tempCanvas.getContext('2d');
+
+    const rot = this.brush.randomRotation 
+        ? Math.random() * Math.PI * 2 
+        : (this.brush.angle * Math.PI) / 180;
+
+    
+    tctx.save();
+    tctx.translate(w / 2, h / 2);
+    if (rot !== 0) tctx.rotate(rot);
+    tctx.drawImage(tipCanvas, -w / 2, -h / 2, w, h);
+    tctx.restore();
+
+   
+    const stampImgData = tctx.getImageData(0, 0, w, h);
+    const stampImgData2 = tctx.getImageData(0, 0, w, h);
+
+ 
+    const layerImgData = ctx.getImageData(x0, y0, w, h);
+
+ 
+    var resultadoImgData = this.miCombinacionPersonalizada(layerImgData, stampImgData, w, h,stampImgData2);
+
+ 
+    tctx.putImageData(resultadoImgData, 0, 0);
+
+    ctx.save();
+    
+    ctx.clearRect(x0, y0, w, h);
+ 
+    ctx.drawImage(tempCanvas, x0, y0);
+    ctx.restore();
 }
     drawInterpolatedStampDirect (ctx, x, y) {
     const dims = this.brush.getStampDimensions();
