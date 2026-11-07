@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paint simple</title>
- 
+ <!-- 
+       <script src="https://unonibes4a.github.io/pintaresta/a.js"></script> 
+ -->
       <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/ort.min.js"></script>
-
     <script >
         
 class BaseShapeGenerator {
@@ -1875,12 +1876,327 @@ class BrushTipCreator {
             localStorage.setItem(`ui_force_factory_${window.programaId}`, 'true');
         } catch(e) {}
     </script>
-    <script src="https://unonibes4a.github.io/pintaresta/a.js"></script> 
-    <script s
-    
-    rc="https://evanw.github.io/glfx.js/glfx.js"></script>
+    <script src=" a.js"></script> 
+    <scripts  src="https://evanw.github.io/glfx.js/glfx.js"></scripts>
  <script>
+ class ProjectStorageDB {
+    constructor(dbName = 'PaintSimpleDB', version = 1) {
+        this.dbName = dbName;
+        this.version = version;
+        this.db = null;
+    }
 
+    async init() {
+        if (this.db) return this.db;
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(this.dbName, this.version);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('projects')) {
+                    const store = db.createObjectStore('projects', { keyPath: 'id' });
+                    store.createIndex('updatedAt', 'updatedAt', { unique: false });
+                }
+            };
+            req.onsuccess = (e) => {
+                this.db = e.target.result;
+                resolve(this.db);
+            };
+            req.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async getAll() {
+        await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('projects', 'readonly');
+            const store = tx.objectStore('projects');
+            const req = store.getAll();
+            req.onsuccess = () => {
+                const res = req.result || [];
+                res.sort((a, b) => b.updatedAt - a.updatedAt);
+                resolve(res);
+            };
+            req.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async getById(id) {
+        await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('projects', 'readonly');
+            const store = tx.objectStore('projects');
+            const req = store.get(id);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async save(projectData) {
+        await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('projects', 'readwrite');
+            const store = tx.objectStore('projects');
+            const req = store.put(projectData);
+            req.onsuccess = () => resolve(projectData);
+            req.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async delete(id) {
+        await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('projects', 'readwrite');
+            const store = tx.objectStore('projects');
+            const req = store.delete(id);
+            req.onsuccess = () => resolve(true);
+            req.onerror = (e) => reject(e.target.error);
+        });
+    }
+}
+
+class ProjectStorageUI {
+    constructor(app, options = {}) {
+        this.app = app;
+        this.db = new ProjectStorageDB();
+        this.currentProjectId = null;
+
+        this.panel = new UI.SmartPanel({
+            id: options.id || 'panel_project_storage',
+            title: options.title || 'Project Manager (IndexedDB)',
+            x: options.x ?? 80,
+            y: options.y ?? 100,
+            width: 320,
+            floating: options.floating ?? true
+        });
+
+        this.buildUI();
+        this.refreshList();
+    }
+
+    buildUI() {
+        const rName = this.panel.addRow ? this.panel.addRow(4) : this._makeRow();
+        this.inpName = document.createElement('input');
+        this.inpName.type = 'text';
+        this.inpName.placeholder = 'Project Name';
+        this.inpName.value = 'My Drawing';
+        this.inpName.style.cssText = 'flex:1; height:28px; background:#18202f; border:1px solid #475569; border-radius:4px; color:#fff; padding:0 8px; font-size:11px; outline:none;';
+        rName.append ? rName.append(this.inpName) : rName.appendChild(this.inpName);
+
+        const rActions = this.panel.addRow ? this.panel.addRow(4) : this._makeRow();
+        const btnSaveNew = new UI.Button({
+            text: 'Save New',
+            variant: 'primary',
+            onClick: () => this.saveProject(true)
+        });
+        const btnOverwrite = new UI.Button({
+            text: 'Overwrite',
+            onClick: () => this.saveProject(false)
+        });
+        rActions.append ? rActions.append(btnSaveNew) : rActions.appendChild(btnSaveNew.element);
+        rActions.append ? rActions.append(btnOverwrite) : rActions.appendChild(btnOverwrite.element);
+
+        this.listContainer = document.createElement('div');
+        this.listContainer.style.cssText = 'display:flex; flex-direction:column; gap:4px; max-height:240px; overflow-y:auto; background:#0f141f; padding:6px; border-radius:4px; border:1px solid #1e293b; margin-top:6px;';
+        this.panel.append(this.listContainer);
+
+        const rFoot = this.panel.addRow ? this.panel.addRow(4) : this._makeRow();
+        const btnRefresh = new UI.Button({
+            text: 'Refresh List',
+            onClick: () => this.refreshList()
+        });
+        rFoot.append ? rFoot.append(btnRefresh) : rFoot.appendChild(btnRefresh.element);
+    }
+
+    _makeRow() {
+        const d = document.createElement('div');
+        d.className = 'fb-row';
+        d.style.cssText = 'display:flex; gap:6px; margin:4px 0; width:100%;';
+        this.panel.append(d);
+        return d;
+    }
+
+    async saveProject(isNew = true) {
+        const name = this.inpName.value.trim() || 'Untitled';
+        const layerStack = this.app.layers;
+        if (!layerStack || layerStack.layers.length === 0) return;
+
+        let id = this.currentProjectId;
+        if (isNew || !id) {
+            id = 'proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+            this.currentProjectId = id;
+        }
+
+        const layersData = [];
+        for (const l of layerStack.layers) {
+            const blob = await new Promise(res => l.canvas.toBlob(res, 'image/png'));
+            layersData.push({
+                id: l.id,
+                name: l.name,
+                width: l.width,
+                height: l.height,
+                originalWidth: l.originalWidth,
+                originalHeight: l.originalHeight,
+                visible: l.visible,
+                opacity: l.opacity,
+                blendMode: l.blendMode,
+                blob
+            });
+        }
+
+        let maxWidth = 1, maxHeight = 1;
+        layerStack.layers.forEach(l => {
+            if (l.width > maxWidth) maxWidth = l.width;
+            if (l.height > maxHeight) maxHeight = l.height;
+        });
+
+        const thumbCanvas = document.createElement('canvas');
+        const scale = Math.min(1, 120 / Math.max(maxWidth, maxHeight));
+        thumbCanvas.width = Math.max(1, Math.round(maxWidth * scale));
+        thumbCanvas.height = Math.max(1, Math.round(maxHeight * scale));
+        const tctx = thumbCanvas.getContext('2d');
+
+        layerStack.layers.forEach(l => {
+            if (l.visible) {
+                tctx.save();
+                tctx.globalAlpha = l.opacity;
+                tctx.globalCompositeOperation = (l.blendMode === 'normal') ? 'source-over' : (l.blendMode || 'source-over');
+                tctx.drawImage(l.canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+                tctx.restore();
+            }
+        });
+
+        const thumbBlob = await new Promise(res => thumbCanvas.toBlob(res, 'image/jpeg', 0.7));
+
+        const projectPayload = {
+            id,
+            name,
+            updatedAt: Date.now(),
+            defaultWidth: layerStack.defaultWidth,
+            defaultHeight: layerStack.defaultHeight,
+            activeLayerId: layerStack.activeLayerId,
+            thumbBlob,
+            layers: layersData
+        };
+
+        await this.db.save(projectPayload);
+        await this.refreshList();
+
+        const hud = document.getElementById('hud');
+        if (hud) hud.textContent = `✓ Project saved: ${name}`;
+    }
+
+    async loadProject(id) {
+        const proj = await this.db.getById(id);
+        if (!proj) return;
+
+        this.currentProjectId = proj.id;
+        this.inpName.value = proj.name;
+
+        const layerStack = this.app.layers;
+        layerStack.layers = [];
+        layerStack.activeLayerId = null;
+
+        layerStack.defaultWidth = proj.defaultWidth;
+        layerStack.defaultHeight = proj.defaultHeight;
+        this.app.defaultWidth = proj.defaultWidth;
+        this.app.defaultHeight = proj.defaultHeight;
+
+        for (const ld of proj.layers) {
+            const l = new Layer(ld.id, ld.name, ld.width, ld.height);
+            l.originalWidth = ld.originalWidth || ld.width;
+            l.originalHeight = ld.originalHeight || ld.height;
+            l.visible = ld.visible !== false;
+            l.opacity = ld.opacity ?? 1.0;
+            l.blendMode = ld.blendMode || 'normal';
+
+            const url = URL.createObjectURL(ld.blob);
+            const img = new Image();
+            await new Promise((res, rej) => {
+                img.onload = () => {
+                    l.ctx.drawImage(img, 0, 0);
+                    URL.revokeObjectURL(url);
+                    res();
+                };
+                img.onerror = rej;
+                img.src = url;
+            });
+
+            layerStack.layers.push(l);
+        }
+
+        layerStack.activeLayerId = proj.activeLayerId || layerStack.layers[0]?.id;
+        layerStack.syncDOM();
+        this.app.ajustarCanvasACapaActiva();
+        await this.refreshList();
+
+        const hud = document.getElementById('hud');
+        if (hud) hud.textContent = `✓ Project loaded: ${proj.name}`;
+    }
+
+    async deleteProject(id, name) {
+        if (!confirm(`Delete project "${name}"?`)) return;
+        await this.db.delete(id);
+        if (this.currentProjectId === id) this.currentProjectId = null;
+        await this.refreshList();
+    }
+
+    async refreshList() {
+        this.listContainer.innerHTML = '';
+        const list = await this.db.getAll();
+
+        if (list.length === 0) {
+            const empty = document.createElement('div');
+            empty.textContent = 'No saved projects';
+            empty.style.cssText = 'color:#64748b; font-size:11px; text-align:center; padding:12px;';
+            this.listContainer.appendChild(empty);
+            return;
+        }
+
+        list.forEach(p => {
+            const row = document.createElement('div');
+            row.style.cssText = `display:flex; align-items:center; gap:8px; padding:6px; border-radius:4px; background:${this.currentProjectId === p.id ? '#0369a1' : '#1a2333'}; border:1px solid ${this.currentProjectId === p.id ? '#38bdf8' : 'rgba(255,255,255,0.08)'};`;
+
+            const img = document.createElement('img');
+            img.style.cssText = 'width:36px; height:36px; object-fit:cover; border-radius:3px; background:#000; flex-shrink:0;';
+            if (p.thumbBlob) {
+                img.src = URL.createObjectURL(p.thumbBlob);
+            }
+
+            const info = document.createElement('div');
+            info.style.cssText = 'display:flex; flex-direction:column; flex:1; min-width:0;';
+
+            const title = document.createElement('span');
+            title.textContent = p.name;
+            title.style.cssText = 'font-weight:bold; font-size:11px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
+
+            const meta = document.createElement('span');
+            meta.textContent = `${new Date(p.updatedAt).toLocaleTimeString()} - ${p.layers.length} layers`;
+            meta.style.cssText = 'font-size:9px; color:#94a3b8;';
+
+            info.appendChild(title);
+            info.appendChild(meta);
+
+            const btnLoad = document.createElement('button');
+            btnLoad.textContent = 'Load';
+            btnLoad.className = 'fb-btn fb-btn-primary';
+            btnLoad.style.cssText = 'flex:0 0 auto; height:24px; padding:0 6px; font-size:10px;';
+            btnLoad.onclick = () => this.loadProject(p.id);
+
+            const btnDel = document.createElement('button');
+            btnDel.textContent = '✕';
+            btnDel.className = 'fb-btn fb-btn-danger';
+            btnDel.style.cssText = 'flex:0 0 auto; height:24px; width:24px; padding:0; font-size:10px;';
+            btnDel.onclick = () => this.deleteProject(p.id, p.name);
+
+            row.appendChild(img);
+            row.appendChild(info);
+            row.appendChild(btnLoad);
+            row.appendChild(btnDel);
+
+            this.listContainer.appendChild(row);
+        });
+    }
+}
 class BrushDynamicsUI {
     constructor(brushSettingsEngine, options = {}) {
         this.brush = brushSettingsEngine;
@@ -1889,7 +2205,7 @@ class BrushDynamicsUI {
 
         this.panel = new UI.SmartPanel({
             id: options.id || 'panel_brush_dynamics',
-            title: options.title || 'Ajustes Dinámicos de Brocha',
+            title: options.title || 'Dynamic Brush Settings',
             x: options.x ?? 80,
             y: options.y ?? 120,
             width: 290,
@@ -1912,7 +2228,7 @@ class BrushDynamicsUI {
                 this.originalRawImage = img;
                 this.applyImageMode();
                 const hud = document.getElementById('hud');
-                if (hud) hud.textContent = '✓ Imagen cargada como brocha';
+                if (hud) hud.textContent = 'Imagen cargada como brocha';
             };
             img.src = URL.createObjectURL(file);
         });
@@ -1920,25 +2236,25 @@ class BrushDynamicsUI {
 
         const rImg = this.panel.addRow ? this.panel.addRow(4) : this._makeRow();
         const btnUpload = new UI.Button({
-            text: 'Subir Imagen Brocha',
+            text: 'Upload Brush Image',
             variant: 'primary',
             onClick: () => fileInput.click()
         });
         const btnResetTip = new UI.Button({
-            text: 'Brocha Nativa',
+            text: 'Nativa Brush',
             variant: 'danger',
             onClick: () => {
                 this.originalRawImage = null;
                 this.brush.stampImage = null;
                 const hud = document.getElementById('hud');
-                if (hud) hud.textContent = 'Brocha restablecida a nativa circular';
+                if (hud) hud.textContent = 'Brush reset to native circular';
             }
         });
         rImg.append ? rImg.append(btnUpload) : rImg.appendChild(btnUpload.element);
         rImg.append ? rImg.append(btnResetTip) : rImg.appendChild(btnResetTip.element);
 
         const chkGray = new UI.Toggle({
-            label: 'Convertir a Escala de Grises',
+            label: 'Convert to Grayscale',
             value: this.isGrayscale,
             onChange: (v) => {
                 this.isGrayscale = v;
@@ -1950,7 +2266,7 @@ class BrushDynamicsUI {
         this.panel.append(chkGray);
 
         const slSize = new UI.ConfigurableSlider({
-            label: 'Tamaño (Size)',
+            label: 'Size',
             min: 1,
             max: 800,
             step: 1,
@@ -1960,7 +2276,7 @@ class BrushDynamicsUI {
         this.panel.append(slSize);
 
         const slOpacity = new UI.ConfigurableSlider({
-            label: 'Alfa / Opacidad Global',
+            label: 'Alpha / Global Opacity',
             min: 0.01,
             max: 1.0,
             step: 0.01,
@@ -1980,7 +2296,7 @@ class BrushDynamicsUI {
         this.panel.append(slHardness);
 
         const slSpacing = new UI.ConfigurableSlider({
-            label: 'Paso de Trazo (Spacing / Step %)',
+            label: '(Spacing / Step %)',
             min: 1,
             max: 200,
             step: 1,
@@ -1988,6 +2304,15 @@ class BrushDynamicsUI {
             onChange: (v) => this.brush.set('spacing', v)
         });
         this.panel.append(slSpacing);
+        const slMult = new UI.ConfigurableSlider({
+        label: 'Multiply Factor (Float 0.0 - 1.0)',
+        min: 0.0,
+        max: 4.0,
+        step: 0.01,
+        value: this.brush.multiplyFactor ?? 1.0,
+        onChange: (v) => this.brush.set('multiplyFactor', v)
+        });
+        this.panel.append(slMult);
 
         const slAngle = new UI.ConfigurableSlider({
             label: 'Ángulo Fijo (°)',
@@ -2000,14 +2325,14 @@ class BrushDynamicsUI {
         this.panel.append(slAngle);
 
         const chkRandomRot = new UI.Toggle({
-            label: 'Rotación Aleatoria por Estampa',
+            label: 'Random Rotation',
             value: this.brush.randomRotation,
             onChange: (v) => this.brush.set('randomRotation', v)
         });
         this.panel.append(chkRandomRot);
 
         const slForce = new UI.ConfigurableSlider({
-            label: 'Fuerza / Flujo (%)',
+            label: 'Force / Flow (%)',
             min: 1,
             max: 100,
             step: 1,
@@ -2982,12 +3307,11 @@ class CurveEngine {
     }
 }
  
-class CurveUI {
+ class CurveUI {
     constructor(engine, options = {}) {
         this.engine = engine;
         this.onApply = options.onApply || null;
 
-        // Checkboxes multi-canal activos
         this.channelState = {
             r: true,
             g: true,
@@ -2997,14 +3321,13 @@ class CurveUI {
 
         this.selectedPointX = null;
         this.isDragging = false;
-        this.hoverCoords = null; // Coordenadas para el indicador en tiempo real
+        this.hoverCoords = null;
 
-        // Márgenes internos para dar espacio a la regla y números
         this.pad = {
-            left: 28,   // Espacio para números del eje Y (1.00, 0.75...)
+            left: 28,
             right: 10,
             top: 10,
-            bottom: 20  // Espacio para números del eje X (0.00, 0.50...)
+            bottom: 20
         };
 
         this.colors = {
@@ -3016,7 +3339,7 @@ class CurveUI {
 
         this.panel = new UI.SmartPanel({
             id: options.id || 'panel_curve_editor',
-            title: options.title || 'Curvas RGBA',
+            title: options.title || 'RGBA Curves',
             x: options.x ?? 80,
             y: options.y ?? 80,
             width: 300,
@@ -3054,59 +3377,8 @@ class CurveUI {
             }
             .curve-checkbox-group {
                 display: flex;
-                gap: 5px;
-            }
-            .curve-chk-label {
-                position: relative;
-                width: 22px;
-                height: 22px;
-                display: inline-block;
-                cursor: pointer;
-            }
-            .curve-chk-label input[type="checkbox"] {
-                display: none;
-            }
-            .curve-chk-circle {
-                width: 22px;
-                height: 22px;
-                border-radius: 50%;
-                background: #232323;
-                border: 1px solid #777777;
-                display: flex;
+                gap: 6px;
                 align-items: center;
-                justify-content: center;
-                font-size: 10px;
-                font-weight: bold;
-                transition: transform 0.1s, border-color 0.15s, box-shadow 0.15s;
-                color: #888888;
-                box-sizing: border-box;
-            }
-            .curve-chk-label:hover .curve-chk-circle {
-                border-color: #ffffff;
-                transform: scale(1.08);
-            }
-            .curve-chk-label input[type="checkbox"]:checked + .curve-chk-circle {
-                box-shadow: 0 0 0 2px #ffffff;
-            }
-            .btn-round-mini {
-                width: 22px;
-                height: 22px;
-                border-radius: 50%;
-                border: 1px solid #777777;
-                background: #232323;
-                color: #ffffff;
-                font-size: 11px;
-                font-weight: bold;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                transition: transform 0.1s, border-color 0.15s;
-                padding: 0;
-            }
-            .btn-round-mini:hover {
-                border-color: #ffffff;
-                transform: scale(1.1);
             }
             .curve-canvas-box {
                 width: 100%;
@@ -3141,27 +3413,6 @@ class CurveUI {
                 align-items: center;
                 gap: 4px;
             }
-            .curve-btn-action {
-                height: 22px;
-                padding: 0 10px;
-                border-radius: 11px;
-                border: 1px solid #777777;
-                background: #232323;
-                color: #ffffff;
-                font-size: 10px;
-                cursor: pointer;
-                font-family: sans-serif;
-            }
-            .curve-btn-action:hover {
-                background: #777777;
-            }
-            .curve-btn-action.btn-apply {
-                background: #007acc;
-                border-color: #007acc;
-            }
-            .curve-btn-action.btn-apply:hover {
-                background: #0098ff;
-            }
         `;
         document.head.appendChild(st);
     }
@@ -3170,7 +3421,6 @@ class CurveUI {
         const root = document.createElement('div');
         root.className = 'curve-main-wrapper';
 
-        // 1. Barra superior de canales (Checkboxes redondos)
         const bar = document.createElement('div');
         bar.className = 'curve-toolbar';
 
@@ -3178,55 +3428,50 @@ class CurveUI {
         chGroup.className = 'curve-checkbox-group';
 
         ['r', 'g', 'b', 'a'].forEach(ch => {
-            const lbl = document.createElement('label');
-            lbl.className = 'curve-chk-label';
-            lbl.title = `Canal ${ch.toUpperCase()}`;
-
-            const chk = document.createElement('input');
-            chk.type = 'checkbox';
-            chk.checked = this.channelState[ch];
-            chk.addEventListener('change', () => {
-                this.channelState[ch] = chk.checked;
-                this.drawGraph();
+            const chk = new UI.Checkbox({
+                label: ch.toUpperCase(),
+                checked: this.channelState[ch],
+                onChange: (val) => {
+                    this.channelState[ch] = val;
+                    this.drawGraph();
+                }
             });
-
-            const circle = document.createElement('div');
-            circle.className = 'curve-chk-circle';
-            circle.textContent = ch.toUpperCase();
-            circle.style.color = this.colors[ch];
-
-            lbl.appendChild(chk);
-            lbl.appendChild(circle);
-            chGroup.appendChild(lbl);
+            const lbl = chk.element.querySelector('span') || chk.element;
+            lbl.style.color = this.colors[ch];
+            lbl.style.fontWeight = 'bold';
+            lbl.style.fontSize = '11px';
+            chGroup.appendChild(chk.element);
         });
 
         const rightGroup = document.createElement('div');
         rightGroup.className = 'curve-checkbox-group';
 
-        const btnDelNode = document.createElement('button');
-        btnDelNode.className = 'btn-round-mini';
-        btnDelNode.title = 'Eliminar nodo seleccionado';
-        btnDelNode.innerHTML = '✕';
-        btnDelNode.onclick = () => this.deleteSelectedNode();
+        const btnDelNode = new UI.Button({
+            text: '✕',
+            variant: 'danger',
+            onClick: () => this.deleteSelectedNode()
+        });
+        btnDelNode.element.style.cssText = 'height:22px; width:22px; padding:0; min-width:22px; font-size:10px;';
+        btnDelNode.element.title = 'Delete selected node';
 
-        const btnResetActive = document.createElement('button');
-        btnResetActive.className = 'btn-round-mini';
-        btnResetActive.title = 'Restablecer canales marcados';
-        btnResetActive.innerHTML = '↺';
-        btnResetActive.onclick = () => {
-            this.engine.resetChannels(this.getActiveChannels());
-            this.selectedPointX = null;
-            this.drawGraph();
-        };
+        const btnResetActive = new UI.Button({
+            text: '↺',
+            onClick: () => {
+                this.getActiveChannels().forEach(ch => this.engine.resetChannel(ch));
+                this.selectedPointX = null;
+                this.drawGraph();
+            }
+        });
+        btnResetActive.element.style.cssText = 'height:22px; width:22px; padding:0; min-width:22px; font-size:10px;';
+        btnResetActive.element.title = 'Reset active channels';
 
-        rightGroup.appendChild(btnDelNode);
-        rightGroup.appendChild(btnResetActive);
+        rightGroup.appendChild(btnDelNode.element);
+        rightGroup.appendChild(btnResetActive.element);
 
         bar.appendChild(chGroup);
         bar.appendChild(rightGroup);
         root.appendChild(bar);
 
-        // 2. Gráfico con Reglas graduadas
         const canvasBox = document.createElement('div');
         canvasBox.className = 'curve-canvas-box';
         this.graphCanvas = document.createElement('canvas');
@@ -3236,37 +3481,39 @@ class CurveUI {
         canvasBox.appendChild(this.graphCanvas);
         root.appendChild(canvasBox);
 
-        // 3. Indicador numérico (Readout) de coordenadas normalizadas
         this.readout = document.createElement('div');
         this.readout.className = 'curve-readout';
         this.readout.innerHTML = `<span>IN: <b>0.00</b> (0)</span><span>OUT: <b>0.00</b> (0)</span>`;
         root.appendChild(this.readout);
 
-        // 4. Barra inferior de botones
         const foot = document.createElement('div');
         foot.className = 'curve-bottom-bar';
 
-        const btnResetAll = document.createElement('button');
-        btnResetAll.className = 'curve-btn-action';
-        btnResetAll.textContent = 'Restablecer Todo';
-        btnResetAll.onclick = () => {
-            this.engine.reset();
-            this.selectedPointX = null;
-            this.drawGraph();
-        };
+        const btnResetAll = new UI.Button({
+            text: 'Reset All',
+            variant: 'danger',
+            onClick: () => {
+                this.engine.reset();
+                this.selectedPointX = null;
+                this.drawGraph();
+            }
+        });
+        btnResetAll.element.style.cssText = 'height:24px; padding:0 8px; font-size:10px;';
 
-        const btnApply = document.createElement('button');
-        btnApply.className = 'curve-btn-action btn-apply';
-        btnApply.textContent = 'Aplicar';
-        btnApply.onclick = () => {
-            if (this.onApply) this.onApply(this.engine.getCanvas());
-        };
+        const btnApply = new UI.Button({
+            text: 'Apply',
+            variant: 'primary',
+            onClick: () => {
+                if (this.onApply) this.onApply(this.engine.getCanvas());
+            }
+        });
+        btnApply.element.style.cssText = 'height:24px; padding:0 12px; font-size:10px;';
 
-        foot.appendChild(btnResetAll);
-        foot.appendChild(btnApply);
+        foot.appendChild(btnResetAll.element);
+        foot.appendChild(btnApply.element);
         root.appendChild(foot);
 
-        this.panel.body.appendChild(root);
+        this.panel.body ? this.panel.body.appendChild(root) : this.panel.append(root);
         this.drawGraph();
     }
 
@@ -3274,7 +3521,6 @@ class CurveUI {
         return Object.keys(this.channelState).filter(ch => this.channelState[ch]);
     }
 
-    // Convierte coordenadas de canvas a escala 0-255 respetando márgenes de regla
     canvasToValue(rawX, rawY) {
         const { left, right, top, bottom } = this.pad;
         const pw = this.graphCanvas.width - left - right;
@@ -3291,7 +3537,6 @@ class CurveUI {
         };
     }
 
-    // Convierte escala 0-255 a píxeles de canvas
     valueToCanvas(x, y) {
         const { left, right, top, bottom } = this.pad;
         const pw = this.graphCanvas.width - left - right;
@@ -3351,7 +3596,6 @@ class CurveUI {
             const { rawX, rawY } = getRaw(e);
             const val = this.canvasToValue(rawX, rawY);
 
-            // Buscar si clicamos en un nodo existente
             let foundX = null;
             let foundY = null;
             for (let ch of active) {
@@ -3367,7 +3611,6 @@ class CurveUI {
                 if (foundX !== null) break;
             }
 
-            // Click derecho: borrar
             if (e.button === 2) {
                 if (foundX !== null && foundX > 3 && foundX < 252) {
                     this.selectedPointX = foundX;
@@ -3381,7 +3624,6 @@ class CurveUI {
                 this.isDragging = true;
                 this.updateReadout(foundX, foundY);
             } else {
-                // Crear nodo en canales seleccionados
                 active.forEach(ch => {
                     const pts = this.engine.curves[ch];
                     const existIdx = pts.findIndex(p => Math.abs(p.x - val.x) <= 2);
@@ -3462,11 +3704,9 @@ class CurveUI {
 
         ctx.clearRect(0, 0, w, h);
 
-        // Fondo del área de trazado (#232323)
         ctx.fillStyle = '#232323';
         ctx.fillRect(left, top, pw, ph);
 
-        // Cuadrícula y Regla (Marcas de 0.00, 0.25, 0.50, 0.75, 1.00)
         const divisions = [0.0, 0.25, 0.5, 0.75, 1.0];
 
         ctx.font = '8px monospace';
@@ -3477,7 +3717,6 @@ class CurveUI {
             const gx = left + d * pw;
             const gy = top + (1 - d) * ph;
 
-            // Líneas de la cuadrícula
             ctx.strokeStyle = '#333333';
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -3487,33 +3726,26 @@ class CurveUI {
             ctx.lineTo(gx, top + ph);
             ctx.stroke();
 
-            // Marcas / Regla (Ticks)
             ctx.strokeStyle = '#777777';
             ctx.beginPath();
-            // Eje Y Ticks
             ctx.moveTo(left - 3, gy);
             ctx.lineTo(left, gy);
-            // Eje X Ticks
             ctx.moveTo(gx, top + ph);
             ctx.lineTo(gx, top + ph + 3);
             ctx.stroke();
 
-            // Números eje Y (Salida)
             ctx.fillStyle = '#888888';
             ctx.textAlign = 'right';
             ctx.fillText(d.toFixed(2), left - 5, gy);
 
-            // Números eje X (Entrada)
             ctx.textAlign = 'center';
             ctx.fillText(d.toFixed(2), gx, top + ph + 11);
         });
 
-        // Borde exterior del área útil (#777777)
         ctx.strokeStyle = '#777777';
         ctx.lineWidth = 1;
         ctx.strokeRect(left, top, pw, ph);
 
-        // Diagonal de referencia (Identidad neutra)
         ctx.strokeStyle = '#444444';
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
@@ -3522,7 +3754,6 @@ class CurveUI {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Trazado de Curvas
         ['r', 'g', 'b', 'a'].forEach(ch => {
             const isChecked = this.channelState[ch];
             const lut = this.engine.luts[ch];
@@ -3540,7 +3771,6 @@ class CurveUI {
             }
             ctx.stroke();
 
-            // Nodos visibles
             if (isChecked) {
                 const pts = this.engine.curves[ch];
                 pts.forEach(p => {
@@ -3561,8 +3791,6 @@ class CurveUI {
         });
     }
 }
-
-/*  */
 
 
 
@@ -4519,16 +4747,16 @@ class BackgroundRemover {
 
     <style>
         #custom-context-menu {
-    /* Fondo #121212 con 0.7 de opacidad */
+ 
     background: rgba(18, 18, 18, 0.7);
     
-    /* Borde #454545 con 0.5 de opacidad */
+ 
     border: 1px solid rgba(69, 69, 69, 0.5);
     
-    /* Color de texto */
+ 
     color: #777777;
     
-    /* Opcional: difuminado para que el fondo translúcido se vea elegante */
+    
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     
@@ -4641,10 +4869,10 @@ class BackgroundRemover {
     #preview-canvas { position: absolute; top: 0; left: 0; image-rendering: pixelated; z-index: 997; pointer-events: none; }
     #cad-vector-canvas { position: absolute; top: 0; left: 0; z-index: 998; pointer-events: none; }
     #selection-canvas { position: absolute; top: 0; left: 0; z-index: 999; pointer-events: none; }
-    .cad-hud { position: absolute; left: 76px; bottom: 14px; background: #1212128d; border: 1px solid rgba(255, 255, 255, 0.15); color: #777777; font-size: 11px; padding: 6px 14px; border-radius: 6px; z-index: 1050; font-family: monospace; backdrop-filter: blur(8px); box-shadow: 0 4px 15px rgba(0,0,0,0.6); user-select: none; }
-    #left-toolbar-strip { position: fixed; top: 12px; bottom: 12px; left: 12px; width: 54px; background: #242424; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; flex-direction: column; align-items: center; padding: 8px 4px; gap: 4px; overflow-y: auto; scrollbar-width: none; }
-    #left-toolbar-strip::-webkit-scrollbar { display: none; }
-    .tool-btn { width: 44px; height: 40px; border-radius: 6px; background: #333333; border: 1px solid rgba(255,255,255,0.08); color: #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease; font-size: 9px; font-weight: 700; flex-shrink: 0; user-select: none; }
+    .cad-hud { position: absolute; right: 20%; bottom: 14px; background: #1212128d; border: 1px solid rgba(255, 255, 255, 0.15); color: #777777; font-size: 11px; padding: 6px 14px; border-radius: 6px; z-index: 1050; font-family: monospace; backdrop-filter: blur(8px); box-shadow: 0 4px 15px rgba(0,0,0,0.6);  width:300px;}
+    #left-toolbar-strip { position: fixed; top: 12px; bottom: 12px; left: 12px; width: 54px; background: #242424; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; flex-direction: column; align-items: center; padding: 8px 4px; gap: 4px; overflow-y: scroll; max-height: calc(100vh - 40px); }
+    
+    .tool-btn { width: 44px; height: 40px; border-radius: 6px; background: #333333; border: 1px solid rgba(255,255,255,0.08); color: #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease; font-size: 9px; font-weight: 700; flex-shrink: 0;   }
     .tool-btn:hover { background: #333333; color: #ffffff; border-color: rgba(255, 255, 255, 0.25); }
     .tool-btn.active { background: #373737; color: #ffffff; border-color: #12121212; }
     .tool-btn svg { width: 17px; height: 17px; fill: currentColor; margin-bottom: 2px; }
@@ -4715,6 +4943,43 @@ class BackgroundRemover {
     .ctx-item:hover .ctx-shortcut {
         color: #e0f2fe;
     }
+
+    #left-toolbar-strip {
+    position: fixed;
+    top: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: 62px;
+    background: #242424;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 4px;
+    gap: 4px;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent !important;
+}
+
+#left-toolbar-strip::-webkit-scrollbar {
+    display: block !important;
+    width: 4px !important;
+}
+
+#left-toolbar-strip::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.35) !important;
+    border-radius: 4px !important;
+}
+  .ctx-item:hover {
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: #e0e0e0 !important;
+    }
     </style>
 </head>
 <body>
@@ -4733,14 +4998,7 @@ class BackgroundRemover {
 <div class="cad-hud" id="hud">Zoom: 100% | CAD: Bézier | Q: Adaptar</div>
 <div id="left-toolbar-strip"></div>
 
-<!-- MENÚ CONTEXTUAL PERSONALIZADO -->
-  <style>
-    /* Efecto al pasar el cursor (el hover requiere esta regla CSS) */
-    .ctx-item:hover {
-        background: rgba(255, 255, 255, 0.08) !important;
-        color: #e0e0e0 !important;
-    }
-</style>
+  
 
 <div id="custom-context-menu" style="background: rgba(18, 18, 18, 0.7); color: #777777; border: 1px solid rgba(69, 69, 69, 0.5); border-radius: 6px; padding: 6px 0; min-width: 220px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 8px 16px rgba(0,0,0,0.4); font-family: sans-serif; font-size: 13px; user-select: none;">
     <!-- Copiar -->
@@ -4752,7 +5010,7 @@ class BackgroundRemover {
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Ctrl+C</span>
     </div>
 
-    <!-- Cortar -->
+ 
     <div class="ctx-item" id="ctx-cut" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z"/></svg>
@@ -4761,7 +5019,7 @@ class BackgroundRemover {
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Ctrl+X</span>
     </div>
 
-    <!-- Pegar -->
+ 
     <div class="ctx-item" id="ctx-paste" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/></svg>
@@ -4770,10 +5028,10 @@ class BackgroundRemover {
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Ctrl+V</span>
     </div>
 
-    <!-- Separador -->
+ 
     <div class="ctx-item-sep" style="height: 1px; background-color: rgba(69, 69, 69, 0.5); margin: 4px 0;"></div>
 
-    <!-- Guardar PNG -->
+ 
     <div class="ctx-item" id="ctx-save-png" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
@@ -4782,7 +5040,7 @@ class BackgroundRemover {
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Transparente</span>
     </div>
 
-    <!-- Guardar JPG -->
+ 
     <div class="ctx-item" id="ctx-save-jpg" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
@@ -4803,7 +5061,7 @@ class BackgroundRemover {
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Q</span>
     </div>
 
-    <!-- Fijar Origen de Clonar -->
+ 
     <div class="ctx-item" id="ctx-clone-origin" style="display:none; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
@@ -4812,7 +5070,7 @@ class BackgroundRemover {
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Alt+Clic</span>
     </div>
 
-    <!-- Muestrear Color -->
+ 
     <div class="ctx-item" id="ctx-eyedrop" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20.71 5.63l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.41 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.12-3.12c.4-.4.4-1.03.01-1.42zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/></svg>
@@ -4821,7 +5079,7 @@ class BackgroundRemover {
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Color</span>
     </div>
 
-    <!-- Deseleccionar -->
+ 
     <div class="ctx-item" id="ctx-deselect" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
@@ -6194,29 +6452,108 @@ class ToolManager {
             this.distAccum %= step;
         }
     }
-    drawInterpolatedStampDirectNo(ctx, x, y) {
-        const dims = this.brush.getStampDimensions();
+    
+    drawInterpolatedStampDirectmal(ctx, x, y) {
+    const dims = this.brush.getStampDimensions();
 
-        if (this.currentTool === 'clone') {
-            if (!this.cloneSource || !this.cloneBuffer) return;
-            const sx = this.cloneSource.x + (x - this.startX);
-            const sy = this.cloneSource.y + (y - this.startY);
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(x, y, dims.w / 2, 0, Math.PI * 2);
-            ctx.clip();
-            ctx.drawImage(this.cloneBuffer, sx - dims.w / 2, sy - dims.h / 2, dims.w, dims.h, x - dims.w / 2, y - dims.h / 2, dims.w, dims.h);
-            ctx.restore();
-            return;
-        }
-
-        const tipCanvas = this.brush.getTipCanvas();
+    if (this.currentTool === 'clone') {
+        if (!this.cloneSource || !this.cloneBuffer) return;
+        const sx = this.cloneSource.x + (x - this.startX);
+        const sy = this.cloneSource.y + (y - this.startY);
         ctx.save();
-        ctx.translate(x, y);
-        ctx.drawImage(tipCanvas, -dims.w / 2, -dims.h / 2, dims.w, dims.h);
+        ctx.beginPath();
+        ctx.arc(x, y, dims.w / 2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(this.cloneBuffer, sx - dims.w / 2, sy - dims.h / 2, dims.w, dims.h, x - dims.w / 2, y - dims.h / 2, dims.w, dims.h);
         ctx.restore();
+        return;
     }
-    drawInterpolatedStampDirect(ctx, x, y) {
+
+    const tipCanvas = this.brush.getTipCanvas();
+    const rot = this.brush.randomRotation 
+        ? Math.random() * Math.PI * 2 
+        : (this.brush.angle * Math.PI) / 180;
+
+    const stampW = Math.round(dims.w);
+    const stampH = Math.round(dims.h);
+
+    const stampCanvas = document.createElement('canvas');
+    stampCanvas.width = stampW;
+    stampCanvas.height = stampH;
+    const sctx = stampCanvas.getContext('2d');
+
+    sctx.translate(stampW / 2, stampH / 2);
+    if (rot !== 0) sctx.rotate(rot);
+    sctx.drawImage(tipCanvas, -stampW / 2, -stampH / 2, stampW, stampH);
+
+    const stampImgData = sctx.getImageData(0, 0, stampW, stampH);
+    const stampData = stampImgData.data;
+
+    const dstX = Math.round(x - stampW / 2);
+    const dstY = Math.round(y - stampH / 2);
+    const layerW = ctx.canvas.width;
+    const layerH = ctx.canvas.height;
+
+    const clipX0 = Math.max(0, dstX);
+    const clipY0 = Math.max(0, dstY);
+    const clipX1 = Math.min(layerW, dstX + stampW);
+    const clipY1 = Math.min(layerH, dstY + stampH);
+
+    const regionW = clipX1 - clipX0;
+    const regionH = clipY1 - clipY0;
+
+    if (regionW <= 0 || regionH <= 0) return;
+
+    const layerImgData = ctx.getImageData(clipX0, clipY0, regionW, regionH);
+    const layerData = layerImgData.data;
+
+    const multFactor = (this.brush.multiplyFactor !== undefined) ? this.brush.multiplyFactor : 1.0;
+    const globalAlpha = this.brush.opacity * (this.brush.force / 100);
+
+    for (let ry = 0; ry < regionH; ry++) {
+        for (let rx = 0; rx < regionW; rx++) {
+            const lIdx = (ry * regionW + rx) * 4;
+            const sx = (clipX0 - dstX) + rx;
+            const sy = (clipY0 - dstY) + ry;
+            const sIdx = (sy * stampW + sx) * 4;
+
+            const sAlpha = (stampData[sIdx + 3] / 255) * globalAlpha;
+            if (sAlpha <= 0) continue;
+
+            const lR = layerData[lIdx];
+            const lG = layerData[lIdx + 1];
+            const lB = layerData[lIdx + 2];
+            const lA = layerData[lIdx + 3] / 255;
+
+            const bR = stampData[sIdx];
+            const bG = stampData[sIdx + 1];
+            const bB = stampData[sIdx + 2];
+
+            const pureMultR = (lR * bR) / 255;
+            const pureMultG = (lG * bG) / 255;
+            const pureMultB = (lB * bB) / 255;
+
+/*             const targetR = lR * (1.0 - multFactor) + pureMultR * multFactor;
+            const targetG = lG * (1.0 - multFactor) + pureMultG * multFactor;
+            const targetB = lB * (1.0 - multFactor) + pureMultB * multFactor;
+ */
+            if (lA <= 0.01) {
+                layerData[lIdx] = bR;
+                layerData[lIdx + 1] = bG;
+                layerData[lIdx + 2] = bB;
+                layerData[lIdx + 3] = Math.round(sAlpha * 255);
+            } else {
+                layerData[lIdx] = Math.round(lR * (1.0 - sAlpha) + targetR * sAlpha);
+                layerData[lIdx + 1] = Math.round(lG * (1.0 - sAlpha) + targetG * sAlpha);
+                layerData[lIdx + 2] = Math.round(lB * (1.0 - sAlpha) + targetB * sAlpha);
+                layerData[lIdx + 3] = Math.round(Math.min(1.0, lA + sAlpha * (1.0 - lA)) * 255);
+            }
+        }
+    }
+
+    ctx.putImageData(layerImgData, clipX0, clipY0);
+}
+    drawInterpolatedStampDirect (ctx, x, y) {
     const dims = this.brush.getStampDimensions();
 
     if (this.currentTool === 'clone') {
@@ -6319,6 +6656,10 @@ class ApplicationAdapter {
         this.initContextMenu();
         this.bindEvents();
     }
+    abrirProjectStorage() {
+    this.projectStorageUI.refreshList();
+    this.projectStorageUI.panel.open();
+}
     abrirBrushDynamics() {
     this.brushDynamicsUI.panel.open();
 }
@@ -6565,16 +6906,16 @@ class ApplicationAdapter {
         }
         });
 
-        // ================= CONEXIÓN REMOVER FONDO =================
+        
         this.bgRemover = new BackgroundRemover({
         keepTransparency: true,
         onStart: () => {
             const hud = document.getElementById('hud');
-            if (hud) hud.textContent = '⏳ Removiendo fondo con IA...';
+            if (hud) hud.textContent = ' Removiendo fondo con IA...';
         },
         onProgress: (pct) => {
             const hud = document.getElementById('hud');
-            if (hud) hud.textContent = `⏳ Modelo IA: ${pct}%`;
+            if (hud) hud.textContent = `Modelo IA: ${pct}%`;
         },
         onFinish: ({ canvas }) => {
             const act = this.layers.getActiveLayer();
@@ -6591,12 +6932,12 @@ class ApplicationAdapter {
 
             this.ajustarCanvasACapaActiva();
             const hud = document.getElementById('hud');
-            if (hud) hud.textContent = '✓ Fondo removido con éxito';
+            if (hud) hud.textContent = 'Background successfully removed';
         },
         onError: (err) => {
-            alert('Error al remover fondo: ' + err.message);
+            alert('Error removing background: ' + err.message);
             const hud = document.getElementById('hud');
-            if (hud) hud.textContent = '✕ Error al remover fondo';
+            if (hud) hud.textContent = '✕ Error removing background';
         }
         });
 
@@ -6822,7 +7163,7 @@ class ApplicationAdapter {
         /*  */
 
         this.brushTipUI = new BrushTipMakerUI(this.brush, {
-        title: 'Generador de Brochas',
+        title: 'Brush Generator',
         x: 80,
         y: 80,
         floating: true,
@@ -6833,12 +7174,20 @@ class ApplicationAdapter {
         this.brushTipUI.panel.close();
 
         this.brushDynamicsUI = new BrushDynamicsUI(this.brush, {
-    title: 'Ajustes Dinámicos de Brocha',
+    title: 'Dynamic Brush Settings',
     x: 80,
     y: 120,
     floating: true
 });
-this.brushDynamicsUI.panel.close();
+//this.brushDynamicsUI.panel.close();
+
+this.projectStorageUI = new ProjectStorageUI(this, {
+    title: 'Gestor de Proyectos',
+    x: 80,
+    y: 80,
+    floating: true
+});
+this.projectStorageUI.panel.close();
 
     }
    
@@ -7027,63 +7376,67 @@ this.brushDynamicsUI.panel.close();
             if (!menu.contains(e.target)) menu.style.display = 'none';
         });
     }
-    buildLeftVerticalToolbar() {
-        const bar = document.getElementById('left-toolbar-strip');
-        bar.innerHTML = '';
+   buildLeftVerticalToolbar() {
+    const bar = document.getElementById('left-toolbar-strip');
+    bar.innerHTML = '';
 
-        
+    const toolsConfig = [
+        { id: 'brush',      label: 'BRS', title: 'Brush (B)',                icon: '<path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.71a.996.996 0 0 0-1.41 0l-9.3 9.3 2.83 2.83 9.3-9.3a.996.996 0 0 0 0-1.41l-1.42-1.42z"/>' },
+        { id: 'cad',        label: 'CAD', title: 'Vector / CAD',             icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>' },
+        { id: 'eraser',     label: 'ERA', title: 'Eraser (E)',                icon: '<path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.04 20h8.96l7.41-7.41c.78-.78.78-2.05 0-2.83L16.55 3.59c-.39-.39-.9-.59-1.41-.59zM14 6.83l3.17 3.17L12 15.17 8.83 12 14 6.83z"/>' },
+        { id: 'eyedropper', label: 'EYE', title: 'Eyedropper',               icon: '<path d="M20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.42 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.13-3.13a1 1 0 0 0 0-1.41zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/>' },
+        { id: 'clone',      label: 'CLN', title: 'Clone Stamp (C)',          icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
+        { id: 'move',       label: 'MOV', title: 'Move Layer (M)',           icon: '<path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/>' },
+        { id: 'rectSelect', label: 'SEL', title: 'Rectangular Selection',    icon: '<path d="M4 4h4v2H6v2H4V4zm16 0v4h-2V6h-2V4h4zM4 20v-4h2v2h2v2H4zm16 0h-4v-2h2v-2h2v4z"/>' },
+        { id: 'lasso',      label: 'LAS', title: 'Freehand Lasso',           icon: '<path d="M12.3 2a9.7 9.7 0 0 0-9.7 9.7c0 3.7 2 7 5.2 8.6L6 22l3.4-1.3c.9.2 1.9.3 2.9.3 5.4 0 9.7-4.3 9.7-9.7S17.7 2 12.3 2zm0 17.4c-.9 0-1.8-.1-2.6-.4l-.6-.2-1.9.7.7-1.9-.3-.5c-2.7-1.4-4.3-4.1-4.3-7.1 0-4.3 3.6-7.7 7.7-7.7s7.7 3.5 7.7 7.7-3.4 7.7-7.7 7.7z"/>' },
+        { id: 'poly',       label: 'POL', title: 'Polygonal Selection',      icon: '<path d="M2 12l5-9h10l5 9-5 9H7l-5-9zm6.1-7l-3.9 7 3.9 7h7.8l3.9-7-3.9-7H8.1z"/>' },
+        { id: 'fill',       label: 'FIL', title: 'Paint Bucket (G)',         icon: '<path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15a1.49 1.49 0 0 0 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z"/>' },
+        { label: 'AI',  title: 'AI Background Remover', action: () => this.abrirBGRMPipeline(),   icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
+        { label: 'TIP', title: 'Brush Tip Generator',   action: () => this.abrirBrushTipMaker(),  icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>' },
+        { label: 'DYN', title: 'Brush Dynamics',        action: () => this.abrirBrushDynamics(),  icon: '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>' },
+        { label: 'DB',  title: 'IndexedDB Projects',    action: () => this.abrirProjectStorage(), icon: '<path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/>' }
+    ];
 
-        const toolsConfig = [
-            { id: 'brush',      label: 'BRS', title: 'Pincel (B)',              icon: '<path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.71a.996.996 0 0 0-1.41 0l-9.3 9.3 2.83 2.83 9.3-9.3a.996.996 0 0 0 0-1.41l-1.42-1.42z"/>' },
-            { id: 'cad',        label: 'CAD', title: 'Vector / CAD',             icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>' },
-            { id: 'eraser',     label: 'ERA', title: 'Borrador (E)',             icon: '<path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.04 20h8.96l7.41-7.41c.78-.78.78-2.05 0-2.83L16.55 3.59c-.39-.39-.9-.59-1.41-.59zM14 6.83l3.17 3.17L12 15.17 8.83 12 14 6.83z"/>' },
-            { id: 'eyedropper', label: 'EYE', title: 'Cuentagotas',              icon: '<path d="M20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.42 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.13-3.13a1 1 0 0 0 0-1.41zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/>' },
-            { id: 'clone',      label: 'CLN', title: 'Tampón de Clonar (C)',     icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
-            { id: 'move',       label: 'MOV', title: 'Mover Capa (M)',            icon: '<path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/>' },
-            { id: 'rectSelect', label: 'SEL', title: 'Selección Rectangular',    icon: '<path d="M4 4h4v2H6v2H4V4zm16 0v4h-2V6h-2V4h4zM4 20v-4h2v2h2v2H4zm16 0h-4v-2h2v-2h2v4z"/>' },
-            { id: 'lasso',      label: 'LAS', title: 'Lazo Libre',               icon: '<path d="M12.3 2a9.7 9.7 0 0 0-9.7 9.7c0 3.7 2 7 5.2 8.6L6 22l3.4-1.3c.9.2 1.9.3 2.9.3 5.4 0 9.7-4.3 9.7-9.7S17.7 2 12.3 2zm0 17.4c-.9 0-1.8-.1-2.6-.4l-.6-.2-1.9.7.7-1.9-.3-.5c-2.7-1.4-4.3-4.1-4.3-7.1 0-4.3 3.6-7.7 7.7-7.7s7.7 3.5 7.7 7.7-3.4 7.7-7.7 7.7z"/>' },
-            { id: 'poly',       label: 'POL', title: 'Selección Poligonal',      icon: '<path d="M2 12l5-9h10l5 9-5 9H7l-5-9zm6.1-7l-3.9 7 3.9 7h7.8l3.9-7-3.9-7H8.1z"/>' },
-            { id: 'fill',       label: 'FIL', title: 'Bote de Pintura (G)',      icon: '<path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15a1.49 1.49 0 0 0 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z"/>' },
-            { label: 'AI', title: 'AI Background Remover', action: () => this.abrirBGRMPipeline(), icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
-            { label: 'TIP', title: 'Generador Brochas', action: () => this.abrirBrushTipMaker(), icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>' },
-            { label: 'DYN', title: 'Dinámicas Brocha', action: () => this.abrirBrushDynamics(), icon: '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>' }
-            
-        ];
-
-        toolsConfig.forEach(t => {
-            const btn = document.createElement('button');
-            btn.className = `tool-btn ${t.id === 'brush' ? 'active' : ''}`;
-            btn.title = t.title;
-            btn.innerHTML = `<svg viewBox="0 0 24 24">${t.icon}</svg><span>${t.label}</span>`;
-            btn.onclick = () => this.setActiveTool(t.id);
-            bar.appendChild(btn);
+    toolsConfig.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = `tool-btn ${t.id === 'brush' ? 'active' : ''}`;
+        btn.title = t.title;
+        btn.innerHTML = `<svg viewBox="0 0 24 24">${t.icon}</svg><span>${t.label}</span>`;
+        btn.onclick = () => {
+            if (typeof t.action === 'function') {
+                t.action();
+            } else if (t.id) {
+                this.setActiveTool(t.id);
+            }
+        };
+        bar.appendChild(btn);
+        if (t.id) {
             this.toolButtons[t.id] = btn;
-        });
+        }
+    });
 
-        const sep = document.createElement('div');
-        sep.className = 'tool-sep';
-        bar.appendChild(sep);
+    const sep = document.createElement('div');
+    sep.className = 'tool-sep';
+    bar.appendChild(sep);
 
-        const actions = [
-            { label: 'Q',   title: 'VView Only This (Q)', action: () => this.ajustarCanvasACapaActiva(),   icon: '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>' },
-            { label: 'W',   title: 'Fit to Canvas (W)',   action: () => this.adaptarCapaActivaAlCanvas(),   icon: '<path d="M4 4h16v16H4V4zm2 2v12h12V6H6z"/>' },
-            { label: 'Z+',  title: 'Zoom In',           action: () => this.zoom.zoomDelta(1),             icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
-            { label: 'Z-',  title: 'Zoom Out',            action: () => this.zoom.zoomDelta(-1),            icon: '<path d="M19 13H5v-2h14v2z"/>' },
-            { label: 'UND', title: 'Undo (Ctrl+Z)',      action: () => this.history.undo(),                icon: '<path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>' },
-            { label: 'FX',  title: 'Filters ',   action: () => this.abrirFiltrosGLFX(),            icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>' },
-             
-       
-        ];
+    const actions = [
+        { label: 'Q',   title: 'View Only Active (Q)',  action: () => this.ajustarCanvasACapaActiva(),  icon: '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>' },
+        { label: 'W',   title: 'Fit to Canvas (W)',     action: () => this.adaptarCapaActivaAlCanvas(),  icon: '<path d="M4 4h16v16H4V4zm2 2v12h12V6H6z"/>' },
+        { label: 'Z+',  title: 'Zoom In',               action: () => this.zoom.zoomDelta(1),            icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
+        { label: 'Z-',  title: 'Zoom Out',              action: () => this.zoom.zoomDelta(-1),           icon: '<path d="M19 13H5v-2h14v2z"/>' },
+        { label: 'UND', title: 'Undo (Ctrl+Z)',         action: () => this.history.undo(),               icon: '<path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>' },
+        { label: 'FX',  title: 'Filters',               action: () => this.abrirFiltrosGLFX(),           icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>' }
+    ];
 
-        actions.forEach(a => {
-            const btn = document.createElement('button');
-            btn.className = 'tool-btn';
-            btn.title = a.title;
-            btn.innerHTML = `<svg viewBox="0 0 24 24">${a.icon}</svg><span>${a.label}</span>`;
-            btn.onclick = a.action;
-            bar.appendChild(btn);
-        });
-    }
+    actions.forEach(a => {
+        const btn = document.createElement('button');
+        btn.className = 'tool-btn';
+        btn.title = a.title;
+        btn.innerHTML = `<svg viewBox="0 0 24 24">${a.icon}</svg><span>${a.label}</span>`;
+        btn.onclick = a.action;
+        bar.appendChild(btn);
+    });
+}
     setActiveTool(toolId) {
         this.tools.setTool(toolId);
         Object.keys(this.toolButtons).forEach(id => {
@@ -7106,7 +7459,7 @@ this.brushDynamicsUI.panel.close();
                 this.isInternalColorSync = false;
             }
         });
-
+ 
         this.rightContainer = new UI.Container({
             id: 'dock_right',
             direction: 'column',
@@ -7252,9 +7605,13 @@ rEfectos.append(new UI.Button({
        
         const itemProj = accordion.addItem({ title: 'Save / Export', open: true });
         const rExp = itemProj.addRow(4);
-        rExp.append(new UI.Button({ text: 'Guardar PNG', variant: 'primary', onClick: () => ProjectExporter.exportImage(this.layers, 'png') }));
-        rExp.append(new UI.Button({ text: 'Guardar JPG', onClick: () => ProjectExporter.exportImage(this.layers, 'jpg') }));
- 
+        rExp.append(new UI.Button({ text: 'Save PNG', variant: 'primary', onClick: () => ProjectExporter.exportImage(this.layers, 'png') }));
+        rExp.append(new UI.Button({ text: 'Save as JPG', onClick: () => ProjectExporter.exportImage(this.layers, 'jpg') }));
+        rExp.append(new UI.Button({ 
+        text: ' Sace Projects', 
+        variant: 'primary',
+        onClick: () => this.abrirProjectStorage() 
+        }));
         panelRight.append(accordion);
         this.rightContainer.addPanel(panelRight);
     }
