@@ -5356,15 +5356,15 @@ class CadVectorEngine {
     }
 }
 
-class BrushTipRenderer {
+ class BrushTipRenderer {
     constructor() {
         this.cacheCanvas = document.createElement('canvas');
         this.cacheCtx = this.cacheCanvas.getContext('2d', { willReadFrequently: true });
         this.lastConfigKey = "";
     }
-    renderTip({ size = 50, hardness = 0.5, color = '#ffffff', texture = null } = {}) {
+    renderTip({ size = 50, hardness = 0.5, color = '#ffffff', texture = null, blendMode = 'multiply' } = {}) {
         const res = 256;
-        const configKey = `${size}_${hardness}_${color}_${texture ? (texture.src || 'custom') : 'none'}`;
+        const configKey = `${size}_${hardness}_${color}_${blendMode}_${texture ? (texture.src || 'custom') : 'none'}`;
         if (this.lastConfigKey === configKey && this.cacheCanvas.width === res) return this.cacheCanvas;
         this.lastConfigKey = configKey;
 
@@ -5386,7 +5386,9 @@ class BrushTipRenderer {
         const cy = res / 2;
         const maxR = res / 2;
         const rgb = FloodFillTool.hexToRgba(color);
-        const tintR = rgb.r / 255, tintG = rgb.g / 255, tintB = rgb.b / 255;
+        const cr = rgb.r / 255;
+        const cg = rgb.g / 255;
+        const cb = rgb.b / 255;
         const hard = Math.max(0, Math.min(0.999, hardness));
 
         for (let y = 0; y < res; y++) {
@@ -5397,9 +5399,22 @@ class BrushTipRenderer {
                 if (dist <= hard) grad = 1;
                 else if (dist < 1) grad = 1 - (dist - hard) / (1 - hard);
 
-                d[idx]     = Math.round(d[idx] * tintR);
-                d[idx + 1] = Math.round(d[idx + 1] * tintG);
-                d[idx + 2] = Math.round(d[idx + 2] * tintB);
+                if (texture) {
+                    if (blendMode === 'multiply') {
+                        d[idx]     = Math.round(d[idx] * cr);
+                        d[idx + 1] = Math.round(d[idx + 1] * cg);
+                        d[idx + 2] = Math.round(d[idx + 2] * cb);
+                    } else if (blendMode === 'screen') {
+                        d[idx]     = Math.round((1 - (1 - d[idx] / 255) * (1 - cr)) * 255);
+                        d[idx + 1] = Math.round((1 - (1 - d[idx + 1] / 255) * (1 - cg)) * 255);
+                        d[idx + 2] = Math.round((1 - (1 - d[idx + 2] / 255) * (1 - cb)) * 255);
+                    }
+                } else {
+                    d[idx]     = Math.round(rgb.r);
+                    d[idx + 1] = Math.round(rgb.g);
+                    d[idx + 2] = Math.round(rgb.b);
+                }
+
                 d[idx + 3] = Math.round(d[idx + 3] * grad);
             }
         }
@@ -5407,7 +5422,6 @@ class BrushTipRenderer {
         return this.cacheCanvas;
     }
 }
-
 class CanvasZoomManager {
     constructor({ container, target, onTransformChange = () => {} } = {}) {
         this.container = container;
@@ -5729,7 +5743,7 @@ class LayerStackEngine {
     }
 }
 
-class BrushSettingsEngine {
+ class BrushSettingsEngine {
     constructor({ onSettingsChange = () => {} } = {}) {
         this.size = 50;
         this.aspectRatio = 0.0;
@@ -5741,6 +5755,7 @@ class BrushSettingsEngine {
         this.spacing = 15.0;
         this.fillShape = false;
         this.mainColor = '#ffffff';
+        this.blendMode = 'multiply';
         this.stampImage = null;
         this.tipRenderer = new BrushTipRenderer();
         this.onSettingsChange = onSettingsChange;
@@ -5757,11 +5772,11 @@ class BrushSettingsEngine {
             size: this.size,
             hardness: this.hardness,
             color: this.mainColor,
-            texture: this.stampImage
+            texture: this.stampImage,
+            blendMode: this.blendMode
         });
     }
 }
-
 class SelectionManager {
     constructor({ selectionCanvas, onSelectionChange = () => {} } = {}) {
         this.canvas = selectionCanvas;
@@ -6179,7 +6194,7 @@ class ToolManager {
             this.distAccum %= step;
         }
     }
-    drawInterpolatedStampDirect(ctx, x, y) {
+    drawInterpolatedStampDirectNo(ctx, x, y) {
         const dims = this.brush.getStampDimensions();
 
         if (this.currentTool === 'clone') {
@@ -6201,6 +6216,33 @@ class ToolManager {
         ctx.drawImage(tipCanvas, -dims.w / 2, -dims.h / 2, dims.w, dims.h);
         ctx.restore();
     }
+    drawInterpolatedStampDirect(ctx, x, y) {
+    const dims = this.brush.getStampDimensions();
+
+    if (this.currentTool === 'clone') {
+        if (!this.cloneSource || !this.cloneBuffer) return;
+        const sx = this.cloneSource.x + (x - this.startX);
+        const sy = this.cloneSource.y + (y - this.startY);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, dims.w / 2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(this.cloneBuffer, sx - dims.w / 2, sy - dims.h / 2, dims.w, dims.h, x - dims.w / 2, y - dims.h / 2, dims.w, dims.h);
+        ctx.restore();
+        return;
+    }
+
+    const tipCanvas = this.brush.getTipCanvas();
+    const rot = this.brush.randomRotation 
+        ? Math.random() * Math.PI * 2 
+        : (this.brush.angle * Math.PI) / 180;
+
+    ctx.save();
+    ctx.translate(x, y);
+    if (rot !== 0) ctx.rotate(rot);
+    ctx.drawImage(tipCanvas, -dims.w / 2, -dims.h / 2, dims.w, dims.h);
+    ctx.restore();
+}
     sampleColor(x, y) {
         const ix = Math.floor(x);
         const iy = Math.floor(y);
