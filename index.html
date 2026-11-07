@@ -6,6 +6,1869 @@
     <title>Paint simple</title>
  
       <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/ort.min.js"></script>
+
+    <script >
+        
+class BaseShapeGenerator {
+    constructor(callbacks = {}) {
+        this.onRenderStart = callbacks.onRenderStart || null;
+        this.onRenderComplete = callbacks.onRenderComplete || null;
+        this.onError = callbacks.onError || null;
+    }
+
+    notifyStart(ctx, params) {
+        if (typeof this.onRenderStart === 'function') {
+            this.onRenderStart(this.getId(), ctx, params);
+        }
+    }
+
+    notifyComplete(ctx, params) {
+        if (typeof this.onRenderComplete === 'function') {
+            this.onRenderComplete(this.getId(), ctx, params);
+        }
+    }
+
+    notifyError(err) {
+        if (typeof this.onError === 'function') {
+            this.onError(this.getId(), err);
+        }
+    }
+
+    getId() {
+        return this.constructor.name;
+    }
+
+    getLabel() {
+        return this.constructor.name;
+    }
+
+    draw(ctx, params) {
+        throw new Error("draw method must be implemented");
+    }
+}
+
+class LeavesSwirlGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '🍂 Hojas Volando en el Aire (Vórtice)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, maxR, density, thickness } = params;
+
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            const count = Math.max(8, Math.floor(density * 3.5));
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for (let a = 0; a < Math.PI * 4; a += 0.1) {
+                const r = (a / (Math.PI * 4)) * maxR * 0.95;
+                const px = r * Math.cos(a);
+                const py = r * Math.sin(a);
+                if (a === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+
+            for (let i = 0; i < count; i++) {
+                const t = i / count;
+                const spiralAngle = t * Math.PI * 4.2;
+                const spiralR = t * (maxR * 0.92);
+                const jitterX = Math.sin(i * 3.1) * 22;
+                const jitterY = Math.cos(i * 4.7) * 22;
+                const lx = spiralR * Math.cos(spiralAngle) + jitterX;
+                const ly = spiralR * Math.sin(spiralAngle) + jitterY;
+
+                const leafSize = Math.max(6, (thickness * 1.5) * (0.6 + t * 0.8));
+                const leafRot = spiralAngle + Math.PI / 2 + Math.sin(i) * 0.6;
+
+                ctx.save();
+                ctx.translate(lx, ly);
+                ctx.rotate(leafRot);
+
+                ctx.beginPath();
+                ctx.moveTo(0, -leafSize);
+                ctx.bezierCurveTo(leafSize * 0.75, -leafSize * 0.4, leafSize * 0.65, leafSize * 0.5, 0, leafSize);
+                ctx.bezierCurveTo(-leafSize * 0.65, leafSize * 0.5, -leafSize * 0.75, -leafSize * 0.4, 0, -leafSize);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = Math.max(1, leafSize * 0.08);
+                ctx.beginPath();
+                ctx.moveTo(0, -leafSize * 0.7);
+                ctx.lineTo(0, leafSize * 1.15);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class WindGustsGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '💨 Viento / Ráfagas de Aire';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR, density, thickness } = params;
+
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineCap = 'round';
+
+            const gusts = Math.max(4, Math.floor(density * 1.6));
+            for (let i = 0; i < gusts; i++) {
+                const rowOffset = (i / (gusts - 1) - 0.5) * (maxR * 1.6);
+                const speed = 0.8 + (i % 3) * 0.3;
+                const y = rowOffset;
+                ctx.lineWidth = Math.max(1.5, (thickness / 3) * speed);
+
+                ctx.beginPath();
+                const startX = -maxR * 0.9;
+                const endX = maxR * 0.65;
+                ctx.moveTo(startX, y);
+
+                const midX = (startX + endX) * 0.3;
+                const waveHeight = Math.sin(i * 1.8) * 16;
+                ctx.quadraticCurveTo(midX, y + waveHeight, endX, y);
+
+                const curlR = 10 + (i % 2) * 6;
+                ctx.arc(endX + curlR, y - curlR, curlR, Math.PI / 2, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class SandDustGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '🏜️ Arena / Polvo Fino';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR, density, thickness } = params;
+
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+
+            const waves = Math.max(3, Math.floor(density / 2));
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = thickness * 1.2;
+            for (let i = -waves; i <= waves; i++) {
+                const wy = (i / waves) * maxR * 0.9;
+                ctx.beginPath();
+                for (let wx = -maxR; wx <= maxR; wx += 8) {
+                    const wave = Math.sin((wx / maxR) * Math.PI * 3 + i) * 6;
+                    if (wx === -maxR) ctx.moveTo(wx, wy + wave);
+                    else ctx.lineTo(wx, wy + wave);
+                }
+                ctx.stroke();
+            }
+
+            const grains = Math.floor(density * 220);
+            for (let i = 0; i < grains; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.sqrt(Math.random()) * maxR;
+                const gx = Math.cos(angle) * dist;
+                const gy = Math.sin(angle) * dist;
+
+                const grainSize = Math.random() * (thickness * 0.25) + 0.6;
+                const alpha = Math.random() * 0.8 + 0.2;
+
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(gx, gy, grainSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class WoodPlanksGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '🪵 Baldosas de Madera / Vetas';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density, thickness } = params;
+
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.translate(-cx, -cy);
+
+            const planks = Math.max(2, Math.floor(density / 1.5));
+            const plankH = h / planks;
+            const groove = Math.max(2, thickness / 2);
+
+            for (let p = 0; p < planks; p++) {
+                const topY = p * plankH;
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, topY + groove / 2, w, plankH - groove);
+
+                ctx.strokeStyle = '#000000';
+                const grainCount = Math.max(3, Math.floor(plankH / 8));
+                for (let g = 0; g < grainCount; g++) {
+                    ctx.lineWidth = Math.random() * 1.8 + 0.8;
+                    const gy = topY + (g / grainCount) * plankH;
+                    ctx.beginPath();
+                    for (let x = 0; x <= w; x += 10) {
+                        const knotFactor = Math.sin(x * 0.02 + p) * 5;
+                        const wave = Math.sin((x / w) * Math.PI * 3 + p) * 4 + knotFactor;
+                        if (x === 0) ctx.moveTo(x, gy + wave);
+                        else ctx.lineTo(x, gy + wave);
+                    }
+                    ctx.stroke();
+                }
+
+                if (p % 2 === 0) {
+                    const knotX = (w * 0.3) + ((p * 57) % (w * 0.4));
+                    const knotY = topY + plankH * 0.5;
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = 1.6;
+                    ctx.beginPath();
+                    ctx.ellipse(knotX, knotY, 14, 6, Math.PI / 12, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class FireFlamesGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '🔥 Fuego / Lenguas de Llama';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR, density, thickness } = params;
+
+            ctx.translate(cx, cy + maxR * 0.5);
+            ctx.rotate(rad);
+
+            const tongues = Math.max(3, Math.floor(density / 2));
+            const baseWidth = maxR * 1.5;
+            const flameHeight = maxR * 1.6;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(-baseWidth / 2, 0);
+
+            const step = baseWidth / tongues;
+            for (let i = 0; i < tongues; i++) {
+                const startTongueX = -baseWidth / 2 + i * step;
+                const midTongueX = startTongueX + step * 0.5;
+                const endTongueX = startTongueX + step;
+                const hVar = flameHeight * (0.6 + Math.sin(i * 1.7) * 0.4);
+
+                ctx.quadraticCurveTo(startTongueX + 8, -hVar * 0.5, midTongueX, -hVar);
+                ctx.quadraticCurveTo(endTongueX - 8, -hVar * 0.4, endTongueX, 0);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            const embers = Math.floor(density * 5);
+            for (let i = 0; i < embers; i++) {
+                const ex = (Math.random() - 0.5) * (baseWidth * 0.7);
+                const ey = -flameHeight - (Math.random() * 40);
+                const er = Math.random() * (thickness / 3) + 1.2;
+                ctx.beginPath();
+                ctx.arc(ex, ey, er, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class CircleSoftGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '1. Círculo Difuminado (Soft Radial)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, maxR, softness } = params;
+            const soft = Math.max(0.01, softness);
+            const grad = ctx.createRadialGradient(cx, cy, maxR * (1 - soft), cx, cy, maxR);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(1, '#000000');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+            ctx.fill();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class CircleHardGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '2. Círculo Sólido (Hard Round)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, maxR } = params;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+            ctx.fill();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class CircleRingsGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '3. Anillos Concéntricos (Rings)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, maxR, density, thickness } = params;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            const rings = Math.max(1, Math.floor(density));
+            const step = maxR / rings;
+            for (let r = step; r <= maxR; r += step) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class CircleDonutGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '4. Anillo Hueco (Donut/Torus)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, maxR, thickness } = params;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(2, thickness * 2);
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxR * 0.75, 0, Math.PI * 2);
+            ctx.stroke();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class CircleHalfGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '5. Semicírculo (Half Moon)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(0, 0, maxR, -Math.PI / 2, Math.PI / 2);
+            ctx.closePath();
+            ctx.fill();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class RadialBurstGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '6. Rayos / Sol (Sunburst)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR, density, thickness } = params;
+            const rays = Math.max(4, Math.floor(density * 2));
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness / 2);
+            for (let i = 0; i < rays; i++) {
+                const a = (i * 2 * Math.PI) / rays;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(a) * maxR, Math.sin(a) * maxR);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class SpiralGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '7. Espiral de Arquímedes';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR, density, thickness } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            ctx.beginPath();
+            const totalTurns = density * Math.PI * 2;
+            for (let a = 0; a < totalTurns; a += 0.1) {
+                const r = (a / totalTurns) * maxR;
+                const px = r * Math.cos(a);
+                const py = r * Math.sin(a);
+                if (a === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class LinesParallelGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '8. Líneas Paralelas (Stripes)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density, thickness } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.translate(-cx, -cy);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            const step = Math.max(4, Math.floor(w / density));
+            const diag = Math.hypot(w, h);
+            for (let x = -diag; x < w + diag; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, -diag);
+                ctx.lineTo(x, h + diag);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class LinesWavyGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '9. Ondas Senoidales (Sine Waves)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density, thickness } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.translate(-cx, -cy);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            const stepY = Math.max(8, Math.floor(h / density));
+            for (let y = 0; y < h + stepY; y += stepY) {
+                ctx.beginPath();
+                for (let x = 0; x <= w; x += 4) {
+                    const wave = Math.sin((x / w) * Math.PI * 4) * (stepY * 0.35);
+                    if (x === 0) ctx.moveTo(x, y + wave);
+                    else ctx.lineTo(x, y + wave);
+                }
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class CrosshatchGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '10. Tramado Cruzado (Crosshatch)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density, thickness } = params;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness / 2);
+            const step = Math.max(6, Math.floor(w / density));
+            const diag = Math.hypot(w, h);
+            [Math.PI / 4 + rad, -Math.PI / 4 + rad].forEach(ang => {
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(ang);
+                ctx.translate(-cx, -cy);
+                for (let x = -diag; x < w + diag; x += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, -diag);
+                    ctx.lineTo(x, h + diag);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            });
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class DiagonalStripesGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '11. Rayas Diagonales';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density, thickness } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(Math.PI / 4 + rad);
+            ctx.translate(-cx, -cy);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            const step = Math.max(4, Math.floor(w / density));
+            const diag = Math.hypot(w, h);
+            for (let x = -diag; x < w + diag; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, -diag);
+                ctx.lineTo(x, h + diag);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class DashedLinesGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '12. Líneas Discontinuas (Dashed)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density, thickness } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.translate(-cx, -cy);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            ctx.setLineDash([Math.max(4, thickness * 2), Math.max(4, thickness * 1.5)]);
+            const step = Math.max(6, Math.floor(w / density));
+            for (let x = 0; x <= w; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class ChevronGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '13. Zigzag / Espiga (Chevron)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density, thickness } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.translate(-cx, -cy);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            const rowH = Math.max(10, Math.floor(h / density));
+            for (let y = -rowH; y <= h + rowH; y += rowH) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(cx, y + rowH * 0.7);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class RadialLinesGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '14. Telaraña / Malla Polar';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR, density, thickness } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness / 2);
+            const spokes = Math.max(4, Math.floor(density));
+            for (let i = 0; i < spokes; i++) {
+                const a = (i * 2 * Math.PI) / spokes;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(a) * maxR, Math.sin(a) * maxR);
+                ctx.stroke();
+            }
+            for (let r = maxR / 4; r <= maxR; r += maxR / 4) {
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class GridSquareGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '15. Cuadrícula (Square Grid)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density, thickness } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.translate(-cx, -cy);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            const step = Math.max(6, Math.floor(w / density));
+            const diag = Math.hypot(w, h);
+            for (let x = -diag; x < w + diag; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, -diag);
+                ctx.lineTo(x, h + diag);
+                ctx.stroke();
+            }
+            for (let y = -diag; y < h + diag; y += step) {
+                ctx.beginPath();
+                ctx.moveTo(-diag, y);
+                ctx.lineTo(w + diag, y);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class GridIsometricGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '16. Malla Isométrica / Rombos';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density, thickness } = params;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            const step = Math.max(8, Math.floor(w / density));
+            const diag = Math.hypot(w, h);
+            [Math.PI / 6 + rad, -Math.PI / 6 + rad].forEach(ang => {
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(ang);
+                ctx.translate(-cx, -cy);
+                for (let x = -diag; x < w + diag; x += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, -diag);
+                    ctx.lineTo(x, h + diag);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            });
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class GridDotsGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '17. Malla de Puntos (Dot Matrix)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, density, thickness } = params;
+            ctx.fillStyle = '#ffffff';
+            const step = Math.max(8, Math.floor(w / density));
+            const dotR = Math.max(1, thickness / 2);
+            for (let y = step / 2; y < h; y += step) {
+                for (let x = step / 2; x < w; x += step) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, dotR, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class BricksStandardGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '18. Ladrillos Tradicionales';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, density, thickness } = params;
+            const rows = Math.max(2, Math.floor(density));
+            const bh = h / rows;
+            const bw = bh * 2;
+            const mortar = Math.max(1, thickness / 2);
+            ctx.fillStyle = '#ffffff';
+            for (let r = -1; r <= rows + 1; r++) {
+                const offset = (r % 2 === 0) ? 0 : bw / 2;
+                for (let c = -1; c <= (w / bw) + 1; c++) {
+                    ctx.fillRect(c * bw + offset + mortar, r * bh + mortar, bw - mortar * 2, bh - mortar * 2);
+                }
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class BricksTallGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '19. Ladrillos Verticales / Baldosas';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, density, thickness } = params;
+            const cols = Math.max(2, Math.floor(density));
+            const bw = w / cols;
+            const bh = bw * 2;
+            const mortar = Math.max(1, thickness / 2);
+            ctx.fillStyle = '#ffffff';
+            for (let c = -1; c <= cols + 1; c++) {
+                const offset = (c % 2 === 0) ? 0 : bh / 2;
+                for (let r = -1; r <= (h / bh) + 1; r++) {
+                    ctx.fillRect(c * bw + mortar, r * bh + offset + mortar, bw - mortar * 2, bh - mortar * 2);
+                }
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class HexGridGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '20. Panal Hexagonal (Honeycomb)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, density, thickness } = params;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            const r = Math.max(8, Math.floor(w / (density * 1.5)));
+            const hexW = Math.sqrt(3) * r;
+            const hexH = 1.5 * r;
+            for (let y = -r; y < h + r * 2; y += hexH) {
+                const isOdd = Math.floor(y / hexH) % 2 === 0;
+                const offset = isOdd ? hexW / 2 : 0;
+                for (let x = -hexW; x < w + hexW * 2; x += hexW) {
+                    ctx.beginPath();
+                    for (let i = 0; i < 6; i++) {
+                        const a = (i * Math.PI) / 3;
+                        const px = x + offset + r * Math.cos(a);
+                        const py = y + r * Math.sin(a);
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class TriangleGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '21. Triángulo Equilátero';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.beginPath();
+            for (let i = 0; i < 3; i++) {
+                const a = (i * 2 * Math.PI) / 3 - Math.PI / 2;
+                const px = maxR * Math.cos(a);
+                const py = maxR * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class SquareGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '22. Cuadrado / Diamante';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-maxR * 0.75, -maxR * 0.75, maxR * 1.5, maxR * 1.5);
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class PentagonGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '23. Pentágono';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const a = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+                const px = maxR * Math.cos(a);
+                const py = maxR * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class HexagonGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '24. Hexágono Sólido';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = (i * 2 * Math.PI) / 6 - Math.PI / 2;
+                const px = maxR * Math.cos(a);
+                const py = maxR * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class PolygonNGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '25. Polígono Paramétrico (N lados)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR, sides } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            const s = Math.max(3, Math.floor(sides));
+            ctx.beginPath();
+            for (let i = 0; i < s; i++) {
+                const a = (i * 2 * Math.PI) / s - Math.PI / 2;
+                const px = maxR * Math.cos(a);
+                const py = maxR * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class Star5Generator extends BaseShapeGenerator {
+    getLabel() {
+        return '26. Estrella de 5 Puntas';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.beginPath();
+            for (let i = 0; i < 10; i++) {
+                const r = (i % 2 === 0) ? maxR : maxR * 0.45;
+                const a = (i * Math.PI) / 5 - Math.PI / 2;
+                const px = r * Math.cos(a);
+                const py = r * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class Star4Generator extends BaseShapeGenerator {
+    getLabel() {
+        return '27. Destello / Cruz Estelar (4 Pts)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+                const r = (i % 2 === 0) ? maxR : maxR * 0.18;
+                const a = (i * Math.PI) / 4 - Math.PI / 2;
+                const px = r * Math.cos(a);
+                const py = r * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class NoiseBristlesGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '28. Cerdas de Óleo (Bristles)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, cx, cy, rad, maxR, density } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.strokeStyle = '#ffffff';
+            const bristles = Math.floor(density * 18);
+            for (let i = 0; i < bristles; i++) {
+                const bx = (Math.random() - 0.5) * (w * 0.6);
+                ctx.lineWidth = Math.random() * 2 + 0.5;
+                ctx.beginPath();
+                ctx.moveTo(bx, -maxR * 0.75);
+                ctx.lineTo(bx + (Math.random() - 0.5) * 8, maxR * 0.75);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class NoiseSplatterGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '29. Salpicadura / Gotas (Splatter)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, maxR, density, thickness } = params;
+            ctx.fillStyle = '#ffffff';
+            const count = Math.floor(density * 22);
+            for (let i = 0; i < count; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const d = Math.pow(Math.random(), 2) * maxR;
+                const r = Math.random() * (thickness / 3) + 1;
+                ctx.beginPath();
+                ctx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class StippleGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '30. Punteado Fino (Stippling)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, maxR, density } = params;
+            ctx.fillStyle = '#ffffff';
+            const count = Math.floor(density * 120);
+            for (let i = 0; i < count; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const d = (Math.random() + Math.random()) * 0.5 * maxR;
+                ctx.beginPath();
+                ctx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 1.2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class GrungeGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '31. Mancha Grunge / Raspado';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.translate(-cx, -cy);
+            ctx.fillStyle = '#ffffff';
+            const cuts = Math.floor(density * 10);
+            for (let i = 0; i < cuts; i++) {
+                const gx = Math.random() * (w * 0.7) + w * 0.15;
+                const gy = Math.random() * (h * 0.7) + h * 0.15;
+                const gw = Math.random() * 40 + 5;
+                const gh = Math.random() * 8 + 2;
+                ctx.fillRect(gx, gy, gw, gh);
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class FurGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '32. Pelo / Pelaje (Fur Hair)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density, thickness } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness / 3);
+            const hairs = Math.floor(density * 25);
+            for (let i = 0; i < hairs; i++) {
+                const angle = (Math.random() - 0.5) * 0.8;
+                const len = Math.random() * 20 + 10;
+                const fx = (Math.random() - 0.5) * (w * 0.6);
+                const fy = (Math.random() - 0.5) * (h * 0.6);
+                ctx.beginPath();
+                ctx.moveTo(fx, fy);
+                ctx.lineTo(fx + Math.sin(angle) * len, fy - Math.cos(angle) * len);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class HairStrandsGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '33. Mechón de Pelo (Hair Strands)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, cx, cy, rad, maxR, density } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.strokeStyle = '#ffffff';
+            const strands = Math.floor(density * 10);
+            for (let i = 0; i < strands; i++) {
+                ctx.lineWidth = Math.random() * 1.5 + 0.5;
+                const sx = (i / strands - 0.5) * (w * 0.5);
+                ctx.beginPath();
+                ctx.moveTo(sx, -maxR);
+                ctx.bezierCurveTo(sx + 20, -maxR / 2, sx - 20, maxR / 2, sx, maxR);
+                ctx.stroke();
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class HalftoneRadialGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '34. Halftone Circular (Semimono)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, maxR, density, thickness } = params;
+            ctx.fillStyle = '#ffffff';
+            const circles = Math.max(3, Math.floor(density));
+            const step = maxR / circles;
+            for (let r = step; r <= maxR; r += step) {
+                const count = Math.floor((2 * Math.PI * r) / (thickness * 1.8));
+                const dotRadius = Math.max(1, (1 - r / maxR) * (thickness / 2));
+                for (let i = 0; i < count; i++) {
+                    const a = (i * 2 * Math.PI) / count;
+                    ctx.beginPath();
+                    ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, dotRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class HalftoneLinearGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '35. Halftone Gradiente';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, cx, cy, rad, density } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.translate(-cx, -cy);
+            ctx.fillStyle = '#ffffff';
+            const step = Math.max(6, Math.floor(w / density));
+            for (let y = step / 2; y < h; y += step) {
+                const normY = y / h;
+                const dotR = Math.max(0.5, (1 - normY) * (step * 0.45));
+                for (let x = step / 2; x < w; x += step) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, dotR, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class VoronoiCellsGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '36. Células / Craquelado (Voronoi)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, h, density, thickness } = params;
+            const points = [];
+            const pCount = Math.max(4, Math.floor(density * 1.5));
+            for (let i = 0; i < pCount; i++) {
+                points.push({
+                    x: Math.random() * (w * 0.8) + w * 0.1,
+                    y: Math.random() * (h * 0.8) + h * 0.1
+                });
+            }
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness / 2);
+            for (let i = 0; i < points.length; i++) {
+                for (let j = i + 1; j < points.length; j++) {
+                    const dist = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y);
+                    if (dist < w * 0.35) {
+                        ctx.beginPath();
+                        ctx.moveTo(points[i].x, points[i].y);
+                        ctx.lineTo(points[j].x, points[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class CheckerboardGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '37. Tablero de Ajedrez';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { w, cx, cy, rad, density } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.translate(-cx, -cy);
+            const count = Math.max(2, Math.floor(density));
+            const sq = w / count;
+            ctx.fillStyle = '#ffffff';
+            for (let r = 0; r < count; r++) {
+                for (let c = 0; c < count; c++) {
+                    if ((r + c) % 2 === 0) {
+                        ctx.fillRect(c * sq, r * sq, sq, sq);
+                    }
+                }
+            }
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class CrosshairGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '38. Cruz / Mira Telescópica';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR, thickness } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1, thickness);
+            ctx.beginPath();
+            ctx.moveTo(-maxR, 0);
+            ctx.lineTo(maxR, 0);
+            ctx.moveTo(0, -maxR);
+            ctx.lineTo(0, maxR);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(0, 0, maxR * 0.65, 0, Math.PI * 2);
+            ctx.stroke();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class HeartGenerator extends BaseShapeGenerator {
+    getLabel() {
+        return '39. Corazón (Heart Stamp)';
+    }
+
+    draw(ctx, params) {
+        try {
+            this.notifyStart(ctx, params);
+            const { cx, cy, rad, maxR } = params;
+            ctx.translate(cx, cy);
+            ctx.rotate(rad);
+            ctx.fillStyle = '#ffffff';
+            const s = maxR * 0.05;
+            ctx.beginPath();
+            ctx.moveTo(0, s * -4);
+            ctx.bezierCurveTo(s * 8, s * -14, s * 16, 0, 0, s * 12);
+            ctx.bezierCurveTo(s * -16, 0, s * -8, s * -14, 0, s * -4);
+            ctx.fill();
+            this.notifyComplete(ctx, params);
+        } catch (err) {
+            this.notifyError(err);
+        }
+    }
+}
+
+class ShapeRegistry {
+    constructor(callbacks = {}) {
+        this.generators = new Map();
+        this.onGeneratorRegistered = callbacks.onGeneratorRegistered || null;
+        this.onGeneratorSelected = callbacks.onGeneratorSelected || null;
+    }
+
+    register(key, generatorInstance) {
+        this.generators.set(key, generatorInstance);
+        if (typeof this.onGeneratorRegistered === 'function') {
+            this.onGeneratorRegistered(key, generatorInstance);
+        }
+    }
+
+    get(key) {
+        const gen = this.generators.get(key);
+        if (gen && typeof this.onGeneratorSelected === 'function') {
+            this.onGeneratorSelected(key, gen);
+        }
+        return gen;
+    }
+
+    getAllKeys() {
+        return Array.from(this.generators.keys());
+    }
+
+    getSelectOptions() {
+        return Array.from(this.generators.entries()).map(([key, gen]) => ({
+            value: key,
+            label: gen.getLabel()
+        }));
+    }
+}
+
+class BrushTipCreator {
+    constructor(options = {}) {
+        this.size = options.size || 256;
+        this.onChange = options.onChange || null;
+        this.onModeChange = options.onModeChange || null;
+        this.onRender = options.onRender || null;
+
+        this.mode = 'procedural';
+        this.sourceImage = null;
+
+        this.density = 8;
+        this.thickness = 6;
+        this.angle = 0;
+        this.sides = 5;
+        this.softness = 0.5;
+
+        this.invert = false;
+        this.radialPower = 1.0;
+        this.contrast = 0;
+        this.brightness = 0;
+
+        this.proceduralCanvas = document.createElement('canvas');
+        this.proceduralCanvas.width = this.size;
+        this.proceduralCanvas.height = this.size;
+        this.pctx = this.proceduralCanvas.getContext('2d');
+
+        this.outputCanvas = document.createElement('canvas');
+        this.outputCanvas.width = this.size;
+        this.outputCanvas.height = this.size;
+        this.ctx = this.outputCanvas.getContext('2d', { willReadFrequently: true });
+
+        this.initRegistry();
+        this.pattern = 'leaves_swirl';
+        this.initUI();
+        this.generateProcedural();
+        this.render();
+    }
+
+    initRegistry() {
+        const callbacks = {
+            onRenderStart: (name) => {},
+            onRenderComplete: (name) => {},
+            onError: (name, err) => console.error(name, err)
+        };
+
+        this.registry = new ShapeRegistry({
+            onGeneratorRegistered: () => {},
+            onGeneratorSelected: () => {}
+        });
+
+        this.registry.register('leaves_swirl', new LeavesSwirlGenerator(callbacks));
+        this.registry.register('wind_gusts', new WindGustsGenerator(callbacks));
+        this.registry.register('sand_dust', new SandDustGenerator(callbacks));
+        this.registry.register('wood_planks', new WoodPlanksGenerator(callbacks));
+        this.registry.register('fire_flames', new FireFlamesGenerator(callbacks));
+        this.registry.register('circle_soft', new CircleSoftGenerator(callbacks));
+        this.registry.register('circle_hard', new CircleHardGenerator(callbacks));
+        this.registry.register('circle_rings', new CircleRingsGenerator(callbacks));
+        this.registry.register('circle_donut', new CircleDonutGenerator(callbacks));
+        this.registry.register('circle_half', new CircleHalfGenerator(callbacks));
+        this.registry.register('radial_burst', new RadialBurstGenerator(callbacks));
+        this.registry.register('spiral', new SpiralGenerator(callbacks));
+        this.registry.register('lines_parallel', new LinesParallelGenerator(callbacks));
+        this.registry.register('lines_wavy', new LinesWavyGenerator(callbacks));
+        this.registry.register('crosshatch', new CrosshatchGenerator(callbacks));
+        this.registry.register('diagonal_stripes', new DiagonalStripesGenerator(callbacks));
+        this.registry.register('dashed_lines', new DashedLinesGenerator(callbacks));
+        this.registry.register('chevron', new ChevronGenerator(callbacks));
+        this.registry.register('radial_lines', new RadialLinesGenerator(callbacks));
+        this.registry.register('grid_square', new GridSquareGenerator(callbacks));
+        this.registry.register('grid_isometric', new GridIsometricGenerator(callbacks));
+        this.registry.register('grid_dots', new GridDotsGenerator(callbacks));
+        this.registry.register('bricks_standard', new BricksStandardGenerator(callbacks));
+        this.registry.register('bricks_tall', new BricksTallGenerator(callbacks));
+        this.registry.register('hex_grid', new HexGridGenerator(callbacks));
+        this.registry.register('triangle', new TriangleGenerator(callbacks));
+        this.registry.register('square', new SquareGenerator(callbacks));
+        this.registry.register('pentagon', new PentagonGenerator(callbacks));
+        this.registry.register('hexagon', new HexagonGenerator(callbacks));
+        this.registry.register('polygon_n', new PolygonNGenerator(callbacks));
+        this.registry.register('star_5', new Star5Generator(callbacks));
+        this.registry.register('star_4', new Star4Generator(callbacks));
+        this.registry.register('noise_bristles', new NoiseBristlesGenerator(callbacks));
+        this.registry.register('noise_splatter', new NoiseSplatterGenerator(callbacks));
+        this.registry.register('stipple', new StippleGenerator(callbacks));
+        this.registry.register('grunge', new GrungeGenerator(callbacks));
+        this.registry.register('fur', new FurGenerator(callbacks));
+        this.registry.register('hair_strands', new HairStrandsGenerator(callbacks));
+        this.registry.register('halftone_radial', new HalftoneRadialGenerator(callbacks));
+        this.registry.register('halftone_linear', new HalftoneLinearGenerator(callbacks));
+        this.registry.register('voronoi_cells', new VoronoiCellsGenerator(callbacks));
+        this.registry.register('checkerboard', new CheckerboardGenerator(callbacks));
+        this.registry.register('crosshair', new CrosshairGenerator(callbacks));
+        this.registry.register('heart', new HeartGenerator(callbacks));
+    }
+
+    initUI() {
+        this.panel = new UI.SmartPanel({
+            id: 'panel_brush_creator_pro',
+            title: 'Brush Tip Maker PRO',
+            x: 25,
+            y: 25,
+            width: 330,
+            floating: true
+        });
+
+        this.selPattern = new UI.Select({
+            options: this.registry.getSelectOptions(),
+            value: this.pattern,
+            onChange: (val) => {
+                this.setMode('procedural');
+                this.pattern = val;
+                this.updateParamVisibility();
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.panel.append(this.selPattern);
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const img = new Image();
+            img.onload = () => {
+                this.sourceImage = img;
+                this.setMode('image');
+                this.updateParamVisibility();
+                this.render();
+            };
+            img.src = URL.createObjectURL(file);
+        };
+        document.body.appendChild(fileInput);
+
+        const rUpload = this.panel.addRow ? this.panel.addRow(4) : this._makeRow();
+        const btnUpload = new UI.Button({
+            text: 'Cargar Imagen Externa',
+            variant: 'default',
+            onClick: () => fileInput.click()
+        });
+        rUpload.append ? rUpload.append(btnUpload) : rUpload.appendChild(btnUpload.element);
+
+        this.procGroup = document.createElement('div');
+        this.procGroup.style.display = 'flex';
+        this.procGroup.style.flexDirection = 'column';
+        this.procGroup.style.gap = '2px';
+        this.panel.element.querySelector('.ui-panel-body').appendChild(this.procGroup);
+
+        this.slDensity = new UI.ConfigurableSlider({
+            label: 'Densidad / Escala / Frecuencia',
+            min: 1,
+            max: 30,
+            step: 1,
+            value: this.density,
+            onChange: (v) => {
+                this.density = v;
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.procGroup.appendChild(this.slDensity.element);
+
+        this.slThickness = new UI.ConfigurableSlider({
+            label: 'Grosor / Radio / Detalle',
+            min: 1,
+            max: 60,
+            step: 1,
+            value: this.thickness,
+            onChange: (v) => {
+                this.thickness = v;
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.procGroup.appendChild(this.slThickness.element);
+
+        this.slAngle = new UI.ConfigurableSlider({
+            label: 'Rotación / Dirección (°)',
+            min: 0,
+            max: 180,
+            step: 1,
+            value: this.angle,
+            onChange: (v) => {
+                this.angle = v;
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.procGroup.appendChild(this.slAngle.element);
+
+        this.slSides = new UI.ConfigurableSlider({
+            label: 'Lados de Polígono (N)',
+            min: 3,
+            max: 16,
+            step: 1,
+            value: this.sides,
+            onChange: (v) => {
+                this.sides = v;
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.procGroup.appendChild(this.slSides.element);
+
+        this.slSoftness = new UI.ConfigurableSlider({
+            label: 'Suavizado / Falloff',
+            min: 0,
+            max: 1,
+            step: 0.05,
+            value: this.softness,
+            onChange: (v) => {
+                this.softness = v;
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.procGroup.appendChild(this.slSoftness.element);
+
+        const divider = document.createElement('div');
+        divider.style.cssText = 'height:1px; background:var(--ui-border, #3a3a3a); margin:6px 0;';
+        this.panel.element.querySelector('.ui-panel-body').appendChild(divider);
+
+        const chkInvert = new UI.Checkbox({
+            label: 'Invertir Escala de Grises',
+            checked: this.invert,
+            onChange: (val) => {
+                this.invert = val;
+                this.render();
+            }
+        });
+        this.panel.append(chkInvert);
+
+        const slRadial = new UI.ConfigurableSlider({
+            label: 'Máscara Radial (Caída a Bordes)',
+            min: 0,
+            max: 4,
+            step: 0.1,
+            value: this.radialPower,
+            onChange: (v) => {
+                this.radialPower = v;
+                this.render();
+            }
+        });
+        this.panel.append(slRadial);
+
+        const slBright = new UI.ConfigurableSlider({
+            label: 'Brillo',
+            min: -100,
+            max: 100,
+            step: 1,
+            value: this.brightness,
+            onChange: (v) => {
+                this.brightness = v;
+                this.render();
+            }
+        });
+        this.panel.append(slBright);
+
+        const slContr = new UI.ConfigurableSlider({
+            label: 'Contraste',
+            min: -100,
+            max: 100,
+            step: 1,
+            value: this.contrast,
+            onChange: (v) => {
+                this.contrast = v;
+                this.render();
+            }
+        });
+        this.panel.append(slContr);
+
+        const rExport = this.panel.addRow ? this.panel.addRow(4) : this._makeRow();
+        const btnDownload = new UI.Button({
+            text: 'Descargar Punta (.PNG)',
+            variant: 'primary',
+            onClick: () => this.downloadPNG()
+        });
+        rExport.append ? rExport.append(btnDownload) : rExport.appendChild(btnDownload.element);
+
+        this.updateParamVisibility();
+    }
+
+    setMode(mode) {
+        this.mode = mode;
+        if (typeof this.onModeChange === 'function') {
+            this.onModeChange(this.mode);
+        }
+    }
+
+    _makeRow() {
+        const d = document.createElement('div');
+        d.style.cssText = 'display:flex; gap:6px; margin: 4px 0; width:100%;';
+        this.panel.element.querySelector('.ui-panel-body').appendChild(d);
+        return d;
+    }
+
+    updateParamVisibility() {
+        if (this.mode === 'image') {
+            this.procGroup.style.display = 'none';
+        } else {
+            this.procGroup.style.display = 'flex';
+            this.slSides.element.style.display = (this.pattern === 'polygon_n') ? 'block' : 'none';
+        }
+    }
+
+    generateProcedural() {
+        const ctx = this.pctx;
+        const w = this.size;
+        const h = this.size;
+        const cx = w / 2;
+        const cy = h / 2;
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, w, h);
+
+        const rad = (this.angle * Math.PI) / 180;
+        const maxR = w * 0.44;
+
+        ctx.save();
+        const generator = this.registry.get(this.pattern);
+        if (generator) {
+            generator.draw(ctx, {
+                w,
+                h,
+                cx,
+                cy,
+                rad,
+                maxR,
+                density: this.density,
+                thickness: this.thickness,
+                sides: this.sides,
+                softness: this.softness
+            });
+        }
+        ctx.restore();
+    }
+
+    render() {
+        const w = this.size;
+        const h = this.size;
+        const ctx = this.ctx;
+
+        ctx.clearRect(0, 0, w, h);
+
+        if (this.mode === 'image' && this.sourceImage) {
+            ctx.drawImage(this.sourceImage, 0, 0, w, h);
+        } else {
+            ctx.drawImage(this.proceduralCanvas, 0, 0, w, h);
+        }
+
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        const cx = w / 2;
+        const cy = h / 2;
+        const factor = (259 * (this.contrast + 255)) / (255 * (259 - this.contrast));
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+
+                let gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+                gray = factor * (gray - 128) + 128 + this.brightness;
+
+                if (this.invert) {
+                    gray = 255 - gray;
+                }
+                gray = Math.max(0, Math.min(255, Math.round(gray)));
+
+                const dist = Math.hypot(x - cx, y - cy);
+                const normDist = Math.min(1.0, dist / (w / 2));
+
+                let radialMask = 1.0;
+                if (this.radialPower > 0) {
+                    radialMask = Math.max(0, 1.0 - Math.pow(normDist, 1 / this.radialPower));
+                }
+
+                const finalAlpha = Math.round(gray * radialMask);
+
+                data[idx] = 255;
+                data[idx + 1] = 255;
+                data[idx + 2] = 255;
+                data[idx + 3] = finalAlpha;
+            }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+
+        if (typeof this.onRender === 'function') {
+            this.onRender(this.outputCanvas);
+        }
+
+        if (typeof this.onChange === 'function') {
+            this.onChange(this.outputCanvas, this.outputCanvas.toDataURL('image/png'));
+        }
+    }
+
+    downloadPNG() {
+        const a = document.createElement('a');
+        a.download = `brush_${this.pattern}_${Date.now()}.png`;
+        a.href = this.outputCanvas.toDataURL('image/png');
+        a.click();
+    }
+}
+
+    </script>
+      <!--  -->
     <script>
         window.programaId = "substance_engine_" + Date.now();
         try {
@@ -17,6 +1880,595 @@
     
     rc="https://evanw.github.io/glfx.js/glfx.js"></script>
  <script>
+
+class BrushDynamicsUI {
+    constructor(brushSettingsEngine, options = {}) {
+        this.brush = brushSettingsEngine;
+        this.originalRawImage = null;
+        this.isGrayscale = false;
+
+        this.panel = new UI.SmartPanel({
+            id: options.id || 'panel_brush_dynamics',
+            title: options.title || 'Ajustes Dinámicos de Brocha',
+            x: options.x ?? 80,
+            y: options.y ?? 120,
+            width: 290,
+            floating: options.floating ?? true
+        });
+
+        this.buildUI();
+    }
+
+    buildUI() {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const img = new Image();
+            img.onload = () => {
+                this.originalRawImage = img;
+                this.applyImageMode();
+                const hud = document.getElementById('hud');
+                if (hud) hud.textContent = '✓ Imagen cargada como brocha';
+            };
+            img.src = URL.createObjectURL(file);
+        });
+        document.body.appendChild(fileInput);
+
+        const rImg = this.panel.addRow ? this.panel.addRow(4) : this._makeRow();
+        const btnUpload = new UI.Button({
+            text: 'Subir Imagen Brocha',
+            variant: 'primary',
+            onClick: () => fileInput.click()
+        });
+        const btnResetTip = new UI.Button({
+            text: 'Brocha Nativa',
+            variant: 'danger',
+            onClick: () => {
+                this.originalRawImage = null;
+                this.brush.stampImage = null;
+                const hud = document.getElementById('hud');
+                if (hud) hud.textContent = 'Brocha restablecida a nativa circular';
+            }
+        });
+        rImg.append ? rImg.append(btnUpload) : rImg.appendChild(btnUpload.element);
+        rImg.append ? rImg.append(btnResetTip) : rImg.appendChild(btnResetTip.element);
+
+        const chkGray = new UI.Toggle({
+            label: 'Convertir a Escala de Grises',
+            value: this.isGrayscale,
+            onChange: (v) => {
+                this.isGrayscale = v;
+                if (this.originalRawImage) {
+                    this.applyImageMode();
+                }
+            }
+        });
+        this.panel.append(chkGray);
+
+        const slSize = new UI.ConfigurableSlider({
+            label: 'Tamaño (Size)',
+            min: 1,
+            max: 800,
+            step: 1,
+            value: this.brush.size,
+            onChange: (v) => this.brush.set('size', v)
+        });
+        this.panel.append(slSize);
+
+        const slOpacity = new UI.ConfigurableSlider({
+            label: 'Alfa / Opacidad Global',
+            min: 0.01,
+            max: 1.0,
+            step: 0.01,
+            value: this.brush.opacity,
+            onChange: (v) => this.brush.set('opacity', v)
+        });
+        this.panel.append(slOpacity);
+
+        const slHardness = new UI.ConfigurableSlider({
+            label: 'Dureza / Caída Radial',
+            min: 0.0,
+            max: 0.99,
+            step: 0.01,
+            value: this.brush.hardness,
+            onChange: (v) => this.brush.set('hardness', v)
+        });
+        this.panel.append(slHardness);
+
+        const slSpacing = new UI.ConfigurableSlider({
+            label: 'Paso de Trazo (Spacing / Step %)',
+            min: 1,
+            max: 200,
+            step: 1,
+            value: this.brush.spacing,
+            onChange: (v) => this.brush.set('spacing', v)
+        });
+        this.panel.append(slSpacing);
+
+        const slAngle = new UI.ConfigurableSlider({
+            label: 'Ángulo Fijo (°)',
+            min: 0,
+            max: 360,
+            step: 1,
+            value: this.brush.angle,
+            onChange: (v) => this.brush.set('angle', v)
+        });
+        this.panel.append(slAngle);
+
+        const chkRandomRot = new UI.Toggle({
+            label: 'Rotación Aleatoria por Estampa',
+            value: this.brush.randomRotation,
+            onChange: (v) => this.brush.set('randomRotation', v)
+        });
+        this.panel.append(chkRandomRot);
+
+        const slForce = new UI.ConfigurableSlider({
+            label: 'Fuerza / Flujo (%)',
+            min: 1,
+            max: 100,
+            step: 1,
+            value: this.brush.force,
+            onChange: (v) => this.brush.set('force', v)
+        });
+        this.panel.append(slForce);
+    }
+
+    applyImageMode() {
+        if (!this.originalRawImage) return;
+
+        if (!this.isGrayscale) {
+            this.brush.stampImage = this.originalRawImage;
+            return;
+        }
+
+        const w = this.originalRawImage.naturalWidth || this.originalRawImage.width;
+        const h = this.originalRawImage.naturalHeight || this.originalRawImage.height;
+
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = w;
+        offCanvas.height = h;
+        const offCtx = offCanvas.getContext('2d');
+        offCtx.drawImage(this.originalRawImage, 0, 0, w, h);
+
+        const imgData = offCtx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+            const gray = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
+        }
+
+        offCtx.putImageData(imgData, 0, 0);
+
+        const processedImg = new Image();
+        processedImg.onload = () => {
+            this.brush.stampImage = processedImg;
+        };
+        processedImg.src = offCanvas.toDataURL('image/png');
+    }
+
+    _makeRow() {
+        const d = document.createElement('div');
+        d.className = 'fb-row';
+        d.style.cssText = 'display:flex; gap:6px; margin:4px 0; width:100%;';
+        this.panel.append(d);
+        return d;
+    }
+}
+
+
+class BrushTipMakerUI {
+    constructor(brushSettingsEngine, options = {}) {
+        this.brushSettings = brushSettingsEngine;
+        this.onApply = options.onApply || null;
+        this.size = options.size || 256;
+
+        this.density = 8;
+        this.thickness = 6;
+        this.angle = 0;
+        this.sides = 5;
+        this.softness = 0.5;
+        this.invert = false;
+        this.radialPower = 1.0;
+        this.contrast = 0;
+        this.brightness = 0;
+
+        this.mode = 'procedural';
+        this.pattern = 'leaves_swirl';
+        this.sourceImage = null;
+
+        this.proceduralCanvas = document.createElement('canvas');
+        this.proceduralCanvas.width = this.size;
+        this.proceduralCanvas.height = this.size;
+        this.pctx = this.proceduralCanvas.getContext('2d');
+
+        this.outputCanvas = document.createElement('canvas');
+        this.outputCanvas.width = this.size;
+        this.outputCanvas.height = this.size;
+        this.ctx = this.outputCanvas.getContext('2d', { willReadFrequently: true });
+
+        this.panel = new UI.SmartPanel({
+            id: options.id || 'panel_brush_maker_ui',
+            title: options.title || 'Generador de Brochas',
+            x: options.x ?? 80,
+            y: options.y ?? 80,
+            width: 320,
+            floating: options.floating ?? true
+        });
+
+        this.initRegistry();
+        this.buildUI();
+        this.generateProcedural();
+        this.render();
+    }
+
+    initRegistry() {
+        this.registry = new ShapeRegistry();
+        this.registry.register('leaves_swirl', new LeavesSwirlGenerator());
+        this.registry.register('wind_gusts', new WindGustsGenerator());
+        this.registry.register('sand_dust', new SandDustGenerator());
+        this.registry.register('wood_planks', new WoodPlanksGenerator());
+        this.registry.register('fire_flames', new FireFlamesGenerator());
+        this.registry.register('circle_soft', new CircleSoftGenerator());
+        this.registry.register('circle_hard', new CircleHardGenerator());
+        this.registry.register('circle_rings', new CircleRingsGenerator());
+        this.registry.register('circle_donut', new CircleDonutGenerator());
+        this.registry.register('circle_half', new CircleHalfGenerator());
+        this.registry.register('radial_burst', new RadialBurstGenerator());
+        this.registry.register('spiral', new SpiralGenerator());
+        this.registry.register('lines_parallel', new LinesParallelGenerator());
+        this.registry.register('lines_wavy', new LinesWavyGenerator());
+        this.registry.register('crosshatch', new CrosshatchGenerator());
+        this.registry.register('diagonal_stripes', new DiagonalStripesGenerator());
+        this.registry.register('dashed_lines', new DashedLinesGenerator());
+        this.registry.register('chevron', new ChevronGenerator());
+        this.registry.register('radial_lines', new RadialLinesGenerator());
+        this.registry.register('grid_square', new GridSquareGenerator());
+        this.registry.register('grid_isometric', new GridIsometricGenerator());
+        this.registry.register('grid_dots', new GridDotsGenerator());
+        this.registry.register('bricks_standard', new BricksStandardGenerator());
+        this.registry.register('bricks_tall', new BricksTallGenerator());
+        this.registry.register('hex_grid', new HexGridGenerator());
+        this.registry.register('triangle', new TriangleGenerator());
+        this.registry.register('square', new SquareGenerator());
+        this.registry.register('pentagon', new PentagonGenerator());
+        this.registry.register('hexagon', new HexagonGenerator());
+        this.registry.register('polygon_n', new PolygonNGenerator());
+        this.registry.register('star_5', new Star5Generator());
+        this.registry.register('star_4', new Star4Generator());
+        this.registry.register('noise_bristles', new NoiseBristlesGenerator());
+        this.registry.register('noise_splatter', new NoiseSplatterGenerator());
+        this.registry.register('stipple', new StippleGenerator());
+        this.registry.register('grunge', new GrungeGenerator());
+        this.registry.register('fur', new FurGenerator());
+        this.registry.register('hair_strands', new HairStrandsGenerator());
+        this.registry.register('halftone_radial', new HalftoneRadialGenerator());
+        this.registry.register('halftone_linear', new HalftoneLinearGenerator());
+        this.registry.register('voronoi_cells', new VoronoiCellsGenerator());
+        this.registry.register('checkerboard', new CheckerboardGenerator());
+        this.registry.register('crosshair', new CrosshairGenerator());
+        this.registry.register('heart', new HeartGenerator());
+    }
+
+    buildUI() {
+        const previewRow = document.createElement('div');
+        previewRow.style.cssText = 'display:flex; justify-content:center; align-items:center; padding:8px 0; background:#181d27; border-radius:6px; margin-bottom:8px;';
+        this.previewCanvas = document.createElement('canvas');
+        this.previewCanvas.width = 128;
+        this.previewCanvas.height = 128;
+        this.previewCanvas.style.cssText = 'width:128px; height:128px; border:1px solid #444; border-radius:4px; background:#262626; background-image:repeating-conic-gradient(#333 0% 25%, #262626 0% 50%); background-size:12px 12px;';
+        previewRow.appendChild(this.previewCanvas);
+        this.panel.append(previewRow);
+
+        this.selPattern = new UI.Select({
+            options: this.registry.getSelectOptions(),
+            value: this.pattern
+        });
+        this.selPattern.element.addEventListener('change', () => {
+            this.mode = 'procedural';
+            this.pattern = this.selPattern.getValue();
+            this.updateParamVisibility();
+            this.generateProcedural();
+            this.render();
+        });
+        this.panel.append(this.selPattern);
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const img = new Image();
+            img.onload = () => {
+                this.sourceImage = img;
+                this.mode = 'image';
+                this.updateParamVisibility();
+                this.render();
+            };
+            img.src = URL.createObjectURL(file);
+        };
+        document.body.appendChild(fileInput);
+
+        const rUpload = this.panel.addRow ? this.panel.addRow(4) : this._makeRow();
+        const btnUpload = new UI.Button({
+            text: 'Cargar Textura Externa',
+            variant: 'default',
+            onClick: () => fileInput.click()
+        });
+        rUpload.append ? rUpload.append(btnUpload) : rUpload.appendChild(btnUpload.element);
+
+        this.procGroup = document.createElement('div');
+        this.procGroup.style.display = 'flex';
+        this.procGroup.style.flexDirection = 'column';
+        this.procGroup.style.gap = '2px';
+        this.panel.element.querySelector('.fb-panel')?.appendChild(this.procGroup) || this.panel.append(this.procGroup);
+
+        this.slDensity = new UI.ConfigurableSlider({
+            label: 'Densidad / Escala',
+            min: 1,
+            max: 30,
+            step: 1,
+            value: this.density,
+            onChange: (v) => {
+                this.density = v;
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.procGroup.appendChild(this.slDensity.element);
+
+        this.slThickness = new UI.ConfigurableSlider({
+            label: 'Grosor / Radio',
+            min: 1,
+            max: 60,
+            step: 1,
+            value: this.thickness,
+            onChange: (v) => {
+                this.thickness = v;
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.procGroup.appendChild(this.slThickness.element);
+
+        this.slAngle = new UI.ConfigurableSlider({
+            label: 'Ángulo (°)',
+            min: 0,
+            max: 180,
+            step: 1,
+            value: this.angle,
+            onChange: (v) => {
+                this.angle = v;
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.procGroup.appendChild(this.slAngle.element);
+
+        this.slSides = new UI.ConfigurableSlider({
+            label: 'Lados de Polígono (N)',
+            min: 3,
+            max: 16,
+            step: 1,
+            value: this.sides,
+            onChange: (v) => {
+                this.sides = v;
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.procGroup.appendChild(this.slSides.element);
+
+        this.slSoftness = new UI.ConfigurableSlider({
+            label: 'Suavizado / Falloff',
+            min: 0,
+            max: 1,
+            step: 0.05,
+            value: this.softness,
+            onChange: (v) => {
+                this.softness = v;
+                this.generateProcedural();
+                this.render();
+            }
+        });
+        this.procGroup.appendChild(this.slSoftness.element);
+
+        const chkInvert = new UI.Toggle({
+            label: 'Invertir Alfa',
+            value: this.invert,
+            onChange: (val) => {
+                this.invert = val;
+                this.render();
+            }
+        });
+        this.panel.append(chkInvert);
+
+        const slRadial = new UI.ConfigurableSlider({
+            label: 'Máscara Radial',
+            min: 0,
+            max: 4,
+            step: 0.1,
+            value: this.radialPower,
+            onChange: (v) => {
+                this.radialPower = v;
+                this.render();
+            }
+        });
+        this.panel.append(slRadial);
+
+        const slBright = new UI.ConfigurableSlider({
+            label: 'Brillo',
+            min: -100,
+            max: 100,
+            step: 1,
+            value: this.brightness,
+            onChange: (v) => {
+                this.brightness = v;
+                this.render();
+            }
+        });
+        this.panel.append(slBright);
+
+        const slContr = new UI.ConfigurableSlider({
+            label: 'Contraste',
+            min: -100,
+            max: 100,
+            step: 1,
+            value: this.contrast,
+            onChange: (v) => {
+                this.contrast = v;
+                this.render();
+            }
+        });
+        this.panel.append(slContr);
+
+        const rActions = this.panel.addRow ? this.panel.addRow(4) : this._makeRow();
+        const btnResetTip = new UI.Button({
+            text: 'Círculo Simple',
+            variant: 'danger',
+            onClick: () => {
+                this.brushSettings.stampImage = null;
+                const hud = document.getElementById('hud');
+                if (hud) hud.textContent = 'Punta reajustada a círculo nativo';
+            }
+        });
+        const btnApplyTip = new UI.Button({
+            text: 'Aplicar a Pincel',
+            variant: 'primary',
+            onClick: () => {
+                const img = new Image();
+                img.onload = () => {
+                    this.brushSettings.stampImage = img;
+                    if (this.onApply) this.onApply(this.outputCanvas);
+                    const hud = document.getElementById('hud');
+                    if (hud) hud.textContent = 'Nueva punta asignada al pincel';
+                };
+                img.src = this.outputCanvas.toDataURL('image/png');
+            }
+        });
+
+        rActions.append ? rActions.append(btnResetTip) : rActions.appendChild(btnResetTip.element);
+        rActions.append ? rActions.append(btnApplyTip) : rActions.appendChild(btnApplyTip.element);
+
+        this.updateParamVisibility();
+    }
+
+    _makeRow() {
+        const d = document.createElement('div');
+        d.className = 'fb-row';
+        d.style.cssText = 'display:flex; gap:6px; margin:4px 0; width:100%;';
+        this.panel.append(d);
+        return d;
+    }
+
+    updateParamVisibility() {
+        if (this.mode === 'image') {
+            this.procGroup.style.display = 'none';
+        } else {
+            this.procGroup.style.display = 'flex';
+            this.slSides.element.style.display = (this.pattern === 'polygon_n') ? 'block' : 'none';
+        }
+    }
+
+    generateProcedural() {
+        const ctx = this.pctx;
+        const w = this.size;
+        const h = this.size;
+        const cx = w / 2;
+        const cy = h / 2;
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, w, h);
+
+        const rad = (this.angle * Math.PI) / 180;
+        const maxR = w * 0.44;
+
+        ctx.save();
+        const generator = this.registry.get(this.pattern);
+        if (generator) {
+            generator.draw(ctx, {
+                w,
+                h,
+                cx,
+                cy,
+                rad,
+                maxR,
+                density: this.density,
+                thickness: this.thickness,
+                sides: this.sides,
+                softness: this.softness
+            });
+        }
+        ctx.restore();
+    }
+
+    render() {
+        const w = this.size;
+        const h = this.size;
+        const ctx = this.ctx;
+
+        ctx.clearRect(0, 0, w, h);
+
+        if (this.mode === 'image' && this.sourceImage) {
+            ctx.drawImage(this.sourceImage, 0, 0, w, h);
+        } else {
+            ctx.drawImage(this.proceduralCanvas, 0, 0, w, h);
+        }
+
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+        const cx = w / 2;
+        const cy = h / 2;
+        const factor = (259 * (this.contrast + 255)) / (255 * (259 - this.contrast));
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+
+                let gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+                gray = factor * (gray - 128) + 128 + this.brightness;
+
+                if (this.invert) {
+                    gray = 255 - gray;
+                }
+                gray = Math.max(0, Math.min(255, Math.round(gray)));
+
+                const dist = Math.hypot(x - cx, y - cy);
+                const normDist = Math.min(1.0, dist / (w / 2));
+
+                let radialMask = 1.0;
+                if (this.radialPower > 0) {
+                    radialMask = Math.max(0, 1.0 - Math.pow(normDist, 1 / this.radialPower));
+                }
+
+                const finalAlpha = Math.round(gray * radialMask);
+
+                data[idx] = 255;
+                data[idx + 1] = 255;
+                data[idx + 2] = 255;
+                data[idx + 3] = finalAlpha;
+            }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+
+        if (this.previewCanvas) {
+            const pvCtx = this.previewCanvas.getContext('2d');
+            pvCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+            pvCtx.drawImage(this.outputCanvas, 0, 0, this.previewCanvas.width, this.previewCanvas.height);
+        }
+    }
+}
+
+/*  */
  
    class BGRMPipeline {
       static FLOYD_STEINBERG_DITHER = "FLOYD_STEINBERG";
@@ -3825,6 +6277,9 @@ class ApplicationAdapter {
         this.initContextMenu();
         this.bindEvents();
     }
+    abrirBrushDynamics() {
+    this.brushDynamicsUI.panel.open();
+}
     abrirBGRMPipeline() {
     const act = this.layers.getActiveLayer();
     if (!act) return alert('No hay capa activa');
@@ -3839,6 +6294,10 @@ class ApplicationAdapter {
 
     this.bgrmUI.process(tempCanvas);
 }
+
+    abrirBrushTipMaker() {
+    this.brushTipUI.panel.open();
+    }
     abrirCurvasRGBA() {
     const act = this.layers.getActiveLayer();
     if (!act) return alert('No hay capa activa');
@@ -4001,37 +6460,37 @@ class ApplicationAdapter {
    
    initEngines() {
         this.zoom = new CanvasZoomManager({
-            container: this.stage,
-            target: this.target,
-            onTransformChange: (scale) => {
-                const hud = document.getElementById('hud');
-                if (hud) hud.textContent = `Zoom: ${(scale * 100).toFixed(0)}% | Q: Adaptar Trozo`;
-            }
+        container: this.stage,
+        target: this.target,
+        onTransformChange: (scale) => {
+            const hud = document.getElementById('hud');
+            if (hud) hud.textContent = `Zoom: ${(scale * 100).toFixed(0)}% | Q: Adaptar Trozo`;
+        }
         });
 
         this.history = new HistoryManager({ onStateChange: () => {} });
 
         this.layers = new LayerStackEngine({
-            defaultWidth: this.defaultWidth,
-            defaultHeight: this.defaultHeight,
-            renderContainer: this.layersContainer,
-            onStackChanged: (list, activeId) => {
-                if (this.reorderList) {
-                    this.reorderList.setItems(list.map(l => ({
-                        id: l.id, name: l.name, visible: l.visible, opacity: l.opacity
-                    })), list.findIndex(l => l.id === activeId));
-                }
+        defaultWidth: this.defaultWidth,
+        defaultHeight: this.defaultHeight,
+        renderContainer: this.layersContainer,
+        onStackChanged: (list, activeId) => {
+            if (this.reorderList) {
+                this.reorderList.setItems(list.map(l => ({
+                    id: l.id, name: l.name, visible: l.visible, opacity: l.opacity
+                })), list.findIndex(l => l.id === activeId));
             }
+        }
         });
 
         this.brush = new BrushSettingsEngine({
-            onSettingsChange: (k, v) => {
-                if (k === 'mainColor' && this.colorPicker && !this.isInternalColorSync) {
-                    this.isInternalColorSync = true;
-                    this.colorPicker.setHex(v);
-                    this.isInternalColorSync = false;
-                }
+        onSettingsChange: (k, v) => {
+            if (k === 'mainColor' && this.colorPicker && !this.isInternalColorSync) {
+                this.isInternalColorSync = true;
+                this.colorPicker.setHex(v);
+                this.isInternalColorSync = false;
             }
+        }
         });
 
         this.selection = new SelectionManager({ selectionCanvas: this.selectionCanvas });
@@ -4039,89 +6498,48 @@ class ApplicationAdapter {
         this.cad = new CadVectorEngine({ canvas: this.cadCanvas, brushEngine: this.brush });
 
         this.tools = new ToolManager({
-            previewCanvas: this.previewCanvas,
-            layerStackEngine: this.layers,
-            brushSettingsEngine: this.brush,
-            selectionManager: this.selection,
-            cadEngine: this.cad,
-            onColorSampled: (hex) => {
-                this.isInternalColorSync = true;
-                this.brush.set('mainColor', hex, true);
-                if (this.colorPicker) this.colorPicker.setHex(hex);
-                this.isInternalColorSync = false;
-            },
-            onStrokeStart: (layer) => { this.preStrokeState = layer.getSnapshot(); },
-            onStrokeFinished: (layer) => {
-                if (!this.preStrokeState) return;
-                const before = this.preStrokeState;
-                const after = layer.getSnapshot();
-                const targetLayer = layer;
-                this.history.push({
-                    undo: () => targetLayer.restoreSnapshot(before),
-                    redo: () => targetLayer.restoreSnapshot(after)
-                });
-                this.preStrokeState = null;
-            }
+        previewCanvas: this.previewCanvas,
+        layerStackEngine: this.layers,
+        brushSettingsEngine: this.brush,
+        selectionManager: this.selection,
+        cadEngine: this.cad,
+        onColorSampled: (hex) => {
+            this.isInternalColorSync = true;
+            this.brush.set('mainColor', hex, true);
+            if (this.colorPicker) this.colorPicker.setHex(hex);
+            this.isInternalColorSync = false;
+        },
+        onStrokeStart: (layer) => { this.preStrokeState = layer.getSnapshot(); },
+        onStrokeFinished: (layer) => {
+            if (!this.preStrokeState) return;
+            const before = this.preStrokeState;
+            const after = layer.getSnapshot();
+            const targetLayer = layer;
+            this.history.push({
+                undo: () => targetLayer.restoreSnapshot(before),
+                redo: () => targetLayer.restoreSnapshot(after)
+            });
+            this.preStrokeState = null;
+        }
         });
 
         // ================= CONEXIÓN REMOVER FONDO =================
         this.bgRemover = new BackgroundRemover({
-            keepTransparency: true,
-            onStart: () => {
-                const hud = document.getElementById('hud');
-                if (hud) hud.textContent = '⏳ Removiendo fondo con IA...';
-            },
-            onProgress: (pct) => {
-                const hud = document.getElementById('hud');
-                if (hud) hud.textContent = `⏳ Modelo IA: ${pct}%`;
-            },
-            onFinish: ({ canvas }) => {
-                const act = this.layers.getActiveLayer();
-                if (!act) return;
-                const before = act.getSnapshot();
-                act.ctx.clearRect(0, 0, act.width, act.height);
-                act.ctx.drawImage(canvas, 0, 0);
-                const after = act.getSnapshot();
-
-                this.history.push({
-                    undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
-                    redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
-                });
-
-                this.ajustarCanvasACapaActiva();
-                const hud = document.getElementById('hud');
-                if (hud) hud.textContent = '✓ Fondo removido con éxito';
-            },
-            onError: (err) => {
-                alert('Error al remover fondo: ' + err.message);
-                const hud = document.getElementById('hud');
-                if (hud) hud.textContent = '✕ Error al remover fondo';
-            }
-        });
-
-        // ================= CONEXIÓN FILTROS GLFX =================
-        this.glfxEngine = new GLFXEngine();
-    this.glfxActive = false;
-    this.glfxOriginalSnapshot = null;
-
-    // CADA VEZ QUE UN SLIDER SE MUEVA, PINTA DIRECTO EN LA CAPA ACTIVA EN VIVO:
-    this.glfxEngine.onRender = (filteredCanvas) => {
-        const act = this.layers.getActiveLayer();
-        if (!act || !this.glfxActive) return;
-        act.ctx.clearRect(0, 0, act.width, act.height);
-        act.ctx.drawImage(filteredCanvas, 0, 0);
-    };
-
-    this.glfxUI = new GLFXUI(this.glfxEngine, {
-        title: 'Filtros WebGL & Efectos',
-        x: 76,
-        y: 60,
-        floating: true,
-        onApply: (filteredCanvas) => {
+        keepTransparency: true,
+        onStart: () => {
+            const hud = document.getElementById('hud');
+            if (hud) hud.textContent = '⏳ Removiendo fondo con IA...';
+        },
+        onProgress: (pct) => {
+            const hud = document.getElementById('hud');
+            if (hud) hud.textContent = `⏳ Modelo IA: ${pct}%`;
+        },
+        onFinish: ({ canvas }) => {
             const act = this.layers.getActiveLayer();
-            if (!act || !this.glfxOriginalSnapshot) return;
-
-            const before = this.glfxOriginalSnapshot;
+            if (!act) return;
+            const before = act.getSnapshot();
+            act.ctx.clearRect(0, 0, act.width, act.height);
+            act.ctx.drawImage(canvas, 0, 0);
             const after = act.getSnapshot();
 
             this.history.push({
@@ -4129,36 +6547,77 @@ class ApplicationAdapter {
                 redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
             });
 
-            // Actualizamos la nueva base limpia
-            this.glfxOriginalSnapshot = after;
-            this.glfxActive = false;
-            this.glfxUI.panel.close();
-
+            this.ajustarCanvasACapaActiva();
             const hud = document.getElementById('hud');
-            if (hud) hud.textContent = '✓ Filtro aplicado definitivamente';
+            if (hud) hud.textContent = '✓ Fondo removido con éxito';
+        },
+        onError: (err) => {
+            alert('Error al remover fondo: ' + err.message);
+            const hud = document.getElementById('hud');
+            if (hud) hud.textContent = '✕ Error al remover fondo';
         }
-    });
-        // Inicia cerrado
+        });
 
-          const prevClose = this.glfxUI.panel.onCloseCallback;
-    this.glfxUI.panel.onCloseCallback = (p) => {
+
+        this.glfxEngine = new GLFXEngine();
+        this.glfxActive = false;
+        this.glfxOriginalSnapshot = null;
+
+
+        this.glfxEngine.onRender = (filteredCanvas) => {
+        const act = this.layers.getActiveLayer();
+        if (!act || !this.glfxActive) return;
+        act.ctx.clearRect(0, 0, act.width, act.height);
+        act.ctx.drawImage(filteredCanvas, 0, 0);
+        };
+
+        this.glfxUI = new GLFXUI(this.glfxEngine, {
+        title: 'Filtros WebGL & Efectos',
+        x: 76,
+        y: 60,
+        floating: true,
+        onApply: (filteredCanvas) => {
+        const act = this.layers.getActiveLayer();
+        if (!act || !this.glfxOriginalSnapshot) return;
+
+        const before = this.glfxOriginalSnapshot;
+        const after = act.getSnapshot();
+
+        this.history.push({
+            undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
+            redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
+        });
+
+
+        this.glfxOriginalSnapshot = after;
+        this.glfxActive = false;
+        this.glfxUI.panel.close();
+
+        const hud = document.getElementById('hud');
+        if (hud) hud.textContent = '✓ Filtro aplicado definitivamente';
+        }
+        });
+
+
+        const prevClose = this.glfxUI.panel.onCloseCallback;
+        this.glfxUI.panel.onCloseCallback = (p) => {
         if (prevClose) prevClose(p);
         if (this.glfxActive && this.glfxOriginalSnapshot) {
-            const act = this.layers.getActiveLayer();
-            if (act) act.restoreSnapshot(this.glfxOriginalSnapshot);
-            this.glfxActive = false;
+        const act = this.layers.getActiveLayer();
+        if (act) act.restoreSnapshot(this.glfxOriginalSnapshot);
+        this.glfxActive = false;
         }
-    };
+        };
 
-    // BOTÓN RESTABLECER DEL PANEL:
-    this.glfxUI.panel.element.querySelector('.ui-btn-danger').onclick = () => {
+
+        this.glfxUI.panel.element.querySelector('.ui-btn-danger').onclick = () => {
         if (this.glfxOriginalSnapshot) {
-            const act = this.layers.getActiveLayer();
-            if (act) act.restoreSnapshot(this.glfxOriginalSnapshot);
-            this.glfxEngine.reset();
+        const act = this.layers.getActiveLayer();
+        if (act) act.restoreSnapshot(this.glfxOriginalSnapshot);
+        this.glfxEngine.reset();
         }
-    };
-    
+        };
+
         this.glfxUI.panel.close();
 
         this.layers.createLayer('Fondo', this.defaultWidth, this.defaultHeight);
@@ -4171,71 +6630,69 @@ class ApplicationAdapter {
         this.pixelArtOriginalSnapshot = null;
 
         this.pixelArtEngine.onRender = (filteredCanvas) => {
-            const act = this.layers.getActiveLayer();
-            if (!act || !this.pixelArtActive) return;
-            act.ctx.clearRect(0, 0, act.width, act.height);
-            act.ctx.drawImage(filteredCanvas, 0, 0);
+        const act = this.layers.getActiveLayer();
+        if (!act || !this.pixelArtActive) return;
+        act.ctx.clearRect(0, 0, act.width, act.height);
+        act.ctx.drawImage(filteredCanvas, 0, 0);
         };
 
         this.pixelArtUI = new PixelArtUI(this.pixelArtEngine, {
-            title: 'Filtro Pixel Art',
-            x: 80,
-            y: 80,
-            floating: true,
-            onApply: (filteredCanvas) => {
-                const act = this.layers.getActiveLayer();
-                if (!act || !this.pixelArtOriginalSnapshot) return;
+        title: 'Filtro Pixel Art',
+        x: 80,
+        y: 80,
+        floating: true,
+        onApply: (filteredCanvas) => {
+            const act = this.layers.getActiveLayer();
+            if (!act || !this.pixelArtOriginalSnapshot) return;
 
-                const before = this.pixelArtOriginalSnapshot;
-                const after = act.getSnapshot();
+            const before = this.pixelArtOriginalSnapshot;
+            const after = act.getSnapshot();
 
-                this.history.push({
-                    undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
-                    redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
-                });
+            this.history.push({
+                undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
+                redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
+            });
 
-                this.pixelArtOriginalSnapshot = after;
-                this.pixelArtActive = false;
-                this.pixelArtUI.panel.close();
-                this.ajustarCanvasACapaActiva();
-            }
+            this.pixelArtOriginalSnapshot = after;
+            this.pixelArtActive = false;
+            this.pixelArtUI.panel.close();
+            this.ajustarCanvasACapaActiva();
+        }
         });
 
         const prevClosePixel = this.pixelArtUI.panel.onCloseCallback;
         this.pixelArtUI.panel.onCloseCallback = (p) => {
-            if (prevClosePixel) prevClosePixel(p);
-            if (this.pixelArtActive && this.pixelArtOriginalSnapshot) {
-                const act = this.layers.getActiveLayer();
-                if (act) act.restoreSnapshot(this.pixelArtOriginalSnapshot);
-                this.pixelArtActive = false;
-                this.ajustarCanvasACapaActiva();
-            }
+        if (prevClosePixel) prevClosePixel(p);
+        if (this.pixelArtActive && this.pixelArtOriginalSnapshot) {
+            const act = this.layers.getActiveLayer();
+            if (act) act.restoreSnapshot(this.pixelArtOriginalSnapshot);
+            this.pixelArtActive = false;
+            this.ajustarCanvasACapaActiva();
+        }
         };
 
         this.pixelArtUI.panel.close();
 
         /*  */
 
-        /*  */
-// ================= CONEXIÓN CURVAS RGBA =================
-this.curveEngine = new CurveEngine();
-this.curveActive = false;
-this.curveOriginalSnapshot = null;
+        this.curveEngine = new CurveEngine();
+        this.curveActive = false;
+        this.curveOriginalSnapshot = null;
 
-// Vista previa en vivo en la capa activa
-this.curveEngine.onRender = (filteredCanvas) => {
-    const act = this.layers.getActiveLayer();
-    if (!act || !this.curveActive) return;
-    act.ctx.clearRect(0, 0, act.width, act.height);
-    act.ctx.drawImage(filteredCanvas, 0, 0);
-};
 
-this.curveUI = new CurveUI(this.curveEngine, {
-    title: 'Curvas RGBA',
-    x: 80,
-    y: 80,
-    floating: true,
-    onApply: (filteredCanvas) => {
+        this.curveEngine.onRender = (filteredCanvas) => {
+        const act = this.layers.getActiveLayer();
+        if (!act || !this.curveActive) return;
+        act.ctx.clearRect(0, 0, act.width, act.height);
+        act.ctx.drawImage(filteredCanvas, 0, 0);
+        };
+
+        this.curveUI = new CurveUI(this.curveEngine, {
+        title: 'Curvas RGBA',
+        x: 80,
+        y: 80,
+        floating: true,
+        onApply: (filteredCanvas) => {
         const act = this.layers.getActiveLayer();
         if (!act || !this.curveOriginalSnapshot) return;
 
@@ -4243,50 +6700,46 @@ this.curveUI = new CurveUI(this.curveEngine, {
         const after = act.getSnapshot();
 
         this.history.push({
-            undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
-            redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
+        undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
+        redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
         });
 
         this.curveOriginalSnapshot = after;
         this.curveActive = false;
         this.curveUI.panel.close();
         this.ajustarCanvasACapaActiva();
-    }
-});
+        }
+        });
 
-const prevCloseCurve = this.curveUI.panel.onCloseCallback;
-this.curveUI.panel.onCloseCallback = (p) => {
-    if (prevCloseCurve) prevCloseCurve(p);
-    if (this.curveActive && this.curveOriginalSnapshot) {
+        const prevCloseCurve = this.curveUI.panel.onCloseCallback;
+        this.curveUI.panel.onCloseCallback = (p) => {
+        if (prevCloseCurve) prevCloseCurve(p);
+        if (this.curveActive && this.curveOriginalSnapshot) {
         const act = this.layers.getActiveLayer();
         if (act) act.restoreSnapshot(this.curveOriginalSnapshot);
         this.curveActive = false;
         this.ajustarCanvasACapaActiva();
-    }
-};
+        }
+        };
 
-this.curveUI.panel.close();
+        this.curveUI.panel.close();
 
-        /*  */
+        this.bgrmPipeline = new BGRMPipeline();
+        this.bgrmActive = false;
+        this.bgrmOriginalSnapshot = null;
 
-
-        // Dentro de ApplicationAdapter.prototype.initEngines():
-this.bgrmPipeline = new BGRMPipeline();
-this.bgrmActive = false;
-this.bgrmOriginalSnapshot = null;
-
-this.bgrmUI = new uiBGRMPipeline(this.bgrmPipeline, {
-    title: 'AI Background Remover',
-    x: 80,
-    y: 80,
-    floating: true,
-    onRender: (filteredCanvas) => {
+        this.bgrmUI = new uiBGRMPipeline(this.bgrmPipeline, {
+        title: 'AI Background Remover',
+        x: 80,
+        y: 80,
+        floating: true,
+        onRender: (filteredCanvas) => {
         const act = this.layers.getActiveLayer();
         if (!act || !this.bgrmActive) return;
         act.ctx.clearRect(0, 0, act.width, act.height);
         act.ctx.drawImage(filteredCanvas, 0, 0);
-    },
-    onApply: (finalCanvas) => {
+        },
+        onApply: (finalCanvas) => {
         const act = this.layers.getActiveLayer();
         if (!act || !this.bgrmOriginalSnapshot) return;
 
@@ -4294,39 +6747,56 @@ this.bgrmUI = new uiBGRMPipeline(this.bgrmPipeline, {
         const after = act.getSnapshot();
 
         this.history.push({
-            undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
-            redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
+        undo: () => { act.restoreSnapshot(before); this.ajustarCanvasACapaActiva(); },
+        redo: () => { act.restoreSnapshot(after); this.ajustarCanvasACapaActiva(); }
         });
 
         this.bgrmOriginalSnapshot = after;
         this.bgrmActive = false;
         this.bgrmUI.panel.close();
         this.ajustarCanvasACapaActiva();
-    },
-    onReset: () => {
+        },
+        onReset: () => {
         const act = this.layers.getActiveLayer();
         if (act && this.bgrmOriginalSnapshot) {
-            act.restoreSnapshot(this.bgrmOriginalSnapshot);
+        act.restoreSnapshot(this.bgrmOriginalSnapshot);
         }
-    }
-});
+        }
+        });
 
-const prevCloseBGRM = this.bgrmUI.panel.onCloseCallback;
-this.bgrmUI.panel.onCloseCallback = (p) => {
-    if (prevCloseBGRM) prevCloseBGRM(p);
-    if (this.bgrmActive && this.bgrmOriginalSnapshot) {
+        const prevCloseBGRM = this.bgrmUI.panel.onCloseCallback;
+        this.bgrmUI.panel.onCloseCallback = (p) => {
+        if (prevCloseBGRM) prevCloseBGRM(p);
+        if (this.bgrmActive && this.bgrmOriginalSnapshot) {
         const act = this.layers.getActiveLayer();
         if (act) act.restoreSnapshot(this.bgrmOriginalSnapshot);
         this.bgrmActive = false;
         this.ajustarCanvasACapaActiva();
-    }
-};
+        }
+        };
 
-this.bgrmUI.panel.close();
+        this.bgrmUI.panel.close();
 
         /*  */
 
+        this.brushTipUI = new BrushTipMakerUI(this.brush, {
+        title: 'Generador de Brochas',
+        x: 80,
+        y: 80,
+        floating: true,
+        onApply: () => {
+        this.brushTipUI.panel.close();
+        }
+        });
+        this.brushTipUI.panel.close();
 
+        this.brushDynamicsUI = new BrushDynamicsUI(this.brush, {
+    title: 'Ajustes Dinámicos de Brocha',
+    x: 80,
+    y: 120,
+    floating: true
+});
+this.brushDynamicsUI.panel.close();
 
     }
    
@@ -4351,7 +6821,7 @@ this.bgrmUI.panel.close();
         const act = this.layers.getActiveLayer();
         if (!act) return;
 
-        // El ancho y alto exacto de la capa es el del trozo
+      
         const targetW = act.originalWidth || act.width;
         const targetH = act.originalHeight || act.height;
 
@@ -4415,20 +6885,20 @@ this.bgrmUI.panel.close();
         this.syncInteractiveCanvases(targetW, targetH);
         this.centerView(targetW, targetH);
     }
-    // PEGAR COMO CAPA EL TROZO EXACTO Y VER SOLO ESE TROZO
+ 
     pegarComoNuevaCapa(canvasRecorte, nombre = 'Trozo Pegado') {
         if (!canvasRecorte || canvasRecorte.width <= 0 || canvasRecorte.height <= 0) return;
         
-        // Dimensiones exactas del recorte copiado
+ 
         const w = canvasRecorte.naturalWidth || canvasRecorte.width;
         const h = canvasRecorte.naturalHeight || canvasRecorte.height;
 
-        // Crear nueva capa con el tamaño exacto del trozo
+ 
         const nuevaCapa = this.layers.createLayer(`${nombre} (${w}x${h})`, w, h);
         nuevaCapa.originalWidth = w;
         nuevaCapa.originalHeight = h;
         
-        // Dibujar el trozo en (0,0) de esta nueva capa
+ 
         nuevaCapa.ctx.drawImage(canvasRecorte, 0, 0, w, h);
 
         const capaId = nuevaCapa.id;
@@ -4446,7 +6916,7 @@ this.bgrmUI.panel.close();
             }
         });
 
-        // Limpiar selección para ver el trozo limpio
+ 
         this.selection.clear();
 
      
@@ -4533,6 +7003,9 @@ this.bgrmUI.panel.close();
             { id: 'poly',       label: 'POL', title: 'Selección Poligonal',      icon: '<path d="M2 12l5-9h10l5 9-5 9H7l-5-9zm6.1-7l-3.9 7 3.9 7h7.8l3.9-7-3.9-7H8.1z"/>' },
             { id: 'fill',       label: 'FIL', title: 'Bote de Pintura (G)',      icon: '<path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15a1.49 1.49 0 0 0 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z"/>' },
             { label: 'AI', title: 'AI Background Remover', action: () => this.abrirBGRMPipeline(), icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
+            { label: 'TIP', title: 'Generador Brochas', action: () => this.abrirBrushTipMaker(), icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>' },
+            { label: 'DYN', title: 'Dinámicas Brocha', action: () => this.abrirBrushDynamics(), icon: '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>' }
+            
         ];
 
         toolsConfig.forEach(t => {
@@ -4575,6 +7048,8 @@ this.bgrmUI.panel.close();
             if (this.toolButtons[id]) this.toolButtons[id].classList.toggle('active', id === toolId);
         });
     }
+
+    
     buildRightUI() {
         const pickerWidth = 310;
 
@@ -4595,7 +7070,7 @@ this.bgrmUI.panel.close();
             direction: 'column',
             width: pickerWidth
         }).mount(document.body);
-
+ 
         const containerEl = this.rightContainer.element;
         this.rightContainer.addPanel(this.colorPicker.panel);
         ToolJavaScriptGio.aplicarClase(containerEl, 'ui-fixed-top-right-compact');
@@ -4622,6 +7097,14 @@ this.bgrmUI.panel.close();
             text: 'Filtros FX', 
             onClick: () => this.abrirFiltrosGLFX() 
         }));
+        rEfectos.append(new UI.Button({ 
+    text: 'create Brush', 
+    onClick: () => this.abrirBrushTipMaker() 
+}));
+rEfectos.append(new UI.Button({ 
+    text: 'Brush Dinamic', 
+    onClick: () => this.abrirBrushDynamics() 
+}));
        
         rEfectos.append(new UI.Button({ 
     text: 'AI BG Cut', 
@@ -4729,7 +7212,7 @@ rEfectos.append(new UI.Button({
         const rExp = itemProj.addRow(4);
         rExp.append(new UI.Button({ text: 'Guardar PNG', variant: 'primary', onClick: () => ProjectExporter.exportImage(this.layers, 'png') }));
         rExp.append(new UI.Button({ text: 'Guardar JPG', onClick: () => ProjectExporter.exportImage(this.layers, 'jpg') }));
-
+ 
         panelRight.append(accordion);
         this.rightContainer.addPanel(panelRight);
     }
