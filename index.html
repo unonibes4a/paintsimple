@@ -5093,12 +5093,8 @@ class BackgroundRemover {
 
 </div>
 <script>
-   /**
- * VanillaColorPicker
- * Con inputs numéricos totalmente libres (step="any"), sin bloqueo de escritura
- * y soporte dual (rango 0.0-1.0 y 0-255).
- */
-class VanillaColorPicker {
+ 
+class GiovanniColorPicker {
     constructor(options = {}) {
         this.id = options.id || 'vcp_' + Math.random().toString(36).substring(2, 9);
         this.title = options.title || 'Selector HSV / RGB';
@@ -5317,7 +5313,7 @@ class VanillaColorPicker {
                 color: #676767;
             }
             .vcp-stats-val { color: #a0a0aa; font-weight: bold; }
-            .vcp-stats-ratio { color: #38bdf8; font-weight: bold; }
+            .vcp-stats-ratio { color: #4daafc; font-weight: bold; }
         `;
         document.head.appendChild(style);
     }
@@ -7693,7 +7689,7 @@ class ApplicationUI {
         }).mount(document.body);
 
  
-      this.colorPicker = new VanillaColorPicker({
+      this.colorPicker = new GiovanniColorPicker({
     id: 'brushCustomColorPicker',
     title: 'Selector HSV / RGB',
     hueWidth: 34,
