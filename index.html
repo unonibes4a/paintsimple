@@ -1880,7 +1880,240 @@ class BrushTipCreator {
  
    
  <script>
- class ProjectStorageDB {
+
+ class TileEngine {
+    constructor(sourceCanvas = null, options = {}) {
+        this.sourceCanvas = sourceCanvas;
+        this.outputCanvas = document.createElement('canvas');
+        this.ctx = this.outputCanvas.getContext('2d');
+        this.onRender = null;
+
+        this.repeatX = options.repeatX || 4;
+        this.repeatY = options.repeatY || 4;
+        this.randomOrthogonalRotation = options.randomOrthogonalRotation ?? true;
+
+        if (this.sourceCanvas) {
+            this.setSource(this.sourceCanvas);
+        }
+    }
+
+    setSource(canvasOrImage) {
+        if (!canvasOrImage) return;
+        this.sourceCanvas = canvasOrImage;
+        const w = canvasOrImage.naturalWidth || canvasOrImage.width;
+        const h = canvasOrImage.naturalHeight || canvasOrImage.height;
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+    }
+
+    setParams({ repeatX, repeatY, randomOrthogonalRotation }) {
+        if (repeatX !== undefined) this.repeatX = Math.max(1, Math.round(repeatX));
+        if (repeatY !== undefined) this.repeatY = Math.max(1, Math.round(repeatY));
+        if (randomOrthogonalRotation !== undefined) this.randomOrthogonalRotation = !!randomOrthogonalRotation;
+    }
+
+    render(targetW = null, targetH = null) {
+        if (!this.sourceCanvas) return;
+
+        const w = targetW || this.sourceCanvas.width;
+        const h = targetH || this.sourceCanvas.height;
+
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+
+        this.ctx.clearRect(0, 0, w, h);
+
+        const cellW = w / this.repeatX;
+        const cellH = h / this.repeatY;
+        const orthogonalAngles = [0, 90, 180, 270];
+
+        for (let ix = 0; ix < this.repeatX; ix++) {
+            for (let iy = 0; iy < this.repeatY; iy++) {
+                const centerX = ix * cellW + cellW / 2;
+                const centerY = iy * cellH + cellH / 2;
+
+                this.ctx.save();
+                this.ctx.translate(centerX, centerY);
+
+                let deg = 0;
+                if (this.randomOrthogonalRotation) {
+                    deg = orthogonalAngles[Math.floor(Math.random() * orthogonalAngles.length)];
+                    this.ctx.rotate((deg * Math.PI) / 180);
+                }
+
+                const isSwapped = (deg === 90 || deg === 270);
+                const drawW = isSwapped ? cellH : cellW;
+                const drawH = isSwapped ? cellW : cellH;
+
+                this.ctx.drawImage(this.sourceCanvas, -drawW / 2, -drawH / 2, drawW, drawH);
+                this.ctx.restore();
+            }
+        }
+
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    getCanvas() {
+        return this.outputCanvas;
+    }
+}
+
+class TileUI {
+    constructor(engine, app, options = {}) {
+        this.engine = engine;
+        this.app = app;
+        this.createInNewLayer = true;
+        this.newLayerResolution = 2048;
+
+        this.panel = new UI.SmartPanel({
+            id: options.id || 'panel_tile_engine',
+            title: options.title || 'Layer Pattern Tiler',
+            x: options.x ?? 80,
+            y: options.y ?? 100,
+            width: 290,
+            floating: options.floating ?? true
+        });
+
+        this.buildUI();
+    }
+
+    buildUI() {
+        const slRepeatX = new UI.ConfigurableSlider({
+            label: 'Horizontal Repeats (X)',
+            min: 1,
+            max: 32,
+            step: 1,
+            value: this.engine.repeatX,
+            onChange: (v) => this.engine.setParams({ repeatX: v })
+        });
+        this.panel.append(slRepeatX);
+
+        const slRepeatY = new UI.ConfigurableSlider({
+            label: 'Vertical Repeats (Y)',
+            min: 1,
+            max: 32,
+            step: 1,
+            value: this.engine.repeatY,
+            onChange: (v) => this.engine.setParams({ repeatY: v })
+        });
+        this.panel.append(slRepeatY);
+
+        const chkRandomRot = new UI.Toggle({
+            label: 'Random Orthogonal Rotation (90°, 180°, 270°)',
+            value: this.engine.randomOrthogonalRotation,
+            onChange: (v) => this.engine.setParams({ randomOrthogonalRotation: v })
+        });
+        this.panel.append(chkRandomRot);
+
+        const chkNewLayer = new UI.Toggle({
+            label: 'Generate in New Layer',
+            value: this.createInNewLayer,
+            onChange: (v) => { this.createInNewLayer = v; }
+        });
+        this.panel.append(chkNewLayer);
+
+        const resWrap = document.createElement('div');
+        resWrap.className = 'fb-row';
+        resWrap.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin:6px 0; width:100%;';
+
+        const resLabel = document.createElement('span');
+        resLabel.className = 'ui-label';
+        resLabel.textContent = 'Resolution';
+
+        const resInput = document.createElement('input');
+        resInput.type = 'number';
+        resInput.value = this.newLayerResolution;
+        resInput.min = '64';
+        resInput.max = '8192';
+        resInput.step = '64';
+        resInput.style.cssText = 'width:80px; padding:4px; border-radius:4px; border:1px solid #444; background:#222; color:#fff; text-align:right; font-size:12px;';
+        resInput.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10);
+            if (!isNaN(val) && val > 0) {
+                this.newLayerResolution = val;
+            }
+        });
+
+        resWrap.appendChild(resLabel);
+        resWrap.appendChild(resInput);
+        this.panel.append(resWrap);
+
+        const rActions = this.panel.addRow ? this.panel.addRow(6) : this._makeRow();
+
+        const btnApply = new UI.Button({
+            text: 'Tile Layer',
+            variant: 'primary',
+            onClick: () => this.executeTiling()
+        });
+
+        rActions.append ? rActions.append(btnApply) : rActions.appendChild(btnApply.element);
+    }
+
+    getActiveLayer() {
+        const stack = this.app?.layers;
+        if (!stack || !stack.layers || stack.layers.length === 0) return null;
+        if (typeof stack.getActiveLayer === 'function') {
+            return stack.getActiveLayer();
+        }
+        return stack.layers.find(l => l.id === stack.activeLayerId) || stack.layers[0];
+    }
+
+    executeTiling() {
+        const activeLayer = this.getActiveLayer();
+        if (!activeLayer) {
+            const hud = document.getElementById('hud');
+            if (hud) hud.textContent = 'No active layer';
+            return;
+        }
+
+        const targetW = this.createInNewLayer ? this.newLayerResolution : (activeLayer.width || activeLayer.canvas.width);
+        const targetH = this.createInNewLayer ? this.newLayerResolution : (activeLayer.height || activeLayer.canvas.height);
+
+        this.engine.setSource(activeLayer.canvas);
+        this.engine.render(targetW, targetH);
+
+        const resultCanvas = this.engine.getCanvas();
+
+        let targetLayer = activeLayer;
+        if (this.createInNewLayer) {
+            targetLayer = this.app.layers.createLayer(`${activeLayer.name} (Tiled ${targetW}x${targetH})`, targetW, targetH);
+            targetLayer.originalWidth = targetW;
+            targetLayer.originalHeight = targetH;
+            targetLayer.ctx.clearRect(0, 0, targetW, targetH);
+            targetLayer.ctx.drawImage(resultCanvas, 0, 0);
+        } else {
+            const before = activeLayer.getSnapshot();
+            targetLayer.ctx.clearRect(0, 0, targetW, targetH);
+            targetLayer.ctx.drawImage(resultCanvas, 0, 0);
+            const after = activeLayer.getSnapshot();
+            this.app.history.push({
+                undo: () => { activeLayer.restoreSnapshot(before); this.app.ajustarCanvasACapaActiva(); },
+                redo: () => { activeLayer.restoreSnapshot(after); this.app.ajustarCanvasACapaActiva(); }
+            });
+        }
+
+        if (this.app.layers?.syncDOM) {
+            this.app.layers.syncDOM();
+        }
+        if (typeof this.app.ajustarCanvasACapaActiva === 'function') {
+            this.app.ajustarCanvasACapaActiva();
+        }
+
+        const hud = document.getElementById('hud');
+        if (hud) {
+            hud.textContent = `Tiled layer (${this.engine.repeatX}x${this.engine.repeatY}) [${targetW}x${targetH}]`;
+        }
+    }
+
+    _makeRow() {
+        const d = document.createElement('div');
+        d.className = 'fb-row';
+        d.style.cssText = 'display:flex; gap:6px; margin:6px 0; width:100%;';
+        this.panel.append(d);
+        return d;
+    }
+}
+class ProjectStorageDB {
     constructor(dbName = 'PaintSimpleDB', version = 1) {
         this.dbName = dbName;
         this.version = version;
@@ -3793,8 +4026,6 @@ class CurveEngine {
     }
 }
 
-
-
 class PixelArtEngine {
     constructor(sourceCanvas = null) {
         this.sourceCanvas = sourceCanvas;
@@ -4781,36 +5012,36 @@ class BackgroundRemover {
     transition: background 0.15s ease, color 0.15s ease;
 }
 
-/* Alineación del icono SVG con el texto */
+ 
 .ctx-item span:first-child {
     display: inline-flex;
     align-items: center;
-    gap: 8px; /* Espacio entre el SVG y el texto */
+    gap: 8px;  
 }
 
-/* Atajos de teclado a la derecha */
+ 
 .ctx-shortcut {
     font-size: 11px;
     opacity: 0.7;
     margin-left: 16px;
 }
 
-/* Línea separadora usando el mismo borde */
+ 
 .ctx-item-sep {
     height: 1px;
     background-color: rgba(69, 69, 69, 0.5);
     margin: 4px 0;
 }
 
-/* Efecto al pasar el cursor (hover) */
+ 
 .ctx-item:hover {
-    background: rgba(255, 255, 255, 0.08); /* Ilumina suavemente */
-    color: #e0e0e0;                        /* Resalta el texto y el SVG */
+    background: rgba(255, 255, 255, 0.08);  
+    color: #e0e0e0;                        
 }
         .ctx-item span:first-child {
     display: inline-flex;
     align-items: center;
-    gap: 8px; /* Espacio entre el SVG y el texto */
+    gap: 8px;  
 }
     .cllcssopTolls {
         position: fixed;
@@ -4901,7 +5132,7 @@ class BackgroundRemover {
     .fb-colorpicker { display: flex; flex-direction: column; gap: 6px; background: #151a24; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); }
     .fb-colorpicker input[type="color"] { border: 1px solid #334155; width: 100%; height: 32px; border-radius: 4px; cursor: pointer; background: transparent; }
 
-    /* MENÚ CONTEXTUAL FLOTANTE (CLIC DERECHO) */
+ 
     #custom-context-menu {
         position: fixed;
         z-index: 100000;
@@ -5101,14 +5332,14 @@ class GiovanniColorPicker {
         this.onChange = options.onChange || (() => {});
         this.onEyedropper = options.onEyedropper || (() => {});
 
-        // false = Rectangular | true = Triangular
+ 
         this.isTriangle = options.isTriangle ?? false;
 
         this.hueWidth = options.hueWidth || 34;
         this.canvasHeight = options.canvasHeight || 190;
         this.isEyedropperActive = false;
 
-        // Estado inicial RGB (0.00 a 1.00)
+ 
         const init = options.initialColor || { r: 0.4, g: 1.0, b: 0.4, a: 1.0 };
         this.r = init.r > 1 ? init.r / 255 : (init.r ?? 1.0);
         this.g = init.g > 1 ? init.g / 255 : (init.g ?? 1.0);
@@ -5323,7 +5554,7 @@ class GiovanniColorPicker {
         this.container.id = this.id;
         this.container.className = 'vcp-root';
 
-        // 1. Cabecera
+ 
         const header = document.createElement('div');
         header.className = 'vcp-header';
 
@@ -5398,7 +5629,7 @@ class GiovanniColorPicker {
         this.rectArea.appendChild(this.hueCanvas);
         this.container.appendChild(this.rectArea);
 
-        // 2.B: Área Triangular
+         
         this.triangleArea = document.createElement('div');
         this.triangleArea.style.width = '100%';
         this.triangleArea.style.height = this.canvasHeight + 'px';
@@ -5412,7 +5643,7 @@ class GiovanniColorPicker {
         this.triangleArea.appendChild(this.triangleCanvas);
         this.container.appendChild(this.triangleArea);
 
-        // 3. Fila HEX y OBJETO RGBA
+ 
         const hexRow = document.createElement('div');
         hexRow.className = 'vcp-row';
 
@@ -5434,7 +5665,7 @@ class GiovanniColorPicker {
         hexRow.appendChild(this.inputRgbaObj);
         this.container.appendChild(hexRow);
 
-        // 4. Inputs numéricos R, G, B, A (SIN RESTRICCIÓN DE ESCRITURA)
+      
         const rgbaGrid = document.createElement('div');
         rgbaGrid.className = 'vcp-grid-rgba';
 
@@ -5450,7 +5681,7 @@ class GiovanniColorPicker {
             const num = document.createElement('input');
             num.type = 'number';
             num.className = 'vcp-input';
-            num.step = 'any'; // <-- PERMITE CUALQUIER VALOR O DECIMAL LIBREMENTE
+            num.step = 'any';  
             num.value = this[ch].toFixed(3);
 
             cell.appendChild(lbl);
@@ -5458,16 +5689,16 @@ class GiovanniColorPicker {
             rgbaGrid.appendChild(cell);
             this.inputs[ch] = num;
 
-            // Manejador que no interrumpe mientras escribes
+   
             num.addEventListener('input', () => {
                 const raw = num.value.trim();
-                // Si el usuario acaba de teclear "0." o está borrando, no forzar nada
+              
                 if (raw === '' || raw === '.' || raw === '-.' || raw.endsWith('.')) return;
 
                 let val = parseFloat(raw);
                 if (isNaN(val)) return;
 
-                // Si escribe formato 0-255 (ej: 128 o 255), lo normaliza automáticamente
+            
                 if (val > 1 && ch !== 'a') {
                     val = val / 255;
                 }
@@ -5482,12 +5713,12 @@ class GiovanniColorPicker {
                     this.hex = this.rgbToHex(this.r, this.g, this.b);
                 }
 
-                // Actualiza canvas y otros inputs SIN sobreescribir este que estás tecleando
+          
                 this.updateUI(ch);
                 this.emit();
             });
 
-            // Al salir del input, redondea de forma limpia a 3 decimales
+      
             num.addEventListener('blur', () => {
                 num.value = parseFloat(this[ch].toFixed(3));
             });
@@ -5495,7 +5726,7 @@ class GiovanniColorPicker {
 
         this.container.appendChild(rgbaGrid);
 
-        // 5. Estadísticas
+ 
         this.statsBox = document.createElement('div');
         this.statsBox.className = 'vcp-stats-box';
         this.lblMin = document.createElement('div');
@@ -5506,7 +5737,7 @@ class GiovanniColorPicker {
         this.statsBox.appendChild(this.lblRatio);
         this.container.appendChild(this.statsBox);
 
-        // Eventos de inputs de texto
+ 
         this.inputHex.addEventListener('change', (e) => {
             let val = e.target.value.trim();
             if (!val.startsWith('#')) val = '#' + val;
@@ -5857,15 +6088,12 @@ class GiovanniColorPicker {
         this.lblRatio.innerHTML = `Mín/Máx: <span class="vcp-stats-ratio">${ratio.toFixed(3)}</span>`;
     }
 
-    /**
-     * Actualiza la interfaz. Si se le pasa `skipChannel`, no toca ese input
-     * para no interrumpir lo que el usuario está escribiendo.
-     */
+    
     updateUI(skipChannel = null) {
         this.previewColor.style.background = this.getRGBAString();
 
         ['r', 'g', 'b', 'a'].forEach(ch => {
-            // No sobreescribir el campo que el usuario tiene enfocado/activo
+      
             if (ch !== skipChannel && document.activeElement !== this.inputs[ch]) {
                 this.inputs[ch].value = parseFloat(this[ch].toFixed(3));
             }
@@ -7340,10 +7568,7 @@ if (this.currentTool === 'eyedropper') {
             const pureMultG = (lG * bG) / 255;
             const pureMultB = (lB * bB) / 255;
 
-/*             const targetR = lR * (1.0 - multFactor) + pureMultR * multFactor;
-            const targetG = lG * (1.0 - multFactor) + pureMultG * multFactor;
-            const targetB = lB * (1.0 - multFactor) + pureMultB * multFactor;
- */
+
             if (lA <= 0.01) {
                 layerData[lIdx] = bR;
                 layerData[lIdx + 1] = bG;
@@ -7768,21 +7993,25 @@ this.rightContainer.addPanel(this.colorPicker.element);;
         });
 
         const accordion = new UI.Accordion({ exclusive: false });
-        const itemLayers = accordion.addItem({ title: 'Capas (Layers)', open: true });
+        const itemLayers = accordion.addItem({ title: 'Layers', open: true });
 
         const rCanvasAdjust = itemLayers.addRow(4);
         rCanvasAdjust.append(new UI.Button({ text: 'View Only This', variant: 'primary', onClick: () => this.app.ajustarCanvasACapaActiva() }));
-        rCanvasAdjust.append(new UI.Button({ text: 'Adaptar a Lienzo (W)', onClick: () => this.app.adaptarCapaActivaAlCanvas() }));
+        rCanvasAdjust.append(new UI.Button({ text: 'Fit to Canvas (W)', onClick: () => this.app.adaptarCapaActivaAlCanvas() }));
 
         const rEfectos = itemLayers.addRow(4);
-        rEfectos.append(new UI.Button({ text: 'Filtros FX', onClick: () => this.app.abrirFiltrosGLFX() }));
+        rEfectos.append(new UI.Button({ text: 'Filers FX', onClick: () => this.app.abrirFiltrosGLFX() }));
         rEfectos.append(new UI.Button({ text: 'create Brush', onClick: () => this.app.abrirBrushTipMaker() }));
         rEfectos.append(new UI.Button({ text: 'Brush Dinamic', onClick: () => this.app.abrirBrushDynamics() }));
         rEfectos.append(new UI.Button({ text: 'AI BG Cut', variant: 'primary', onClick: () => this.app.abrirBGRMPipeline() }));
         rEfectos.append(new UI.Button({ text: 'Pixel Art', onClick: () => this.app.abrirPixelArt() }));
-        rEfectos.append(new UI.Button({ text: '📈 Curvas', onClick: () => this.app.abrirCurvasRGBA() }));
+        rEfectos.append(new UI.Button({ text: 'Curve', onClick: () => this.app.abrirCurvasRGBA() }));
+        rEfectos.append(new UI.Button({ text: 'To tile', variant: 'primary', onClick: () => this.app.abrirTiler() })); 
+        
 
         const rTop = itemLayers.addRow(4);
+        rTop.append(new UI.Button({ text: 'Copy Layer', variant: 'primary', onClick: async () => { const act = this.app.layers.getActiveLayer(); if (!act) return alert('There is no active layer to copy'); await this.app.clipboard.copy(act, null); if (navigator.clipboard && window.ClipboardItem) { act.canvas.toBlob(async (blob) => { if (blob) { try { await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]); this.setHUD(`✓ Capa "${act.name}" copiada al portapapeles del sistema`); } catch (err) { this.setHUD(`layer "${act.name}" Copy (búfer Int)`); } } }, 'image/png'); } else { this.setHUD(`layer "${act.name}" Copy`); } } }));
+         
         rTop.append(new UI.Button({ text: 'new', variant: 'primary', onClick: () => { this.app.layers.createLayer(); this.app.ajustarCanvasACapaActiva(); } }));
         rTop.append(new UI.Button({ text: 'Duplicar', onClick: () => { this.app.layers.duplicateLayer(this.app.layers.activeLayerId); this.app.ajustarCanvasACapaActiva(); } }));
         rTop.append(new UI.Button({ 
@@ -7967,7 +8196,7 @@ class EffectsManager {
     constructor(app) {
         this.app = app;
 
-        // Fuentes temporales compartidas o dinámicas
+   
         this.curveSourceCanvas = null;
         this.pixelArtSourceCanvas = null;
         this.glfxSourceCanvas = null;
@@ -7978,12 +8207,59 @@ class EffectsManager {
         this.initCurves();
         this.initBGRMPipeline();
         this.initToolPanels();
+        this.initTiler();
+    }
+    initBackgroundRemover() {
+        if (typeof BackgroundRemover !== 'undefined') {
+            this.bgRemover = new BackgroundRemover({
+                keepTransparency: true,
+                onStart: () => this.app.ui.setHUD('Removing background with AI...'),
+                onProgress: (pct) => this.app.ui.setHUD(`AI Model: ${pct}%`),
+                onFinish: ({ canvas }) => {
+                    const act = this.app.layers.getActiveLayer();
+                    if (!act) return;
+                    const before = act.getSnapshot();
+                    act.ctx.clearRect(0, 0, act.width, act.height);
+                    act.ctx.drawImage(canvas, 0, 0);
+                    const after = act.getSnapshot();
+
+                    this.app.history.push({
+                        undo: () => { act.restoreSnapshot(before); this.app.ajustarCanvasACapaActiva(); },
+                        redo: () => { act.restoreSnapshot(after); this.app.ajustarCanvasACapaActiva(); }
+                    });
+
+                    this.app.ajustarCanvasACapaActiva();
+                    this.app.ui.setHUD('Background successfully removed');
+                },
+                onError: (err) => {
+                    alert('Error removing background: ' + err.message);
+                    this.app.ui.setHUD('Error removing background');
+                }
+            });
+        } else {
+            this.bgRemover = null;
+        }
     }
 
-    /* ========================================================
-       1. REMOVEDOR DE FONDO SIMPLE (IA)
-       ======================================================== */
-    initBackgroundRemover() {
+   initTiler() {
+        this.tileEngine = new TileEngine();
+        this.tileUI = new TileUI(this.tileEngine, this.app, {
+            title: 'Repetición de Patrón (Tiler)',
+            x: 80,
+            y: 80,
+            floating: true
+        });
+        this.tileUI.panel.close();
+    }
+
+    abrirTiler() {
+        const act = this.app.layers.getActiveLayer();
+        if (!act) return alert('No hay capa activa');
+        if (!this.tileUI) this.initTiler();
+        this.tileUI.panel.open();
+    }
+
+    initBackgroundRemoverno() {
         this.bgRemover = new BackgroundRemover({
             keepTransparency: true,
             onStart: () => this.app.ui.setHUD(' Removiendo fondo con IA...'),
@@ -8011,9 +8287,7 @@ class EffectsManager {
         });
     }
 
-    /* ========================================================
-       2. WEBGL GLFX
-       ======================================================== */
+    
     initGLFX() {
         this.glfxEngine = new GLFXEngine();
         this.glfxActive = false;
@@ -8065,9 +8339,6 @@ class EffectsManager {
         this.glfxUI.panel.close();
     }
 
-    /* ========================================================
-       3. PIXEL ART
-       ======================================================== */
     initPixelArt() {
         this.pixelArtEngine = new PixelArtEngine();
         this.pixelArtActive = false;
@@ -8112,9 +8383,6 @@ class EffectsManager {
         this.pixelArtUI.panel.close();
     }
 
-    /* ========================================================
-       4. CURVAS RGBA
-       ======================================================== */
     initCurves() {
         this.curveEngine = new CurveEngine();
         this.curveActive = false;
@@ -8159,9 +8427,7 @@ class EffectsManager {
         this.curveUI.panel.close();
     }
 
-    /* ========================================================
-       5. BGRM PIPELINE (AI AVANZADA)
-       ======================================================== */
+  
     initBGRMPipeline() {
         this.bgrmPipeline = new BGRMPipeline();
         this.bgrmActive = false;
@@ -8209,9 +8475,7 @@ class EffectsManager {
         this.bgrmUI.panel.close();
     }
 
-    /* ========================================================
-       6. PANELES SECUNDARIOS
-       ======================================================== */
+ 
     initToolPanels() {
         this.brushTipUI = new BrushTipMakerUI(this.app.brush, {
             title: 'Brush Generator', x: 80, y: 80, floating: true,
@@ -8229,9 +8493,6 @@ class EffectsManager {
         this.projectStorageUI.panel.close();
     }
 
-    /* ========================================================
-       MÉTODOS DE APERTURA / ACCIÓN
-       ======================================================== */
     abrirFiltrosGLFX() {
         const act = this.app.layers.getActiveLayer();
         if (!act) return alert('No hay capa activa');
@@ -8304,8 +8565,6 @@ class EffectsManager {
 }
 
 
-
-
 class InputController {
     constructor(app) {
         this.app = app;
@@ -8314,7 +8573,7 @@ class InputController {
     }
 
     bindEvents() {
-        // Menú Contextual en Click Derecho
+ 
         window.addEventListener('contextmenu', (e) => {
             if (e.target.closest('#canvas-stage')) {
                 e.preventDefault();
@@ -8325,7 +8584,7 @@ class InputController {
             }
         });
 
-        // Drag & Drop de imágenes
+  
         window.addEventListener('dragover', (e) => e.preventDefault());
         window.addEventListener('drop', (e) => {
             e.preventDefault();
@@ -8339,7 +8598,7 @@ class InputController {
             }
         });
 
-        // Pegar imagen del portapapeles nativo (Ctrl + V)
+ 
         window.addEventListener('paste', async (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
@@ -8366,7 +8625,7 @@ class InputController {
             }
         });
 
-        // Atajos de teclado
+     
         window.addEventListener('keydown', (e) => this.handleKeyDown(e));
         window.addEventListener('keyup', (e) => {
             if (e.code === 'Space') {
@@ -8376,7 +8635,7 @@ class InputController {
             }
         });
 
-        // Puntero / Dibujo / Navegación
+     
         this.app.ui.stage.addEventListener('pointerdown', (e) => {
             this.app.ui.hideContextMenu();
             if (this.isSpacePressed || e.button === 1) {
@@ -8433,14 +8692,14 @@ class InputController {
             const act = this.app.layers.getActiveLayer();
             if (act) await this.app.clipboard.cut(act, this.app.selection);
         }
-      // DESHACER: Ctrl + Z (sin Shift)
+ 
         if (e.ctrlKey && (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
             e.preventDefault();
             this.app.history.undo();
             return;
         }
 
-        // REHACER: Ctrl + Y  O  Ctrl + Shift + Z
+  
         const isRedo = (e.ctrlKey && (e.code === 'KeyY' || e.key === 'y' || e.key === 'Y')) ||
                        (e.ctrlKey && e.shiftKey && (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z'));
 
@@ -8474,9 +8733,6 @@ class InputController {
 }
 
 
-
-
-
  class ApplicationAdapter {
     constructor() {
         this.initialCanvasWidth = 1024;
@@ -8487,20 +8743,23 @@ class InputController {
         this.preStrokeState = null;
         this.contextCoords = { x: 0, y: 0 };
 
-        // 1. Iniciar motores base
+   
         this.initCoreEngines();
 
-        // 2. Interfaz de Usuario
+    
         this.ui = new ApplicationUI(this);
 
-        // 3. Módulos especializados
+     
         this.effects = new EffectsManager(this);
         this.input = new InputController(this);
 
-        // 4. Sincronizar y configurar capa inicial
+   
         this.syncInteractiveCanvases(this.defaultWidth, this.defaultHeight);
         this.layers.createLayer('Fondo', this.defaultWidth, this.defaultHeight);
         requestAnimationFrame(() => this.ajustarCanvasACapaActiva());
+    }
+    abrirTiler() {
+        this.effects.abrirTiler();
     }
 
     initCoreEngines() {
@@ -8700,7 +8959,7 @@ class InputController {
         this.ajustarCanvasACapaActiva();
     }
 
-    // Puentes (Proxies) para que los botones existentes de ApplicationUI sigan funcionando sin cambios
+    
     abrirFiltrosGLFX() { this.effects.abrirFiltrosGLFX(); }
     abrirPixelArt() { this.effects.abrirPixelArt(); }
     abrirCurvasRGBA() { this.effects.abrirCurvasRGBA(); }
