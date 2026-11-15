@@ -7459,14 +7459,33 @@ drawInterpolatedStampDirectCombiando(ctx, x, y) {
     }
 }
 
+
 class ProjectExporter {
     static exportImage(layerStack, format = 'png') {
+        const activeLayer = layerStack.getActiveLayer();
+        const onlyActive = confirm(
+            '¿Deseas exportar solo la capa activa?\n\n' +
+            '• Aceptar: Exportar únicamente la capa activa.\n' +
+            '• Cancelar: Exportar todas las capas.'
+        );
+
+        if (onlyActive && !activeLayer) {
+            alert('No hay ninguna capa activa para exportar.');
+            return;
+        }
+
         let maxWidth = 1;
         let maxHeight = 1;
-        layerStack.layers.forEach(l => {
-            if (l.width > maxWidth) maxWidth = l.width;
-            if (l.height > maxHeight) maxHeight = l.height;
-        });
+
+        if (onlyActive) {
+            maxWidth = activeLayer.width;
+            maxHeight = activeLayer.height;
+        } else {
+            layerStack.layers.forEach(l => {
+                if (l.width > maxWidth) maxWidth = l.width;
+                if (l.height > maxHeight) maxHeight = l.height;
+            });
+        }
 
         const out = document.createElement('canvas');
         out.width = maxWidth;
@@ -7478,25 +7497,31 @@ class ProjectExporter {
             octx.fillRect(0, 0, maxWidth, maxHeight);
         }
 
-        layerStack.layers.forEach(l => {
-            if (l.visible) {
-                octx.save();
-                octx.globalAlpha = l.opacity;
-                octx.globalCompositeOperation = (l.blendMode === 'normal') ? 'source-over' : (l.blendMode || 'source-over');
-                octx.drawImage(l.canvas, 0, 0);
-                octx.restore();
-            }
-        });
+        if (onlyActive) {
+            octx.save();
+            octx.globalAlpha = activeLayer.opacity;
+            octx.drawImage(activeLayer.canvas, 0, 0);
+            octx.restore();
+        } else {
+            layerStack.layers.forEach(l => {
+                if (l.visible) {
+                    octx.save();
+                    octx.globalAlpha = l.opacity;
+                    octx.globalCompositeOperation = (l.blendMode === 'normal') ? 'source-over' : (l.blendMode || 'source-over');
+                    octx.drawImage(l.canvas, 0, 0);
+                    octx.restore();
+                }
+            });
+        }
 
         const mime = (format === 'jpg' || format === 'jpeg') ? 'image/jpeg' : 'image/png';
+        const prefix = onlyActive ? 'capa_activa' : 'proyecto';
         const a = document.createElement('a');
-        a.download = `proyecto_${Date.now()}.${format}`;
+        a.download = `${prefix}_${Date.now()}.${format}`;
         a.href = out.toDataURL(mime, 0.95);
         a.click();
     }
 }
-
- 
 
 class ApplicationUI {
     constructor(adapter) {
