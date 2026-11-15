@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paint simple</title>
- <!--  <script src="./a.js"></script>  -->
-       <script src="https://unonibes4a.github.io/pintaresta/a.js"></script> 
+   <script src="./a.js"></script>   
+      <!--  <script src="https://unonibes4a.github.io/pintaresta/a.js"></script>  -->
  
       <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/ort.min.js"></script>
         <scripts  src="https://evanw.github.io/glfx.js/glfx.js"></scripts>
@@ -2970,7 +2970,7 @@ class ProjectStorageUI {
 
             const meta = document.createElement('span');
             meta.textContent = `${new Date(p.updatedAt).toLocaleTimeString()} - ${p.layers.length} layers`;
-            meta.style.cssText = 'font-size:9px; color:#94a3b8;';
+            meta.style.cssText = 'font-size:9px; color:#b6b5b1;';
 
             info.appendChild(title);
             info.appendChild(meta);
@@ -5651,7 +5651,7 @@ class BackgroundRemover {
     .btn-sq-custom:hover { background: #323946; border-color: #12121212; color: #ffffff; }
     .btn-sq-custom.active { background: #3333; border-color: #12121212; color: #ffffff;  }
     .custom-slider-box { display: flex; flex-direction: column; gap: 4px; width: 125px; }
-    .custom-slider-header { display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; font-family: monospace; font-weight: bold; }
+    .custom-slider-header { display: flex; justify-content: space-between; font-size: 10px; color: #b6b5b1; font-family: monospace; font-weight: bold; }
     .custom-slider-range { -webkit-appearance: none; appearance: none; width: 100%; height: 5px; background: #121212; border-radius: 3px; outline: none; cursor: pointer; }
     .custom-slider-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #343434; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); cursor: pointer; transition: transform 0.1s ease; }
     .custom-slider-range::-webkit-slider-thumb:hover { transform: scale(1.04); }
@@ -5669,9 +5669,9 @@ class BackgroundRemover {
     .cad-hud { position: absolute; right: 20%; bottom: 14px; background: #1212128d; border: 1px solid rgba(255, 255, 255, 0.15); color: #777777; font-size: 11px; padding: 6px 14px; border-radius: 6px; z-index: 1050; font-family: monospace; backdrop-filter: blur(8px); box-shadow: 0 4px 15px rgba(0,0,0,0.6);  width:300px;}
     #left-toolbar-strip { position: fixed; top: 12px; bottom: 12px; left: 12px; width: 54px; background: #242424; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; flex-direction: column; align-items: center; padding: 8px 4px; gap: 4px; overflow-y: scroll; max-height: calc(100vh - 40px); }
     
-    .tool-btn { width: 44px; height: 40px; border-radius: 6px; background: #333333; border: 1px solid rgba(255,255,255,0.08); color: #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease; font-size: 9px; font-weight: 700; flex-shrink: 0;   }
-    .tool-btn:hover { background: #333333; color: #ffffff; border-color: rgba(255, 255, 255, 0.25); }
-    .tool-btn.active { background: #373737; color: #ffffff; border-color: #12121212; }
+    .tool-btn { width: 44px; height: 40px; border-radius: 6px; background: #333333; border: 1px solid rgba(255,255,255,0.08); color: #b6b5b1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease; font-size: 9px; font-weight: 700; flex-shrink: 0;   }
+    .tool-btn:hover { background: #333333; color: #4daafc; border-color: rgba(255, 255, 255, 0.25); }
+    .tool-btn.active { background: #373737; color: #4daafc; border-color: #404043; }
     .tool-btn svg { width: 17px; height: 17px; fill: currentColor; margin-bottom: 2px; }
     .tool-sep { width: 34px; height: 1px; background: rgba(255, 255, 255, 0.12); margin: 4px 0; flex-shrink: 0; }
     #dock_right { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; max-height: calc(100vh - 24px); overflow-y: auto; }
@@ -5732,7 +5732,7 @@ class BackgroundRemover {
         margin: 4px 0;
     }
     .ctx-shortcut {
-        color: #94a3b8;
+        color: #b6b5b1;
         font-size: 10px;
         margin-left: 14px;
         font-family: monospace;
