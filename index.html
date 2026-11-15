@@ -2510,17 +2510,17 @@ class BrushDynamicsUI {
         this.panel.append(slSize);
 
         const slOpacity = new UI.ConfigurableSlider({
-            label: 'Alpha / Global Opacity',
-            min: 0.01,
+            label: 'Alpha',
+            min: 0.00,
             max: 1.0,
-            step: 0.01,
+            step: 0.001,
             value: this.brush.opacity,
             onChange: (v) => this.brush.set('opacity', v)
         });
         this.panel.append(slOpacity);
 
         const slHardness = new UI.ConfigurableSlider({
-            label: 'Dureza / Caída Radial',
+            label: 'Hardness',
             min: 0.0,
             max: 0.99,
             step: 0.01,
@@ -6193,23 +6193,25 @@ class GiovanniColorPicker {
 
 </script>  
 <script>
- class BrushCursorOverlay {
+   class BrushCursorOverlay {
     constructor({
         container,
         getBrushProps = () => ({ size: 50, angle: 0, stampImage: null, color: '#ffffff', opacity: 1, hardness: 0.5 }),
         isVisible = () => true,
-        borderColor = '#000000',
-        borderWidth = 1.5,
-        contrastColor = '#ffffff',
-        fillColor = 'rgba(0, 0, 0, 0.05)',
-        showCenterPoint = true,
+        opacityMultiplier = 1,
+        borderOpacity = 0.35,
+        borderColor = '#ffffff',
+        borderWidth = 1,
+        contrastColor = null,
+        showCenterPoint = false,
         centerPointColor = '#ffffff',
         dash = [4, 4]
     } = {}) {
+        this.opacityMultiplier = opacityMultiplier;
+        this.borderOpacity = borderOpacity;
         this.borderColor = borderColor;
         this.borderWidth = borderWidth;
         this.contrastColor = contrastColor;
-        this.fillColor = fillColor;
         this.showCenterPoint = showCenterPoint;
         this.centerPointColor = centerPointColor;
         this.dash = dash;
@@ -6267,31 +6269,18 @@ class GiovanniColorPicker {
         const angle = ((props.angle || 0) * Math.PI) / 180;
         const img = props.stampImage;
 
+        const brushOpacity = props.opacity ?? 1;
+        const finalOpacity = Math.max(0, Math.min(1, brushOpacity * this.opacityMultiplier));
+
         this.ctx.save();
         this.ctx.translate(x, y);
         if (angle !== 0) this.ctx.rotate(angle);
 
         if (img && (img.complete || img.width > 0)) {
             this.ctx.save();
-            this.ctx.globalAlpha = 0.5;
+            this.ctx.globalAlpha = finalOpacity;
             this.ctx.drawImage(img, -radius, -radius, size, size);
             this.ctx.restore();
-
-            if (this.contrastColor) {
-                this.ctx.beginPath();
-                this.ctx.rect(-radius, -radius, size, size);
-                this.ctx.lineWidth = this.borderWidth + 1.5;
-                this.ctx.strokeStyle = this.contrastColor;
-                this.ctx.setLineDash([]);
-                this.ctx.stroke();
-            }
-
-            this.ctx.beginPath();
-            this.ctx.rect(-radius, -radius, size, size);
-            this.ctx.lineWidth = this.borderWidth;
-            this.ctx.strokeStyle = this.borderColor;
-            this.ctx.setLineDash(this.dash);
-            this.ctx.stroke();
         } else {
             const hard = Math.max(0, Math.min(0.999, props.hardness ?? 0.5));
             const grad = this.ctx.createRadialGradient(0, 0, radius * hard, 0, 0, radius);
@@ -6299,12 +6288,17 @@ class GiovanniColorPicker {
             grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
             this.ctx.save();
-            this.ctx.globalAlpha = 0.35;
+            this.ctx.globalAlpha = finalOpacity;
             this.ctx.beginPath();
             this.ctx.arc(0, 0, radius, 0, Math.PI * 2);
             this.ctx.fillStyle = grad;
             this.ctx.fill();
             this.ctx.restore();
+        }
+
+        if (this.borderOpacity > 0) {
+            this.ctx.save();
+            this.ctx.globalAlpha = this.borderOpacity;
 
             if (this.contrastColor) {
                 this.ctx.beginPath();
@@ -6315,12 +6309,16 @@ class GiovanniColorPicker {
                 this.ctx.stroke();
             }
 
-            this.ctx.beginPath();
-            this.ctx.arc(0, 0, radius, 0, Math.PI * 2);
-            this.ctx.lineWidth = this.borderWidth;
-            this.ctx.strokeStyle = this.borderColor;
-            this.ctx.setLineDash(this.dash);
-            this.ctx.stroke();
+            if (this.borderWidth > 0) {
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                this.ctx.lineWidth = this.borderWidth;
+                this.ctx.strokeStyle = this.borderColor;
+                this.ctx.setLineDash(this.dash);
+                this.ctx.stroke();
+            }
+
+            this.ctx.restore();
         }
 
         if (this.showCenterPoint) {
@@ -6334,7 +6332,8 @@ class GiovanniColorPicker {
         this.ctx.restore();
     }
 }
- const MathCad = {
+
+const MathCad = {
     distanciaPuntoSegmento(p, a, b) {
         const dx = b.x - a.x;
         const dy = b.y - a.y;
@@ -6986,12 +6985,12 @@ class LayerStackEngine {
     }
 }
 
- class BrushSettingsEngine {
+ class BrushSettingsEngine { 
     constructor({ onSettingsChange = () => {} } = {}) {
         this.size = 50;
         this.aspectRatio = 0.0;
         this.hardness = 0.5;
-        this.opacity = 1.0;
+        this.opacity = 0.07;
         this.force = 100.0;
         this.angle = 0;
         this.randomRotation = false;
@@ -8082,14 +8081,14 @@ class ApplicationUI {
             this.app.setActiveTool('brush');
         }
     },
-
     onChange: (rgba, rgba255, hex, alpha) => {
         if (this.app.isInternalColorSync) return;
         this.app.isInternalColorSync = true;
         this.app.brush.set('mainColor', hex, false);
-        this.app.brush.set('opacity', alpha);
         this.app.isInternalColorSync = false;
     }
+
+  
 });
 
 this.rightContainer.addPanel(this.colorPicker);
@@ -8525,7 +8524,7 @@ class EffectsManager {
         };
 
         this.curveUI = new CurveUI(this.curveEngine, {
-            title: 'Curvas RGBA',
+            title: 'curves RGBA',
             x: 80, y: 80, floating: true,
             onApply: () => {
                 const act = this.app.layers.getActiveLayer();
@@ -8911,19 +8910,26 @@ this.app.ui.stage.addEventListener('pointerleave', () => {
     }
     inibrushcircledrawoverlay(){ 
 const viewportEl = document.getElementById('viewport-transform');
-this.brushCursor = new BrushCursorOverlay({
+ this.brushCursor = new BrushCursorOverlay({
     container: document.getElementById('viewport-transform'),
     getBrushProps: () => ({
         size: this.brush.size,
         angle: this.brush.angle,
         stampImage: this.brush.stampImage,
         color: this.brush.mainColor,
+        opacity: this.brush.opacity,
         hardness: this.brush.hardness
     }),
     isVisible: () => ['brush', 'eraser', 'clone', 'stamp'].includes(this.tools.currentTool),
-    dash: [4, 4]
+    opacityMultiplier: 0.27,
+    borderOpacity: 0.9,
+    borderWidth: 1,         
+    dash: [4, 4],      
+    contrastColor: null
 });
-    }
+
+
+}
 
     initCoreEngines() {
         const stageEl = document.getElementById('canvas-stage');
