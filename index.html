@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paint simple</title>
- 
+ <!--  <script src="./a.js"></script>  -->
        <script src="https://unonibes4a.github.io/pintaresta/a.js"></script> 
  
       <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/ort.min.js"></script>
@@ -1880,8 +1880,573 @@ class BrushTipCreator {
  
    
  <script>
+ class GradientEngine {
+    constructor(sourceCanvas = null) {
+        this.sourceCanvas = sourceCanvas;
+        this.outputCanvas = document.createElement('canvas');
+        this.ctx = this.outputCanvas.getContext('2d', { willReadFrequently: true });
 
- class TileEngine {
+        this.tempCanvas = document.createElement('canvas');
+        this.tempCtx = this.tempCanvas.getContext('2d');
+
+        this.onRender = null;
+        this.hasRendered = false;
+
+        this.type = 'linear';
+        this.opacity = 1;
+        this.points = [];
+
+        this.defaultStops = [
+            { color: '#26160c', offset: 0.00 },
+            { color: '#4e2f1a', offset: 0.33 },
+            { color: '#7c4d2b', offset: 0.66 },
+            { color: '#b07d4f', offset: 1.00 }
+        ];
+        this.stops = this.defaultStops.map(s => ({ ...s }));
+    }
+
+    setSource(canvasOrImage) {
+        if (!canvasOrImage) return;
+        this.sourceCanvas = canvasOrImage;
+        const w = canvasOrImage.naturalWidth || canvasOrImage.videoWidth || canvasOrImage.width;
+        const h = canvasOrImage.naturalHeight || canvasOrImage.videoHeight || canvasOrImage.height;
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+        this.tempCanvas.width = w;
+        this.tempCanvas.height = h;
+        this.ctx.clearRect(0, 0, w, h);
+        this.ctx.drawImage(canvasOrImage, 0, 0);
+        this.hasRendered = false;
+    }
+
+    setType(type) {
+        this.type = type === 'radial' ? 'radial' : 'linear';
+    }
+
+    setOpacity(val) {
+        this.opacity = Math.max(0, Math.min(1, Number(val)));
+        if (this.hasRendered) {
+            this.render();
+        }
+    }
+
+    addPoint(x, y) {
+        if (this.points.length >= 2) {
+            this.points = [];
+        }
+        this.points.push({ x: Math.round(x), y: Math.round(y) });
+    }
+
+    clearPoints() {
+        this.points = [];
+    }
+
+    redistributeStops() {
+        const len = this.stops.length;
+        if (len === 1) {
+            this.stops[0].offset = 0;
+            return;
+        }
+        this.stops.forEach((s, i) => {
+            s.offset = Number((i / (len - 1)).toFixed(2));
+        });
+    }
+
+    addStop(color = '#ffffff') {
+        this.stops.push({ color, offset: 1 });
+        this.redistributeStops();
+    }
+
+    removeStop(index = -1) {
+        if (this.stops.length <= 2) return false;
+        if (index >= 0 && index < this.stops.length) {
+            this.stops.splice(index, 1);
+        } else {
+            this.stops.pop();
+        }
+        this.redistributeStops();
+        return true;
+    }
+
+    bake() {
+        if (!this.hasRendered) return false;
+        const w = this.outputCanvas.width;
+        const h = this.outputCanvas.height;
+
+        if (!this.sourceCanvas) {
+            this.sourceCanvas = document.createElement('canvas');
+        }
+        this.sourceCanvas.width = w;
+        this.sourceCanvas.height = h;
+        const sctx = this.sourceCanvas.getContext('2d');
+        sctx.clearRect(0, 0, w, h);
+        sctx.drawImage(this.outputCanvas, 0, 0);
+
+        this.clearPoints();
+        this.hasRendered = false;
+        return true;
+    }
+
+    reset() {
+        this.type = 'linear';
+        this.opacity = 1;
+        this.hasRendered = false;
+        this.clearPoints();
+        this.stops = this.defaultStops.map(s => ({ ...s }));
+
+        if (this.sourceCanvas) {
+            const w = this.sourceCanvas.width;
+            const h = this.sourceCanvas.height;
+            this.outputCanvas.width = w;
+            this.outputCanvas.height = h;
+            this.ctx.clearRect(0, 0, w, h);
+            this.ctx.drawImage(this.sourceCanvas, 0, 0);
+        } else {
+            this.ctx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+        }
+
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    render() {
+        const w = this.sourceCanvas ? this.sourceCanvas.width : (this.outputCanvas.width || 512);
+        const h = this.sourceCanvas ? this.sourceCanvas.height : (this.outputCanvas.height || 512);
+
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+        this.tempCanvas.width = w;
+        this.tempCanvas.height = h;
+
+        let start, end;
+        if (this.points.length >= 2) {
+            start = this.points[0];
+            end = this.points[1];
+        } else if (this.points.length === 1) {
+            start = this.points[0];
+            end = { x: w, y: h };
+        } else {
+            start = this.type === 'radial' ? { x: w / 2, y: h / 2 } : { x: 0, y: 0 };
+            end = this.type === 'radial' ? { x: w, y: h / 2 } : { x: w, y: h };
+        }
+
+        let grad;
+        if (this.type === 'radial') {
+            const r = Math.max(1, Math.hypot(end.x - start.x, end.y - start.y));
+            grad = this.tempCtx.createRadialGradient(start.x, start.y, 0, start.x, start.y, r);
+        } else {
+            grad = this.tempCtx.createLinearGradient(start.x, start.y, end.x, end.y);
+        }
+
+        const sorted = [...this.stops].sort((a, b) => a.offset - b.offset);
+        sorted.forEach(stop => {
+            grad.addColorStop(Math.max(0, Math.min(1, stop.offset)), stop.color);
+        });
+
+        this.tempCtx.clearRect(0, 0, w, h);
+        this.tempCtx.fillStyle = grad;
+        this.tempCtx.fillRect(0, 0, w, h);
+
+        this.ctx.clearRect(0, 0, w, h);
+        if (this.sourceCanvas) {
+            this.ctx.drawImage(this.sourceCanvas, 0, 0);
+        }
+
+        this.ctx.save();
+        this.ctx.globalAlpha = this.opacity;
+        this.ctx.drawImage(this.tempCanvas, 0, 0);
+        this.ctx.restore();
+
+        this.hasRendered = true;
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    getCanvas() {
+        return this.outputCanvas;
+    }
+}
+
+class GradientUI {
+    constructor(engine, options = {}) {
+        this.engine = engine;
+        this.onApply = options.onApply || null;
+        this.onReset = options.onReset || null;
+        this.onPointsChange = options.onPointsChange || null;
+        this.recordPoints = false;
+
+        this.panel = new UI.SmartPanel({
+            id: options.id || 'panel_gradient_editor',
+            title: options.title || 'Gradient Editor',
+            x: options.x ?? 80,
+            y: options.y ?? 80,
+            width: 300,
+            floating: options.floating ?? true
+        });
+
+        this.buildStyles();
+        this.buildEditorDOM();
+        this.refreshUI();
+    }
+
+    buildStyles() {
+        if (document.getElementById('gradient-editor-styles')) return;
+        const st = document.createElement('style');
+        st.id = 'gradient-editor-styles';
+        st.textContent = `
+            .grad-wrapper {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+                box-sizing: border-box;
+                user-select: none;
+            }
+            .grad-preview-bar {
+                width: 100%;
+                height: 28px;
+                border-radius: 4px;
+                border: 1px solid var(--ui-border, #4d4d4d);
+                background: #232323;
+            }
+            .grad-points-info {
+                font-family: var(--ui-font-family-mono, monospace);
+                font-size: 11px;
+                color: var(--ui-text-muted, #8a8a8a);
+                background: var(--ui-bg-input, #252525);
+                border: 1px solid var(--ui-border, #3a3a3a);
+                border-radius: 4px;
+                padding: 5px 8px;
+                display: flex;
+                justify-content: space-between;
+            }
+            .grad-stops-list {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                max-height: 170px;
+                overflow-y: auto;
+                background: var(--ui-bg-list, #242424);
+                border: 1px solid var(--ui-border, #3a3a3a);
+                border-radius: 4px;
+                padding: 6px;
+            }
+            .grad-stop-row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                background: var(--ui-bg-surface, #333333);
+                padding: 4px 6px;
+                border-radius: 4px;
+            }
+            .grad-color-input {
+                width: 34px;
+                height: 24px;
+                border: 1px solid var(--ui-border, #4d4d4d);
+                border-radius: 4px;
+                background: transparent;
+                padding: 0;
+                cursor: pointer;
+                flex-shrink: 0;
+            }
+            .grad-offset-label {
+                font-family: var(--ui-font-family-mono, monospace);
+                font-size: 10px;
+                color: var(--ui-text-bright, #e0e0e0);
+                width: 34px;
+                text-align: right;
+            }
+            .grad-btn-row {
+                display: flex;
+                gap: 6px;
+                width: 100%;
+            }
+            .grad-btn-row .ui-btn {
+                flex: 1;
+                height: 30px;
+            }
+            .grad-offset-slider {
+                -webkit-appearance: none;
+                appearance: none;
+                flex: 1;
+                min-width: 60px;
+                height: 4px;
+                border-radius: 2px;
+                border: none;
+                outline: none;
+                cursor: pointer;
+                --pct: 0%;
+                background: linear-gradient(
+                    to right,
+                    #b9b9b9 0%,
+                    #b9b9b9 var(--pct),
+                    #1e1e1e var(--pct),
+                    #1e1e1e 100%
+                );
+            }
+            .grad-offset-slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 14px;
+                height: 14px;
+                background: #4a4a4a;
+                border: 2.5px solid #b2b2b2;
+                border-radius: 50%;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+                cursor: pointer;
+                transition: transform 0.1s, background 0.1s;
+            }
+            .grad-offset-slider:hover::-webkit-slider-thumb {
+                transform: scale(1.1);
+                background: rgb(153, 153, 150);
+            }
+            .grad-offset-slider::-moz-range-thumb {
+                width: 14px;
+                height: 14px;
+                background: #4a4a4a;
+                border: 2.5px solid #b2b2b2;
+                border-radius: 50%;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+                cursor: pointer;
+                transition: transform 0.1s, background 0.1s;
+            }
+            .grad-offset-slider:hover::-moz-range-thumb {
+                transform: scale(1.1);
+                background: rgb(153, 153, 150);
+            }
+        `;
+        document.head.appendChild(st);
+    }
+
+    buildEditorDOM() {
+        const root = document.createElement('div');
+        root.className = 'grad-wrapper';
+
+        this.selectType = new UI.Select({
+            options: [
+                { value: 'linear', label: 'Linear Gradient' },
+                { value: 'radial', label: 'Radial Gradient' }
+            ],
+            value: this.engine.type,
+            onChange: (val) => {
+                this.engine.setType(val);
+                this.updatePreviewBar();
+            }
+        });
+        root.appendChild(this.selectType.element);
+
+        this.chkRecord = new UI.Checkbox({
+            label: 'Record points on click',
+            checked: this.recordPoints,
+            onChange: (checked) => {
+                this.recordPoints = checked;
+                if (!checked) {
+                    this.engine.clearPoints();
+                }
+                this.updatePointsInfo();
+                if (this.onPointsChange) this.onPointsChange(this.engine.points);
+            }
+        });
+        root.appendChild(this.chkRecord.element);
+
+        this.pointsInfo = document.createElement('div');
+        this.pointsInfo.className = 'grad-points-info';
+        root.appendChild(this.pointsInfo);
+
+        this.previewBar = document.createElement('div');
+        this.previewBar.className = 'grad-preview-bar';
+        root.appendChild(this.previewBar);
+
+        this.sliderOpacity = new UI.ConfigurableSlider({
+            label: 'Opacity',
+            min: 0,
+            max: 1,
+            step: 0.01,
+            value: this.engine.opacity,
+            onChange: (val) => {
+                this.engine.setOpacity(val);
+            }
+        });
+        root.appendChild(this.sliderOpacity.element);
+
+        const stopControls = document.createElement('div');
+        stopControls.className = 'grad-btn-row';
+
+        this.btnAddStop = new UI.Button({
+            text: '+ Add Color',
+            onClick: () => {
+                this.engine.addStop('#ffffff');
+                this.renderStopsList();
+                this.updatePreviewBar();
+            }
+        });
+
+        this.btnRemoveStop = new UI.Button({
+            text: '- Remove Color',
+            variant: 'danger',
+            onClick: () => {
+                this.engine.removeStop();
+                this.renderStopsList();
+                this.updatePreviewBar();
+            }
+        });
+
+        stopControls.appendChild(this.btnAddStop.element);
+        stopControls.appendChild(this.btnRemoveStop.element);
+        root.appendChild(stopControls);
+
+        this.stopsList = document.createElement('div');
+        this.stopsList.className = 'grad-stops-list';
+        root.appendChild(this.stopsList);
+
+        const actionBar = document.createElement('div');
+        actionBar.className = 'grad-btn-row';
+
+        this.btnCreate = new UI.Button({
+            text: 'Create',
+            variant: 'primary',
+            onClick: () => {
+                this.engine.render();
+            }
+        });
+
+        this.btnBake = new UI.Button({
+            text: 'Bake +',
+            onClick: () => {
+                if (this.engine.bake()) {
+                    this.updatePointsInfo();
+                    if (this.onPointsChange) this.onPointsChange(this.engine.points);
+                }
+            }
+        });
+        this.btnBake.element.title = 'Bake current gradient and add another on top';
+
+        this.btnReset = new UI.Button({
+            text: 'Reset',
+            variant: 'danger',
+            onClick: () => {
+                if (this.onReset) this.onReset();
+                this.engine.reset();
+                this.selectType.setValue(this.engine.type);
+                this.sliderOpacity.setValue(this.engine.opacity);
+                this.refreshUI();
+                if (this.onPointsChange) this.onPointsChange(this.engine.points);
+            }
+        });
+
+        this.btnApply = new UI.Button({
+            text: 'Apply',
+            variant: 'primary',
+            onClick: () => {
+                if (this.onApply) this.onApply(this.engine.getCanvas());
+            }
+        });
+
+        actionBar.appendChild(this.btnCreate.element);
+        actionBar.appendChild(this.btnBake.element);
+        actionBar.appendChild(this.btnReset.element);
+        actionBar.appendChild(this.btnApply.element);
+        root.appendChild(actionBar);
+
+        this.panel.body ? this.panel.body.appendChild(root) : this.panel.append(root);
+    }
+
+    recordWorldPoint(x, y) {
+        if (!this.recordPoints) return;
+        this.engine.addPoint(x, y);
+        this.updatePointsInfo();
+        if (this.onPointsChange) this.onPointsChange(this.engine.points);
+    }
+
+    renderStopsList() {
+        this.stopsList.innerHTML = '';
+
+        this.engine.stops.forEach((stop, idx) => {
+            const row = document.createElement('div');
+            row.className = 'grad-stop-row';
+
+            const colorInp = document.createElement('input');
+            colorInp.type = 'color';
+            colorInp.className = 'grad-color-input';
+            colorInp.value = stop.color;
+            colorInp.addEventListener('input', (e) => {
+                stop.color = e.target.value;
+                this.updatePreviewBar();
+            });
+
+            const offsetSlider = document.createElement('input');
+            offsetSlider.type = 'range';
+            offsetSlider.className = 'grad-offset-slider';
+            offsetSlider.min = '0';
+            offsetSlider.max = '1';
+            offsetSlider.step = '0.01';
+            offsetSlider.value = stop.offset;
+            offsetSlider.style.setProperty('--pct', `${Math.round(stop.offset * 100)}%`);
+
+            const offsetLabel = document.createElement('span');
+            offsetLabel.className = 'grad-offset-label';
+            offsetLabel.textContent = `${Math.round(stop.offset * 100)}%`;
+
+            offsetSlider.addEventListener('input', (e) => {
+                stop.offset = parseFloat(e.target.value);
+                const pct = `${Math.round(stop.offset * 100)}%`;
+                offsetSlider.style.setProperty('--pct', pct);
+                offsetLabel.textContent = pct;
+                this.updatePreviewBar();
+            });
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'ui-icon-btn';
+            delBtn.textContent = '✕';
+            delBtn.title = 'Remove color stop';
+            delBtn.disabled = this.engine.stops.length <= 2;
+            delBtn.addEventListener('click', () => {
+                if (this.engine.removeStop(idx)) {
+                    this.renderStopsList();
+                    this.updatePreviewBar();
+                }
+            });
+
+            row.appendChild(colorInp);
+            row.appendChild(offsetSlider);
+            row.appendChild(offsetLabel);
+            row.appendChild(delBtn);
+            this.stopsList.appendChild(row);
+        });
+    }
+
+    updatePreviewBar() {
+        const sorted = [...this.engine.stops].sort((a, b) => a.offset - b.offset);
+        const cssStops = sorted.map(s => `${s.color} ${Math.round(s.offset * 100)}%`).join(', ');
+        if (this.engine.type === 'radial') {
+            this.previewBar.style.background = `radial-gradient(circle, ${cssStops})`;
+        } else {
+            this.previewBar.style.background = `linear-gradient(to right, ${cssStops})`;
+        }
+    }
+
+    updatePointsInfo() {
+        const pts = this.engine.points;
+        if (pts.length === 0) {
+            this.pointsInfo.innerHTML = `<span>Start: --</span><span>End: --</span>`;
+        } else if (pts.length === 1) {
+            this.pointsInfo.innerHTML = `<span>Start: ${pts[0].x},${pts[0].y}</span><span>End: click...</span>`;
+        } else {
+            this.pointsInfo.innerHTML = `<span>Start: ${pts[0].x},${pts[0].y}</span><span>End: ${pts[1].x},${pts[1].y}</span>`;
+        }
+    }
+
+    refreshUI() {
+        this.renderStopsList();
+        this.updatePreviewBar();
+        this.updatePointsInfo();
+    }
+
+    destroy() {
+        this.panel.destroy();
+    }
+}
+
+
+class TileEngine {
     constructor(sourceCanvas = null, options = {}) {
         this.sourceCanvas = sourceCanvas;
         this.outputCanvas = document.createElement('canvas');
@@ -5002,7 +5567,7 @@ class BackgroundRemover {
     z-index: 10000;
 }
 
-/* Fila de cada opción */
+ 
 .ctx-item {
     display: flex;
     align-items: center;
@@ -8006,7 +8571,8 @@ class ApplicationUI {
             { label: 'AI',  title: 'AI Background Remover', action: () => this.app.abrirBGRMPipeline(),   icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
             { label: 'TIP', title: 'Brush Tip Generator',   action: () => this.app.abrirBrushTipMaker(),  icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>' },
             { label: 'DYN', title: 'Brush Dynamics',        action: () => this.app.abrirBrushDynamics(),  icon: '<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>' },
-            { label: 'DB',  title: 'IndexedDB Projects',    action: () => this.app.abrirProjectStorage(), icon: '<path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/>' }
+            { label: 'DB',  title: 'IndexedDB Projects',    action: () => this.app.abrirProjectStorage(), icon: '<path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/>' },
+            { label: 'GRD', title: 'Gradients', action: () => this.app.abrirGradientes(), icon: '<path d="M11 9h2v2h-2V9zm-2 2h2v2H9v-2zm4 0h2v2h-2v-2zm2-2h2v2h-2V9zM7 9h2v2H7V9zm12-6H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 18H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm2-7h-2v2h2v2h-2v-2h-2v2h-2v-2h-2v2H9v-2H7v2H5v-2h2v-2H5V5h14v6z"/>' },
         ];
 
         toolsConfig.forEach(t => {
@@ -8129,12 +8695,14 @@ this.rightContainer.addPanel(this.colorPicker.element);;
 
         const rEfectos = itemLayers.addRow(4);
         rEfectos.append(new UI.Button({ text: 'Filers FX', onClick: () => this.app.abrirFiltrosGLFX() }));
+        rEfectos.append(new UI.Button({ text: 'Gradient', variant: 'primary', onClick: () => this.app.abrirGradientes() }));
         rEfectos.append(new UI.Button({ text: 'create Brush', onClick: () => this.app.abrirBrushTipMaker() }));
         rEfectos.append(new UI.Button({ text: 'Brush Dinamic', onClick: () => this.app.abrirBrushDynamics() }));
         rEfectos.append(new UI.Button({ text: 'AI BG Cut', variant: 'primary', onClick: () => this.app.abrirBGRMPipeline() }));
         rEfectos.append(new UI.Button({ text: 'Pixel Art', onClick: () => this.app.abrirPixelArt() }));
         rEfectos.append(new UI.Button({ text: 'Curve', onClick: () => this.app.abrirCurvasRGBA() }));
         rEfectos.append(new UI.Button({ text: 'To tile', variant: 'primary', onClick: () => this.app.abrirTiler() })); 
+        
         
 
         const rTop = itemLayers.addRow(4);
@@ -8336,6 +8904,9 @@ class EffectsManager {
         this.initBGRMPipeline();
         this.initToolPanels();
         this.initTiler();
+        this.gradientSourceCanvas = null
+        this.initGradients();
+         
     }
     initBackgroundRemover() {
         if (typeof BackgroundRemover !== 'undefined') {
@@ -8379,7 +8950,104 @@ class EffectsManager {
         });
         this.tileUI.panel.close();
     }
+initGradients() {
+    this.gradientEngine = new GradientEngine();
+    this.gradientActive = false;
+    this.gradientOriginalSnapshot = null;
 
+    this.gradientEngine.onRender = (filteredCanvas) => {
+        const act = this.app.layers.getActiveLayer();
+        if (!act || !this.gradientActive) return;
+        act.ctx.clearRect(0, 0, act.width, act.height);
+        act.ctx.drawImage(filteredCanvas, 0, 0);
+    };
+
+    this.gradientUI = new GradientUI(this.gradientEngine, {
+        title: 'Gradients',
+        x: 80, y: 80, floating: true,
+        onPointsChange: (pts) => {
+            const pctx = this.app.ui.previewCanvas.getContext('2d');
+            pctx.clearRect(0, 0, this.app.ui.previewCanvas.width, this.app.ui.previewCanvas.height);
+            if (!pts || pts.length === 0) return;
+
+            pctx.save();
+            pctx.strokeStyle = '#38bdf8';
+            pctx.fillStyle = '#ffffff';
+            pctx.lineWidth = 1.5;
+
+            if (pts.length >= 2) {
+                pctx.setLineDash([4, 4]);
+                pctx.beginPath();
+                pctx.moveTo(pts[0].x, pts[0].y);
+                pctx.lineTo(pts[1].x, pts[1].y);
+                pctx.stroke();
+            }
+
+            pts.forEach((pt) => {
+                pctx.beginPath();
+                pctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+                pctx.fill();
+                pctx.stroke();
+            });
+            pctx.restore();
+        },
+        onApply: () => {
+            const act = this.app.layers.getActiveLayer();
+            if (!act || !this.gradientOriginalSnapshot) return;
+            const before = this.gradientOriginalSnapshot;
+            const after = act.getSnapshot();
+            this.app.history.push({
+                undo: () => { act.restoreSnapshot(before); this.app.ajustarCanvasACapaActiva(); },
+                redo: () => { act.restoreSnapshot(after); this.app.ajustarCanvasACapaActiva(); }
+            });
+            this.gradientOriginalSnapshot = after;
+            this.gradientActive = false;
+            this.gradientUI.chkRecord.setValue(false);
+            this.gradientUI.recordPoints = false;
+            this.gradientEngine.clearPoints();
+            this.app.ui.previewCanvas.getContext('2d').clearRect(0, 0, this.app.ui.previewCanvas.width, this.app.ui.previewCanvas.height);
+            this.gradientUI.panel.close();
+            this.app.ajustarCanvasACapaActiva();
+            this.app.ui.setHUD('✓ Gradient applied');
+        }
+    });
+
+    const prevClose = this.gradientUI.panel.onCloseCallback;
+    this.gradientUI.panel.onCloseCallback = (p) => {
+        if (prevClose) prevClose(p);
+        if (this.gradientActive && this.gradientOriginalSnapshot) {
+            const act = this.app.layers.getActiveLayer();
+            if (act) act.restoreSnapshot(this.gradientOriginalSnapshot);
+            this.gradientActive = false;
+            this.app.ajustarCanvasACapaActiva();
+        }
+        this.gradientUI.chkRecord.setValue(false);
+        this.gradientUI.recordPoints = false;
+        this.gradientEngine.clearPoints();
+        this.app.ui.previewCanvas.getContext('2d').clearRect(0, 0, this.app.ui.previewCanvas.width, this.app.ui.previewCanvas.height);
+    };
+
+    this.gradientUI.panel.close();
+}
+
+abrirGradientes() {
+    const act = this.app.layers.getActiveLayer();
+    if (!act) return alert('No active layer');
+
+    this.gradientOriginalSnapshot = act.getSnapshot();
+    this.gradientActive = true;
+
+    if (!this.gradientSourceCanvas) this.gradientSourceCanvas = document.createElement('canvas');
+    this.gradientSourceCanvas.width = act.width;
+    this.gradientSourceCanvas.height = act.height;
+    const sctx = this.gradientSourceCanvas.getContext('2d');
+    sctx.clearRect(0, 0, act.width, act.height);
+    sctx.drawImage(act.canvas, 0, 0);
+
+    this.gradientEngine.setSource(this.gradientSourceCanvas);
+    this.gradientUI.refreshUI();
+    this.gradientUI.panel.open();
+}
     abrirTiler() {
         const act = this.app.layers.getActiveLayer();
         if (!act) return alert('No hay capa activa');
@@ -8763,16 +9431,23 @@ class InputController {
             }
         });
 
-     
-        this.app.ui.stage.addEventListener('pointerdown', (e) => {
-            this.app.ui.hideContextMenu();
-            if (this.isSpacePressed || e.button === 1) {
-                this.app.zoom.startPan(e.clientX, e.clientY);
-                return;
-            }
-            const coords = this.app.zoom.screenToWorld(e.clientX, e.clientY);
-            this.app.tools.pointerDown(coords.x, coords.y, e);
-        });
+ this.app.ui.stage.addEventListener('pointerdown', (e) => {
+    this.app.ui.hideContextMenu();
+    if (this.isSpacePressed || e.button === 1) {
+        this.app.zoom.startPan(e.clientX, e.clientY);
+        return;
+    }
+    const coords = this.app.zoom.screenToWorld(e.clientX, e.clientY);
+
+    if (this.app.effects?.gradientActive && this.app.effects?.gradientUI?.recordPoints && e.button === 0) {
+        this.app.effects.gradientUI.recordWorldPoint(coords.x, coords.y);
+        return;
+    }
+
+    this.app.tools.pointerDown(coords.x, coords.y, e);
+});
+
+
         window.addEventListener('pointermove', (e) => {
     if (this.app.zoom.isPanning) {
         this.app.zoom.pan(e.clientX, e.clientY);
@@ -9137,6 +9812,7 @@ const viewportEl = document.getElementById('viewport-transform');
     abrirFiltrosGLFX() { this.effects.abrirFiltrosGLFX(); }
     abrirPixelArt() { this.effects.abrirPixelArt(); }
     abrirCurvasRGBA() { this.effects.abrirCurvasRGBA(); }
+    abrirGradientes() { this.effects.abrirGradientes(); }
     abrirBGRMPipeline() { this.effects.abrirBGRMPipeline(); }
     abrirBrushTipMaker() { this.effects.brushTipUI.panel.open(); }
     abrirBrushDynamics() { this.effects.brushDynamicsUI.panel.open(); }
