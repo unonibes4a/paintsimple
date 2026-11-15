@@ -5230,92 +5230,80 @@ class BackgroundRemover {
 <div class="cad-hud" id="hud">Zoom: 100% | CAD: Bézier | Q: Adaptar</div>
 <div id="left-toolbar-strip"></div>
 
-  
-
-<div id="custom-context-menu" style="background: rgba(18, 18, 18, 0.7); color: #777777; border: 1px solid rgba(69, 69, 69, 0.5); border-radius: 6px; padding: 6px 0; min-width: 220px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 8px 16px rgba(0,0,0,0.4); font-family: sans-serif; font-size: 13px; user-select: none;">
-    <!-- Copiar -->
+   <div id="custom-context-menu" style="background: rgba(18, 18, 18, 0.7); color: #777777; border: 1px solid rgba(69, 69, 69, 0.5); border-radius: 6px; padding: 6px 0; min-width: 220px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 8px 16px rgba(0,0,0,0.4); font-family: sans-serif; font-size: 13px; user-select: none;">
+    <!-- Copy -->
     <div class="ctx-item" id="ctx-copy" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-            Copiar Trozo
+            Copy Piece
         </span>
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Ctrl+C</span>
     </div>
 
- 
     <div class="ctx-item" id="ctx-cut" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z"/></svg>
-            Cortar Trozo
+            Cut Piece
         </span>
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Ctrl+X</span>
     </div>
 
- 
     <div class="ctx-item" id="ctx-paste" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/></svg>
-            Pegar como Capa
+            Paste as Layer
         </span>
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Ctrl+V</span>
     </div>
 
- 
     <div class="ctx-item-sep" style="height: 1px; background-color: rgba(69, 69, 69, 0.5); margin: 4px 0;"></div>
 
- 
     <div class="ctx-item" id="ctx-save-png" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
-            Guardar como PNG
+            Save as PNG
         </span>
-        <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Transparente</span>
+        <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Transparent</span>
     </div>
 
- 
     <div class="ctx-item" id="ctx-save-jpg" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
-            Guardar como JPG
+            Save as JPG
         </span>
-        <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Blanco</span>
+        <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">White</span>
     </div>
 
- 
     <div class="ctx-item-sep" style="height: 1px; background-color: rgba(69, 69, 69, 0.5); margin: 4px 0;"></div>
 
-    
     <div class="ctx-item" id="ctx-fit-piece" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-            Ver Solo este Trozo
+            View Only This Piece
         </span>
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Q</span>
     </div>
 
- 
     <div class="ctx-item" id="ctx-clone-origin" style="display:none; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
-            Fijar Origen de Clonar
+            Set Clone Origin
         </span>
-        <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Alt+Clic</span>
+        <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Alt+Click</span>
     </div>
 
- 
     <div class="ctx-item" id="ctx-eyedrop" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20.71 5.63l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.41 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.12-3.12c.4-.4.4-1.03.01-1.42zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/></svg>
-            Muestrear Color
+            Sample Color
         </span>
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Color</span>
     </div>
 
- 
     <div class="ctx-item" id="ctx-deselect" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s;">
         <span style="display: inline-flex; align-items: center; gap: 8px;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            Deseleccionar
+            Deselect
         </span>
         <span class="ctx-shortcut" style="font-size: 11px; opacity: 0.7; margin-left: 16px;">Esc</span>
     </div>
@@ -6205,8 +6193,147 @@ class GiovanniColorPicker {
 
 </script>  
 <script>
- 
+ class BrushCursorOverlay {
+    constructor({
+        container,
+        getBrushProps = () => ({ size: 50, angle: 0, stampImage: null, color: '#ffffff', opacity: 1, hardness: 0.5 }),
+        isVisible = () => true,
+        borderColor = '#000000',
+        borderWidth = 1.5,
+        contrastColor = '#ffffff',
+        fillColor = 'rgba(0, 0, 0, 0.05)',
+        showCenterPoint = true,
+        centerPointColor = '#ffffff',
+        dash = [4, 4]
+    } = {}) {
+        this.borderColor = borderColor;
+        this.borderWidth = borderWidth;
+        this.contrastColor = contrastColor;
+        this.fillColor = fillColor;
+        this.showCenterPoint = showCenterPoint;
+        this.centerPointColor = centerPointColor;
+        this.dash = dash;
 
+        this.getBrushProps = getBrushProps;
+        this.isVisible = isVisible;
+
+        this.canvas = document.createElement('canvas');
+        this.canvas.className = 'brush-cursor-overlay';
+        this.canvas.style.position = 'absolute';
+        this.canvas.style.top = '0';
+        this.canvas.style.left = '0';
+        this.canvas.style.pointerEvents = 'none';
+        this.canvas.style.zIndex = '999999';
+
+        this.ctx = this.canvas.getContext('2d');
+        this.currentCoords = { x: -9999, y: -9999 };
+
+        if (container) {
+            container.appendChild(this.canvas);
+        }
+    }
+
+    setSize(w, h) {
+        this.canvas.width = w;
+        this.canvas.height = h;
+        this.canvas.style.width = w + 'px';
+        this.canvas.style.height = h + 'px';
+        this.render();
+    }
+
+    moveTo(x, y) {
+        this.currentCoords.x = x;
+        this.currentCoords.y = y;
+        this.render();
+    }
+
+    clear() {
+        this.currentCoords = { x: -9999, y: -9999 };
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    render() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (!this.isVisible()) return;
+
+        const x = this.currentCoords.x;
+        const y = this.currentCoords.y;
+
+        if (x < 0 || y < 0 || x > this.canvas.width || y > this.canvas.height) return;
+
+        const props = this.getBrushProps() || {};
+        const size = Math.max(2, props.size || 50);
+        const radius = size / 2;
+        const angle = ((props.angle || 0) * Math.PI) / 180;
+        const img = props.stampImage;
+
+        this.ctx.save();
+        this.ctx.translate(x, y);
+        if (angle !== 0) this.ctx.rotate(angle);
+
+        if (img && (img.complete || img.width > 0)) {
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.5;
+            this.ctx.drawImage(img, -radius, -radius, size, size);
+            this.ctx.restore();
+
+            if (this.contrastColor) {
+                this.ctx.beginPath();
+                this.ctx.rect(-radius, -radius, size, size);
+                this.ctx.lineWidth = this.borderWidth + 1.5;
+                this.ctx.strokeStyle = this.contrastColor;
+                this.ctx.setLineDash([]);
+                this.ctx.stroke();
+            }
+
+            this.ctx.beginPath();
+            this.ctx.rect(-radius, -radius, size, size);
+            this.ctx.lineWidth = this.borderWidth;
+            this.ctx.strokeStyle = this.borderColor;
+            this.ctx.setLineDash(this.dash);
+            this.ctx.stroke();
+        } else {
+            const hard = Math.max(0, Math.min(0.999, props.hardness ?? 0.5));
+            const grad = this.ctx.createRadialGradient(0, 0, radius * hard, 0, 0, radius);
+            grad.addColorStop(0, props.color || 'rgba(0, 0, 0, 0.4)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.35;
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            this.ctx.fillStyle = grad;
+            this.ctx.fill();
+            this.ctx.restore();
+
+            if (this.contrastColor) {
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                this.ctx.lineWidth = this.borderWidth + 1.5;
+                this.ctx.strokeStyle = this.contrastColor;
+                this.ctx.setLineDash([]);
+                this.ctx.stroke();
+            }
+
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            this.ctx.lineWidth = this.borderWidth;
+            this.ctx.strokeStyle = this.borderColor;
+            this.ctx.setLineDash(this.dash);
+            this.ctx.stroke();
+        }
+
+        if (this.showCenterPoint) {
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, 1.5, 0, Math.PI * 2);
+            this.ctx.fillStyle = this.centerPointColor;
+            this.ctx.setLineDash([]);
+            this.ctx.fill();
+        }
+
+        this.ctx.restore();
+    }
+}
  const MathCad = {
     distanciaPuntoSegmento(p, a, b) {
         const dx = b.x - a.x;
@@ -7856,8 +7983,10 @@ class ApplicationUI {
             topBar.appendChild(wrap);
         };
 
-        crearSliderPuro('Tamaño', 1, 800, 1, this.app.brush.size, (v) => this.app.brush.set('size', v));
-        crearSliderPuro('Opacidad', 0.01, 1, 0.01, this.app.brush.opacity, (v) => this.app.brush.set('opacity', v));
+        crearSliderPuro('Size', 1, 800, 1, this.app.brush.size, (v) => {this.app.brush.set('size', v);if (this.app.brushCursor) {
+        this.app.brushCursor.render();
+    }});
+        crearSliderPuro('Opaxity', 0.01, 1, 0.01, this.app.brush.opacity, (v) => this.app.brush.set('opacity', v));
     }
 
     buildLeftVerticalToolbar() {
@@ -7869,7 +7998,7 @@ class ApplicationUI {
             { id: 'cad',        label: 'CAD', title: 'Vector / CAD',             icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>' },
             { id: 'eraser',     label: 'ERA', title: 'Eraser (E)',                icon: '<path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.04 20h8.96l7.41-7.41c.78-.78.78-2.05 0-2.83L16.55 3.59c-.39-.39-.9-.59-1.41-.59zM14 6.83l3.17 3.17L12 15.17 8.83 12 14 6.83z"/>' },
             { id: 'eyedropper', label: 'EYE', title: 'Eyedropper',               icon: '<path d="M20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.42 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.13-3.13a1 1 0 0 0 0-1.41zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/>' },
-            { id: 'clone',      label: 'CLN', title: 'Clone Stamp (C)',          icon: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' },
+         { id: 'clone',      label: 'CLN', title: 'Clone Stamp (C)',          icon: '<path d="M6.5 11.5c-1.38 0-2.5 1.12-2.5 2.5 0 1.05-.8 1.5-1.5 1.5.7.85 2 1.3 3.5 1.3 1.7 0 3-1.25 3-2.8 0-1.38-1.12-2.5-2.5-2.5zM15.7 3.9a.78.78 0 0 0-1.1 0l-6.4 6.4 2.2 2.2 6.4-6.4a.78.78 0 0 0 0-1.1l-1.1-1.1zM10.5 15.5c-1.38 0-2.5 1.12-2.5 2.5 0 1.05-.8 1.5-1.5 1.5.7.85 2 1.3 3.5 1.3 1.7 0 3-1.25 3-2.8 0-1.38-1.12-2.5-2.5-2.5zM19.7 7.9a.78.78 0 0 0-1.1 0l-6.4 6.4 2.2 2.2 6.4-6.4a.78.78 0 0 0 0-1.1l-1.1-1.1z"/>' },
             { id: 'move',       label: 'MOV', title: 'Move Layer (M)',           icon: '<path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/>' },
             { id: 'rectSelect', label: 'SEL', title: 'Rectangular Selection',    icon: '<path d="M4 4h4v2H6v2H4V4zm16 0v4h-2V6h-2V4h4zM4 20v-4h2v2h2v2H4zm16 0h-4v-2h2v-2h2v4z"/>' },
             { id: 'lasso',      label: 'LAS', title: 'Freehand Lasso',           icon: '<path d="M12.3 2a9.7 9.7 0 0 0-9.7 9.7c0 3.7 2 7 5.2 8.6L6 22l3.4-1.3c.9.2 1.9.3 2.9.3 5.4 0 9.7-4.3 9.7-9.7S17.7 2 12.3 2zm0 17.4c-.9 0-1.8-.1-2.6-.4l-.6-.2-1.9.7.7-1.9-.3-.5c-2.7-1.4-4.3-4.1-4.3-7.1 0-4.3 3.6-7.7 7.7-7.7s7.7 3.5 7.7 7.7-3.4 7.7-7.7 7.7z"/>' },
@@ -8645,15 +8774,34 @@ class InputController {
             const coords = this.app.zoom.screenToWorld(e.clientX, e.clientY);
             this.app.tools.pointerDown(coords.x, coords.y, e);
         });
-
         window.addEventListener('pointermove', (e) => {
+    if (this.app.zoom.isPanning) {
+        this.app.zoom.pan(e.clientX, e.clientY);
+        return;
+    }
+    const coords = this.app.zoom.screenToWorld(e.clientX, e.clientY);
+    
+ 
+    if (this.app.brushCursor) {
+        this.app.brushCursor.moveTo(coords.x, coords.y);
+    }
+    
+    this.app.tools.pointerMove(coords.x, coords.y);
+});
+
+ 
+this.app.ui.stage.addEventListener('pointerleave', () => {
+    if (this.app.brushCursor) this.app.brushCursor.clear();
+});
+
+     /*    window.addEventListener('pointermove', (e) => {
             if (this.app.zoom.isPanning) {
                 this.app.zoom.pan(e.clientX, e.clientY);
                 return;
             }
             const coords = this.app.zoom.screenToWorld(e.clientX, e.clientY);
             this.app.tools.pointerMove(coords.x, coords.y);
-        });
+        }); */
 
         window.addEventListener('pointerup', (e) => {
             if (this.app.zoom.isPanning) {
@@ -8761,6 +8909,21 @@ class InputController {
     abrirTiler() {
         this.effects.abrirTiler();
     }
+    inibrushcircledrawoverlay(){ 
+const viewportEl = document.getElementById('viewport-transform');
+this.brushCursor = new BrushCursorOverlay({
+    container: document.getElementById('viewport-transform'),
+    getBrushProps: () => ({
+        size: this.brush.size,
+        angle: this.brush.angle,
+        stampImage: this.brush.stampImage,
+        color: this.brush.mainColor,
+        hardness: this.brush.hardness
+    }),
+    isVisible: () => ['brush', 'eraser', 'clone', 'stamp'].includes(this.tools.currentTool),
+    dash: [4, 4]
+});
+    }
 
     initCoreEngines() {
         const stageEl = document.getElementById('canvas-stage');
@@ -8795,6 +8958,9 @@ class InputController {
 
         this.brush = new BrushSettingsEngine({
             onSettingsChange: (k, v) => {
+                 if (k === 'size' && this.brushCursor) {
+            this.brushCursor.render();
+        }
                 if (k === 'mainColor' && this.ui?.colorPicker && !this.isInternalColorSync) {
                     this.isInternalColorSync = true;
                     this.ui.colorPicker.setHex(v);
@@ -8832,13 +8998,15 @@ class InputController {
                 this.preStrokeState = null;
             }
         });
+        this.inibrushcircledrawoverlay();
     }
-
     syncInteractiveCanvases(w, h) {
-        if (this.ui) this.ui.syncInteractiveCanvases(w, h);
-        if (this.cad) this.cad.setSize(w, h);
-        if (this.selection) this.selection.setSize(w, h);
-    }
+    if (this.ui) this.ui.syncInteractiveCanvases(w, h);
+    if (this.cad) this.cad.setSize(w, h);
+    if (this.selection) this.selection.setSize(w, h);
+    if (this.brushCursor) this.brushCursor.setSize(w, h);  
+}
+ 
 
     setActiveTool(toolId) {
         this.tools.setTool(toolId);
