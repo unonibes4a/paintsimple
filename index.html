@@ -5541,6 +5541,332 @@ class BackgroundRemover {
  </script>
 
 
+<script>
+    class WorkspaceSizeUINoc {
+    constructor(app, options = {}) {
+        this.app = app;
+
+        this.panel = new UI.SmartPanel({
+            id: options.id || 'panel_workspace_size_noc',
+            title: options.title || 'Tamaño del Lienzo',
+            x: options.x ?? 80,
+            y: options.y ?? 80,
+            width: 280,
+            floating: options.floating ?? true
+        });
+
+        this.buildUI();
+        this.panel.close();
+    }
+
+    buildUI() {
+        const box = document.createElement('div');
+        Object.assign(box.style, {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            padding: '8px'
+        });
+
+        const makeNumberField = (labelText, initialValue) => {
+            const row = document.createElement('div');
+            Object.assign(row.style, {
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '8px'
+            });
+
+            const label = document.createElement('label');
+            label.textContent = labelText;
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '1';
+            input.max = '8192';
+            input.value = String(initialValue);
+            Object.assign(input.style, {
+                width: '100px',
+                padding: '4px 6px',
+                background: '#0f172a',
+                color: '#f8fafc',
+                border: '1px solid #334155',
+                borderRadius: '4px'
+            });
+
+            row.append(label, input);
+            return { row, input };
+        };
+
+        const wField = makeNumberField('Ancho (px):', this.app.defaultWidth);
+        const hField = makeNumberField('Alto (px):', this.app.defaultHeight);
+        this.inputWidth = wField.input;
+        this.inputHeight = hField.input;
+
+        box.append(wField.row, hField.row);
+        this.panel.element.appendChild(box);
+
+        this.selMode = new UI.Select({
+            options: [
+                { value: 'crop', label: 'Recortar / Ampliar (Sin deformar)' },
+                { value: 'scale', label: 'Escalar contenido' }
+            ],
+            value: 'crop'
+        });
+        const rMode = this.panel.addRow(4);
+        rMode.append(this.selMode);
+
+        const rBtn = this.panel.addRow(4);
+        const btnApply = new UI.Button({
+            text: 'Aplicar Tamaño',
+            variant: 'primary',
+            onClick: () => {
+                const w = parseInt(this.inputWidth.value, 10);
+                const h = parseInt(this.inputHeight.value, 10);
+                if (w > 0 && h > 0) {
+                    this.app.resizeWorkspace(w, h, this.selMode.getValue());
+                    this.panel.close();
+                }
+            }
+        });
+        rBtn.append(btnApply);
+    }
+
+    open() {
+        const act = this.app.layers.getActiveLayer();
+        this.inputWidth.value = String(act ? act.width : this.app.defaultWidth);
+        this.inputHeight.value = String(act ? act.height : this.app.defaultHeight);
+        this.panel.open();
+    }
+}
+    class BackgroundRemovalAdapterNoc {
+    constructor(config = {}) {
+        this.config = config;
+        this._libPromise = null;
+    }
+
+    async loadLib() {
+        if (!this._libPromise) {
+            this._libPromise = import('https://esm.sh/@imgly/background-removal@1.7.0');
+        }
+        return await this._libPromise;
+    }
+
+    canvasToBlob(canvas) {
+        return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    }
+
+    async remove(source, onProgress = null) {
+        const { removeBackground } = await this.loadLib();
+        const input = source instanceof HTMLCanvasElement ? await this.canvasToBlob(source) : source;
+        const cfg = { ...this.config };
+        if (onProgress) {
+            cfg.progress = (key, current, total) => {
+                if (total > 0) {
+                    onProgress(Math.round((current / total) * 100), key);
+                }
+            };
+        }
+        return await removeBackground(input, cfg);
+    }
+
+    blobToImage(blob) {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => resolve({ img, url });
+            img.onerror = reject;
+            img.src = url;
+        });
+    }
+}
+
+class ProcessingOverlayNoc {
+    constructor() {
+        this.overlay = document.createElement('div');
+        this.textEl = document.createElement('div');
+        this.render();
+    }
+
+    render() {
+        Object.assign(this.overlay.style, {
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(51, 51, 51, 0.5)',
+            display: 'none',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: '9999999'
+        });
+
+        Object.assign(this.textEl.style, {
+            color: '#ffffff',
+            fontSize: '20px',
+            fontWeight: 'bold',
+            fontFamily: 'sans-serif',
+            textAlign: 'center',
+            userSelect: 'none'
+        });
+
+        this.textEl.textContent = 'Removing background...';
+        this.overlay.appendChild(this.textEl);
+        document.body.appendChild(this.overlay);
+    }
+
+    show(text = 'Removing background...') {
+        this.textEl.textContent = text;
+        this.overlay.style.display = 'flex';
+    }
+
+    setText(text) {
+        this.textEl.textContent = text;
+    }
+
+    hide() {
+        this.overlay.style.display = 'none';
+    }
+}
+
+class BgRemoveEngineNoc {
+    constructor(sourceCanvas = null) {
+        this.sourceCanvas = sourceCanvas;
+        this.outputCanvas = document.createElement('canvas');
+        this.ctx = this.outputCanvas.getContext('2d', { willReadFrequently: true });
+        this.adapter = new BackgroundRemovalAdapterNoc();
+        this.onRender = null;
+        this.onStart = null;
+        this.onProgress = null;
+        this.onFinish = null;
+        this.onError = null;
+    }
+
+    setSource(canvasOrImage) {
+        if (!canvasOrImage) return;
+        this.sourceCanvas = canvasOrImage;
+        const w = canvasOrImage.naturalWidth || canvasOrImage.videoWidth || canvasOrImage.width;
+        const h = canvasOrImage.naturalHeight || canvasOrImage.videoHeight || canvasOrImage.height;
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+        this.ctx.clearRect(0, 0, w, h);
+        this.ctx.drawImage(canvasOrImage, 0, 0);
+        this.render();
+    }
+
+    reset() {
+        if (!this.sourceCanvas) return;
+        const w = this.sourceCanvas.naturalWidth || this.sourceCanvas.width;
+        const h = this.sourceCanvas.naturalHeight || this.sourceCanvas.height;
+        this.outputCanvas.width = w;
+        this.outputCanvas.height = h;
+        this.ctx.clearRect(0, 0, w, h);
+        this.ctx.drawImage(this.sourceCanvas, 0, 0);
+        if (this.onRender) this.onRender(this.outputCanvas);
+    }
+
+    async render() {
+        if (!this.sourceCanvas) return;
+        if (this.onStart) this.onStart();
+        try {
+            const blob = await this.adapter.remove(this.sourceCanvas, (pct) => {
+                if (this.onProgress) this.onProgress(pct);
+            });
+            const { img, url } = await this.adapter.blobToImage(blob);
+            const w = this.sourceCanvas.naturalWidth || this.sourceCanvas.width;
+            const h = this.sourceCanvas.naturalHeight || this.sourceCanvas.height;
+            this.outputCanvas.width = w;
+            this.outputCanvas.height = h;
+            this.ctx.clearRect(0, 0, w, h);
+            this.ctx.drawImage(img, 0, 0, w, h);
+            URL.revokeObjectURL(url);
+            if (this.onRender) this.onRender(this.outputCanvas);
+            if (this.onFinish) this.onFinish(this.outputCanvas);
+        } catch (err) {
+            if (this.onError) this.onError(err);
+        }
+    }
+
+    getCanvas() {
+        return this.outputCanvas;
+    }
+}
+
+class BgRemoveUINoc {
+    constructor(engine, options = {}) {
+        this.engine = engine;
+        this.onApply = options.onApply || null;
+
+        this.panel = new UI.SmartPanel({
+            id: options.id || 'panel_bg_remove_noc',
+            title: options.title || 'AI Background Remover Noc',
+            x: options.x ?? 80,
+            y: options.y ?? 80,
+            width: 300,
+            floating: options.floating ?? true
+        });
+
+        this.accordion = new UI.Accordion({ exclusive: false });
+        this.panel.append(this.accordion);
+
+        this.buildSettingsSection();
+        this.buildActionButtons();
+    }
+
+    buildSettingsSection() {
+        const it = this.accordion.addItem({ title: 'Opciones', open: true });
+
+        this.fileInput = document.createElement('input');
+        this.fileInput.type = 'file';
+        this.fileInput.accept = 'image/*';
+        this.fileInput.style.display = 'none';
+        this.fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const img = new Image();
+            img.onload = () => {
+                this.engine.setSource(img);
+                URL.revokeObjectURL(img.src);
+            };
+            img.src = URL.createObjectURL(file);
+            this.fileInput.value = '';
+        });
+
+        const rTools = it.addRow(4);
+        const btnProcess = new UI.Button({
+            text: 'Procesar Capa',
+            variant: 'primary',
+            onClick: () => this.engine.render()
+        });
+        const btnUpload = new UI.Button({
+            text: 'Cargar Imagen',
+            onClick: () => this.fileInput.click()
+        });
+        rTools.append(btnProcess);
+        rTools.append(btnUpload);
+    }
+
+    buildActionButtons() {
+        const r = this.panel.addRow(4);
+        const btnReset = new UI.Button({
+            text: 'Restablecer',
+            variant: 'danger',
+            onClick: () => this.engine.reset()
+        });
+        const btnApply = new UI.Button({
+            text: 'Aplicar',
+            variant: 'primary',
+            onClick: () => {
+                if (this.onApply) this.onApply(this.engine.getCanvas());
+            }
+        });
+        r.append(btnReset);
+        r.append(btnApply);
+    }
+}
+</script>
+
 
     <style>
         #custom-context-menu {
@@ -8692,6 +9018,7 @@ this.rightContainer.addPanel(this.colorPicker.element);;
         const rCanvasAdjust = itemLayers.addRow(4);
         rCanvasAdjust.append(new UI.Button({ text: 'View Only This', variant: 'primary', onClick: () => this.app.ajustarCanvasACapaActiva() }));
         rCanvasAdjust.append(new UI.Button({ text: 'Fit to Canvas (W)', onClick: () => this.app.adaptarCapaActivaAlCanvas() }));
+        rCanvasAdjust.append(new UI.Button({ text: 'Canvas Size', onClick: () => this.app.abrirWorkspaceSizeNoc() }));
 
         const rEfectos = itemLayers.addRow(4);
         rEfectos.append(new UI.Button({ text: 'Filers FX', onClick: () => this.app.abrirFiltrosGLFX() }));
@@ -8702,6 +9029,7 @@ this.rightContainer.addPanel(this.colorPicker.element);;
         rEfectos.append(new UI.Button({ text: 'Pixel Art', onClick: () => this.app.abrirPixelArt() }));
         rEfectos.append(new UI.Button({ text: 'Curve', onClick: () => this.app.abrirCurvasRGBA() }));
         rEfectos.append(new UI.Button({ text: 'To tile', variant: 'primary', onClick: () => this.app.abrirTiler() })); 
+        rEfectos.append(new UI.Button({ text: 'AI BG ef', variant: 'primary', onClick: () => this.app.abrirBgRemoveNoc() }));
         
         
 
@@ -8906,7 +9234,94 @@ class EffectsManager {
         this.initTiler();
         this.gradientSourceCanvas = null
         this.initGradients();
+        this.initBgRemoveNoc();
          
+    }
+    initBgRemoveNoc() {
+        this.bgRemoveEngineNoc = new BgRemoveEngineNoc();
+        this.bgRemoveOverlayNoc = new ProcessingOverlayNoc();
+        this.bgRemoveNocActive = false;
+        this.bgRemoveNocOriginalSnapshot = null;
+
+        this.bgRemoveEngineNoc.onStart = () => {
+            this.bgRemoveOverlayNoc.show('Removing background...');
+            this.app.ui.setHUD('Removing background...');
+        };
+
+        this.bgRemoveEngineNoc.onProgress = (pct) => {
+            this.bgRemoveOverlayNoc.setText(`Removing background... ${pct}%`);
+        };
+
+        this.bgRemoveEngineNoc.onFinish = () => {
+            this.bgRemoveOverlayNoc.hide();
+            this.app.ui.setHUD('Background removed');
+        };
+
+        this.bgRemoveEngineNoc.onError = (err) => {
+            this.bgRemoveOverlayNoc.hide();
+            this.app.ui.setHUD('Error removing background');
+            alert(err.message);
+        };
+
+        this.bgRemoveEngineNoc.onRender = (filteredCanvas) => {
+            const act = this.app.layers.getActiveLayer();
+            if (!act || !this.bgRemoveNocActive) return;
+            act.ctx.clearRect(0, 0, act.width, act.height);
+            act.ctx.drawImage(filteredCanvas, 0, 0, act.width, act.height);
+        };
+
+        this.bgRemoveUINoc = new BgRemoveUINoc(this.bgRemoveEngineNoc, {
+            title: 'AI Background Remover Noc',
+            x: 80,
+            y: 80,
+            floating: true,
+            onApply: () => {
+                const act = this.app.layers.getActiveLayer();
+                if (!act || !this.bgRemoveNocOriginalSnapshot) return;
+                const before = this.bgRemoveNocOriginalSnapshot;
+                const after = act.getSnapshot();
+                this.app.history.push({
+                    undo: () => { act.restoreSnapshot(before); this.app.ajustarCanvasACapaActiva(); },
+                    redo: () => { act.restoreSnapshot(after); this.app.ajustarCanvasACapaActiva(); }
+                });
+                this.bgRemoveNocOriginalSnapshot = after;
+                this.bgRemoveNocActive = false;
+                this.bgRemoveUINoc.panel.close();
+                this.app.ajustarCanvasACapaActiva();
+            }
+        });
+
+        const prevClose = this.bgRemoveUINoc.panel.onCloseCallback;
+        this.bgRemoveUINoc.panel.onCloseCallback = (p) => {
+            if (prevClose) prevClose(p);
+            if (this.bgRemoveNocActive && this.bgRemoveNocOriginalSnapshot) {
+                const act = this.app.layers.getActiveLayer();
+                if (act) act.restoreSnapshot(this.bgRemoveNocOriginalSnapshot);
+                this.bgRemoveNocActive = false;
+                this.app.ajustarCanvasACapaActiva();
+            }
+        };
+        this.bgRemoveUINoc.panel.close();
+    }
+
+   abrirBgRemoveNoc() {
+        const act = this.app.layers.getActiveLayer();
+        if (!act) return alert('No hay capa activa');
+
+        if (!this.bgRemoveUINoc) this.initBgRemoveNoc();
+
+        this.bgRemoveNocOriginalSnapshot = act.getSnapshot();
+        this.bgRemoveNocActive = true;
+
+        if (!this.bgRemoveNocSourceCanvas) this.bgRemoveNocSourceCanvas = document.createElement('canvas');
+        this.bgRemoveNocSourceCanvas.width = act.width;
+        this.bgRemoveNocSourceCanvas.height = act.height;
+        const sctx = this.bgRemoveNocSourceCanvas.getContext('2d');
+        sctx.clearRect(0, 0, act.width, act.height);
+        sctx.drawImage(act.canvas, 0, 0);
+
+        this.bgRemoveUINoc.panel.open();
+        this.bgRemoveEngineNoc.setSource(this.bgRemoveNocSourceCanvas);
     }
     initBackgroundRemover() {
         if (typeof BackgroundRemover !== 'undefined') {
@@ -9580,6 +9995,134 @@ this.app.ui.stage.addEventListener('pointerleave', () => {
         this.layers.createLayer('Fondo', this.defaultWidth, this.defaultHeight);
         requestAnimationFrame(() => this.ajustarCanvasACapaActiva());
     }
+    resizeWorkspace(newW, newH, mode = 'crop') {
+        const w = Math.max(1, Math.min(8192, parseInt(newW, 10)));
+        const h = Math.max(1, Math.min(8192, parseInt(newH, 10)));
+        if (isNaN(w) || isNaN(h)) return;
+
+        const prevInitialW = this.initialCanvasWidth;
+        const prevInitialH = this.initialCanvasHeight;
+        const prevDefaultW = this.defaultWidth;
+        const prevDefaultH = this.defaultHeight;
+
+        const snapshots = this.layers.layers.map(l => ({
+            layer: l,
+            data: l.getSnapshot(),
+            origW: l.originalWidth,
+            origH: l.originalHeight
+        }));
+
+        this.initialCanvasWidth = w;
+        this.initialCanvasHeight = h;
+        this.defaultWidth = w;
+        this.defaultHeight = h;
+        this.layers.defaultWidth = w;
+        this.layers.defaultHeight = h;
+
+        this.layers.layers.forEach(l => {
+            if (mode === 'scale') {
+                l.setSize(w, h, true);
+            } else {
+                const temp = document.createElement('canvas');
+                temp.width = l.width;
+                temp.height = l.height;
+                temp.getContext('2d').drawImage(l.canvas, 0, 0);
+                l.setSize(w, h, false);
+                l.ctx.drawImage(temp, 0, 0);
+            }
+            l.originalWidth = w;
+            l.originalHeight = h;
+        });
+
+        if (this.ui.layersContainer) {
+            this.ui.layersContainer.style.width = w + 'px';
+            this.ui.layersContainer.style.height = h + 'px';
+        }
+        this.syncInteractiveCanvases(w, h);
+        this.centerView(w, h);
+        if (this.ui.reorderList) {
+            const act = this.layers.getActiveLayer();
+            this.ui.reorderList.setItems(
+                this.layers.getLayerList(),
+                act ? this.layers.layers.findIndex(l => l.id === act.id) : 0
+            );
+        }
+        this.ui.setHUD(`Lienzo: ${w}x${h} px`);
+
+        const afterSnapshots = this.layers.layers.map(l => ({
+            layer: l,
+            data: l.getSnapshot(),
+            origW: l.originalWidth,
+            origH: l.originalHeight
+        }));
+
+        this.history.push({
+            undo: () => {
+                this.initialCanvasWidth = prevInitialW;
+                this.initialCanvasHeight = prevInitialH;
+                this.defaultWidth = prevDefaultW;
+                this.defaultHeight = prevDefaultH;
+                this.layers.defaultWidth = prevDefaultW;
+                this.layers.defaultHeight = prevDefaultH;
+                snapshots.forEach(s => {
+                    s.layer.originalWidth = s.origW;
+                    s.layer.originalHeight = s.origH;
+                    s.layer.restoreSnapshot(s.data);
+                });
+                const act = this.layers.getActiveLayer();
+                const rw = act ? act.width : prevDefaultW;
+                const rh = act ? act.height : prevDefaultH;
+                if (this.ui.layersContainer) {
+                    this.ui.layersContainer.style.width = rw + 'px';
+                    this.ui.layersContainer.style.height = rh + 'px';
+                }
+                this.syncInteractiveCanvases(rw, rh);
+                this.centerView(rw, rh);
+                if (this.ui.reorderList) {
+                    this.ui.reorderList.setItems(
+                        this.layers.getLayerList(),
+                        act ? this.layers.layers.findIndex(l => l.id === act.id) : 0
+                    );
+                }
+            },
+            redo: () => {
+                this.initialCanvasWidth = w;
+                this.initialCanvasHeight = h;
+                this.defaultWidth = w;
+                this.defaultHeight = h;
+                this.layers.defaultWidth = w;
+                this.layers.defaultHeight = h;
+                afterSnapshots.forEach(s => {
+                    s.layer.originalWidth = s.origW;
+                    s.layer.originalHeight = s.origH;
+                    s.layer.restoreSnapshot(s.data);
+                });
+                if (this.ui.layersContainer) {
+                    this.ui.layersContainer.style.width = w + 'px';
+                    this.ui.layersContainer.style.height = h + 'px';
+                }
+                this.syncInteractiveCanvases(w, h);
+                this.centerView(w, h);
+                if (this.ui.reorderList) {
+                    const act = this.layers.getActiveLayer();
+                    this.ui.reorderList.setItems(
+                        this.layers.getLayerList(),
+                        act ? this.layers.layers.findIndex(l => l.id === act.id) : 0
+                    );
+                }
+            }
+        });
+    }
+
+    abrirWorkspaceSizeNoc() {
+        if (!this.workspaceSizeUINoc) {
+            this.workspaceSizeUINoc = new WorkspaceSizeUINoc(this);
+        }
+        this.workspaceSizeUINoc.open();
+    }
+    abrirBgRemoveNoc() {
+        this.effects.abrirBgRemoveNoc();
+    }
     abrirTiler() {
         this.effects.abrirTiler();
     }
@@ -9805,7 +10348,7 @@ const viewportEl = document.getElementById('viewport-transform');
         });
 
         this.selection.clear();
-        this.ajustarCanvasACapaActiva();
+    //    this.ajustarCanvasACapaActiva();
     }
 
     
